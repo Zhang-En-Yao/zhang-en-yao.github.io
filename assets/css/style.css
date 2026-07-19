@@ -1203,27 +1203,6 @@ body.is-locked { overflow: hidden; }
 
 .lightbox-caption[hidden] { display: none; }
 
-/* Shown over the reserved frame while the photo is on its way from the resize proxy, and
-   cleared the moment it loads. The wrapper owns the centring so the inner .spinner is free
-   to keep the whole `transform` for its own rotation. Light on the dark backdrop. */
-.lightbox-spinner {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  display: none;
-}
-
-.lightbox.is-loading .lightbox-spinner { display: block; }
-
-.lightbox-spinner .spinner {
-  width: 2.2rem;
-  height: 2.2rem;
-  border-width: 3px;
-  border-color: rgb(255 255 255 / 25%);
-  border-top-color: rgb(255 255 255 / 90%);
-}
-
 /* White regardless of theme: these sit on the dimmed backdrop, not on the page. */
 .lightbox-btn {
   display: flex;

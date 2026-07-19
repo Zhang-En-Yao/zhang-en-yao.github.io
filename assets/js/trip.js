@@ -551,20 +551,13 @@ function initLightbox(bodyEl, photos) {
     </figure>
     <button class="lightbox-btn lightbox-next" type="button" data-step="1" aria-label="Next photo">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
-    </button>
-    <div class="lightbox-spinner" aria-hidden="true"><span class="spinner"></span></div>`;
+    </button>`;
   document.body.appendChild(box);
 
   const imgEl = box.querySelector('.lightbox-img');
   const capEl = box.querySelector('.lightbox-caption');
   const closeEl = box.querySelector('[data-close]');
   const stepEls = [...box.querySelectorAll('[data-step]')];
-
-  // `is-loading` shows the spinner over the reserved frame; the image clears it once the
-  // proxy hands the photo over. Bound once, not per photo, so switching never stacks them.
-  const doneLoading = () => box.classList.remove('is-loading');
-  imgEl.addEventListener('load', doneLoading);
-  imgEl.addEventListener('error', doneLoading);
 
   let at = 0;
   let opener = null; // Where focus came from, and where it has to go back to.
@@ -574,11 +567,7 @@ function initLightbox(bodyEl, photos) {
     capEl.textContent = photos[at].alt || '';
     capEl.hidden = !photos[at].alt;
     imgEl.alt = photos[at].alt;
-    box.classList.add('is-loading');
     imgEl.src = photos[at].src;
-    // A cached photo is already complete the instant src is set and fires no load event, so
-    // it would strand the spinner — clear it here for that case.
-    if (imgEl.complete && imgEl.naturalWidth) doneLoading();
   }
 
   function open(i, from) {
