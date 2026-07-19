@@ -1,0 +1,45 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Travels</title>
+<link rel="stylesheet" href="assets/css/style.css">
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="icon-btn" href="index.html" aria-label="Home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
+    </a>
+    <button id="theme-toggle" class="icon-btn" aria-label="Toggle theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="intro">
+    <h1>Travels</h1>
+    <p class="lede">Every place I've been. Pick a dot, or scroll for the list.</p>
+  </section>
+
+  <p id="stats" class="travel-stats"></p>
+
+  <div id="next"></div>
+
+  <section id="map" class="map">
+    <div class="empty">
+      <div class="empty-header">
+        <div class="empty-media"><span class="spinner" aria-hidden="true"></span></div>
+        <p class="empty-title">Loading the map…</p>
+        <p class="empty-description">Fetching the world outline and the trip index.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="list" class="trip-list"></section>
+</main>
+
+<script src="assets/js/theme.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-array@3/dist/d3-array.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-geo@3/dist/d3-geo.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+<script src="assets/js/travel.js"></script>

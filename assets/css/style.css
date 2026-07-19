@@ -1,0 +1,1622 @@
+/* ---------- tokens ---------- */
+
+:root {
+  --bg: #fbfaf8;
+  --surface: #ffffff;
+  --text: #1e1c1a;
+  --muted: #6b6560;
+  --faint: #948f89;
+  --line: #e5e1db;
+  --accent: #8a4b2a;
+  --accent-soft: #f2e9e3;
+
+  --radius: 10px;
+  --radius-sm: 4px;
+  --radius-pill: 999px;
+
+  --serif: "Iowan Old Style", "Source Serif 4", Georgia, "Songti TC", "Noto Serif TC", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Noto Sans TC", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+}
+
+[data-theme="dark"] {
+  --bg: #16151a;
+  --surface: #1e1d23;
+  --text: #e8e5e0;
+  --muted: #a09a94;
+  --faint: #746e68;
+  --line: #2e2c34;
+  --accent: #d99a6c;
+  --accent-soft: #2a2229;
+}
+
+/* ---------- base ---------- */
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Form controls don't inherit the page font. Anything that can land inside the
+   serif .note column (.btn, .empty-description) still names --sans explicitly. */
+button, input, textarea, select { font-family: inherit; }
+
+.wrap {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ---------- shared interactions ---------- */
+
+/* Every interactive surface resolves to the accent on hover; the only difference
+   is whether it has a border to carry it. */
+.toc a:hover,
+.note-card:hover .note-card-title {
+  color: var(--accent);
+}
+
+.icon-btn:hover,
+.chat-header .icon-btn:hover,
+.tag:hover,
+.btn:hover,
+.chat-chip:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.chat-fab:hover { border-color: var(--accent); }
+
+/* The chat composer draws the border for its textarea, so it takes the focus ring
+   on behalf of the control inside it. */
+#search:focus,
+.chat-form:focus-within {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ---------- shared code styling ---------- */
+
+/* Inline code and code blocks look the same wherever prose is rendered: the note
+   body, a chat reply, or an empty state's hint. */
+.note code,
+.chat-msg code,
+.empty-description code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: var(--accent-soft);
+  padding: 0.12em 0.35em;
+  border-radius: var(--radius-sm);
+}
+
+.note pre,
+.chat-msg pre {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+.chat-msg pre { padding: 0.7rem; }
+
+.note .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
+
+.note pre code,
+.chat-msg pre code { background: none; padding: 0; }
+
+.note pre code { font-size: 0.85rem; }
+
+/* ---------- header ---------- */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(150%) blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+
+.site-header .wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 3.5rem;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  border-radius: var(--radius-pill);
+  width: 2rem;
+  height: 2rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.icon-btn svg { width: 1rem; height: 1rem; }
+
+/* ---------- home ---------- */
+
+.intro { padding: 3.5rem 0 2rem; }
+
+.intro h1 {
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  margin: 0 0 0.4rem;
+  letter-spacing: -0.01em;
+}
+
+.lede { color: var(--muted); margin: 0; }
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding-bottom: 1.1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.search-field { position: relative; }
+
+#search {
+  width: 100%;
+  /* Right padding is the switch's cutout: text scrolls under it otherwise. */
+  padding: 0.65rem 4.1rem 0.65rem 0.9rem;
+  font-size: 0.95rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+/* Safari draws its own clear button at the inner right edge, right under the switch. */
+#search::-webkit-search-cancel-button { display: none; }
+
+/* Exact ⇄ Semantic, sitting inside the input rather than beside it. Both icons stay
+   visible — a switch that only showed the active one would not say what it toggles
+   to — and the thumb slides to whichever is live. */
+.search-switch {
+  position: absolute;
+  top: 50%;
+  right: 0.35rem;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  width: 3.3rem;
+  height: 1.75rem;
+  padding: 2px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.search-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(50% - 2px);
+  height: calc(100% - 4px);
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+  transition: transform 0.18s ease;
+}
+
+.search-switch[aria-checked="true"] .search-switch-thumb { transform: translateX(100%); }
+
+.search-switch-icon {
+  position: relative; /* Above the thumb, which is what gives the active icon its disc. */
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  transition: color 0.18s ease;
+}
+
+.search-switch-icon svg { width: 0.95rem; height: 0.95rem; }
+
+/* The icon the thumb is under is the live one, so it inverts. */
+.search-switch[aria-checked="false"] .search-switch-icon:first-of-type,
+.search-switch[aria-checked="true"] .search-switch-icon:last-of-type { color: #fff; }
+
+.search-switch:hover { border-color: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .search-switch-thumb,
+  .search-switch-icon { transition: none; }
+}
+
+/* Only present while it has something to say — an empty status line would push the
+   tags a whole row away from the search box for the 99% of the time it says nothing.
+   The explicit [hidden] rule is not redundant: the UA's display:none loses to the
+   display:flex above, which is an author rule of equal specificity. */
+.search-status {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--faint);
+}
+
+.search-status[hidden] { display: none; }
+
+.search-status.is-error { color: var(--accent); }
+
+.search-status .spinner {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-width: 1.5px;
+}
+
+.tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+.tag {
+  font-size: 0.78rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.tag.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* ---------- hub ---------- */
+
+.hub {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1rem;
+  padding-bottom: 4rem;
+}
+
+.hub-card {
+  display: block;
+  padding: 1.6rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: inherit;
+}
+
+.hub-card:hover { border-color: var(--accent); }
+
+.hub-media {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-bottom: 1rem;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.hub-media svg { width: 1.4rem; height: 1.4rem; }
+
+.hub-title {
+  font-family: var(--serif);
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 0 0 0.3rem;
+}
+
+.hub-card:hover .hub-title { color: var(--accent); }
+
+.hub-description { font-size: 0.92rem; color: var(--muted); margin: 0; }
+
+/* ---------- travel map ---------- */
+
+.travel-stats {
+  margin: 0 0 0.9rem;
+  font-size: 0.8rem;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* The one trip on this page that hasn't happened yet, so it gets the accent and the
+   rest of the page stays in greys. Inline-flex: the banner is as wide as its text,
+   which keeps it reading as a note above the map rather than a bar across it. */
+.travel-next {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0 0 0.9rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  font-size: 0.82rem;
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 0.28s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.travel-next:hover { border-color: var(--accent); }
+
+.travel-next-label {
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.travel-next-place { font-weight: 600; }
+
+.travel-next-when {
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .travel-next { transition: none; }
+}
+
+/* The tooltip is positioned against this box, so it has to be the containing block. */
+.map { position: relative; }
+
+.map-svg { display: block; width: 100%; height: auto; }
+
+/* How far the map is zoomed in. Set by the script on `.map`, read by everything drawn in
+   map units that must not grow with the zoom. 1 is the whole world. */
+.map { --map-k: 1; }
+
+/* The travel: a click on a country flies to its continent, and the next one to the country.
+   Slow enough to follow the land moving — which is the whole point, since the frame that
+   arrives is only legible if you saw where it came from. */
+.map-scene { transition: transform 0.72s cubic-bezier(0.33, 1, 0.68, 1); }
+
+/* The land is the page's rule colour: present, but never competing with the dots.
+   The hairline between countries is the background showing through. */
+.map-country {
+  fill: var(--line);
+  stroke: var(--bg);
+  stroke-width: calc(0.5px / var(--map-k));
+  cursor: pointer;
+  transition: fill 0.28s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+/* Somewhere I've been, tinted rather than filled: mixing against the land keeps it a
+   shade *of* the map in both themes, instead of a light wash that vanishes in one.
+   Ordered before the hover rules on purpose — it carries the same specificity as
+   `.map-country:hover`, so the one that wins is whichever is written last. */
+.map-country.is-visited { fill: color-mix(in srgb, var(--accent) 30%, var(--line)); }
+
+/* Every country lights up under the pointer, visited or not — each one carries a <title>
+   with its name, so the highlight is what tells you which shape that name belongs to. */
+.map-country:hover { fill: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+
+/* Somewhere I've been goes further, so the two never read as the same state. */
+.map-country.is-visited:hover { fill: color-mix(in srgb, var(--accent) 70%, var(--line)); }
+
+.map-marker { cursor: pointer; }
+
+/* The overshoot is the point: the dot springs out rather than inflating, which is what
+   makes it feel like it answered you. */
+/* Sized against the zoom rather than in flat map units: a dot is a label for a city, not a
+   thing on the ground, so it stays the same size on screen however far the map flies in.
+   Dividing it back out here is also what lets `r` keep its spring — the transition below
+   catches the zoom's change of size for free. */
+.map-marker-dot {
+  fill: var(--accent);
+  stroke: var(--bg);
+  stroke-width: calc(1.5px / var(--map-k));
+  r: calc(4px / var(--map-k));
+  transition: r 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* The real hit target. A 4px dot is an unfair thing to ask anyone to hit, least of all
+   on a phone, so an invisible disc more than twice its size takes the pointer. */
+.map-marker-halo {
+  fill: transparent;
+  r: calc(9px / var(--map-k));
+}
+
+.map-marker:hover .map-marker-dot,
+.map-marker.is-active .map-marker-dot { r: calc(6px / var(--map-k)); }
+
+.map-marker:focus-visible { outline: none; }
+
+.map-marker:focus-visible .map-marker-halo {
+  fill: color-mix(in srgb, var(--accent) 22%, transparent);
+  stroke: var(--accent);
+  stroke-width: calc(1px / var(--map-k));
+}
+
+/* Glass: enough of the surface to hold text against a coastline, but thin enough that the
+   land still reads through it. The blur is what buys the legibility that the missing
+   opacity would have — without it this is just faint text on a busy map.
+   `saturate` compensates the wash-out that blurring alone leaves behind. */
+.glass {
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  backdrop-filter: blur(12px) saturate(1.6);
+  -webkit-backdrop-filter: blur(12px) saturate(1.6);
+  border: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+}
+
+/* Where the blur cannot be had, the glass would be unreadable rather than merely plain,
+   so it pays the opacity back. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass { background: color-mix(in srgb, var(--surface) 92%, transparent); }
+}
+
+/* Where you are and the way back. Sits over the map's own corner rather than above it, so
+   arriving at a continent doesn't shove the whole page down a line. */
+.map-nav {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* An .icon-btn, minus the fill: the map behind it is the background. */
+.map-back { background: color-mix(in srgb, var(--surface) 55%, transparent); }
+
+/* Bare text over the map, held up by the blur alone — a place name reads as a label on the
+   map rather than a chip sitting on top of it. */
+.map-crumb {
+  padding: 0.2rem 0.6rem;
+  font-family: var(--serif);
+  font-size: 0.82rem;
+  color: var(--muted);
+  border-radius: var(--radius-pill);
+}
+
+/* Nothing to name at the world level, and an empty pill is worse than none. */
+.map-crumb:empty { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .map-country,
+  .map-marker-dot,
+  .map-scene,
+  .map-tip { transition: none; }
+}
+
+/* Fades and lifts into place rather than blinking on. `visibility` is what keeps it out
+   of the way when it is off — `display: none` cannot be transitioned, so it would take
+   the fade with it — and its own delay is what holds it visible until the fade is done. */
+.map-tip {
+  position: absolute;
+  z-index: 5;
+  visibility: hidden;
+  opacity: 0;
+  transform: translate(-50%, calc(-100% - 0.1rem));
+  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.33, 1, 0.68, 1),
+    visibility 0s linear 0.2s;
+  pointer-events: none;
+  padding: 0.35rem 0.7rem;
+  /* Not the pill: this one stacks a name over a date, and a pill radius on two lines
+     rounds the sides away into a balloon. The crumb, being one line, stays a pill. */
+  border-radius: var(--radius);
+  /* No drop shadow: the blur already separates it from the land, and a shadow on glass
+     reads as a card floating above the map instead of a label lying on it. */
+  white-space: nowrap;
+}
+
+.map-tip.is-on {
+  visibility: visible;
+  opacity: 1;
+  transform: translate(-50%, calc(-100% - 0.6rem));
+  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.33, 1, 0.68, 1),
+    visibility 0s;
+}
+
+.map-tip-title {
+  display: block;
+  font-family: var(--serif);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.map-tip-meta {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- trip list ---------- */
+
+.trip-list { padding: 2.5rem 0 4rem; }
+
+.trip-card {
+  display: flex;
+  gap: 1.1rem;
+  align-items: center;
+  padding: 1.2rem 0;
+  border-bottom: 1px solid var(--line);
+  text-decoration: none;
+  color: inherit;
+}
+
+/* The country itself, scaled to fill the frame — so a card is legible at a glance as
+   "Japan" rather than as a photo that could have been taken anywhere. */
+.trip-card-map {
+  flex-shrink: 0;
+  width: 7rem;
+  height: 7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.trip-card-map-shape {
+  fill: color-mix(in srgb, var(--accent) 28%, var(--line));
+  transition: fill 0.28s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.trip-card-map-dot { fill: var(--accent); }
+
+.trip-card:hover .trip-card-map { border-color: var(--accent); }
+
+.trip-card:hover .trip-card-map-shape {
+  fill: color-mix(in srgb, var(--accent) 62%, var(--line));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trip-card-map-shape { transition: none; }
+}
+
+.trip-card-body { min-width: 0; }
+
+.trip-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A quiet pill on the New-Year trips — the ones that left in December and came back in
+   January. Accent-tinted so it reads as a marker, not another line of meta text. */
+.trip-card-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+.trip-card-title {
+  font-family: var(--serif);
+  font-size: 1.3rem;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0.2rem 0 0.3rem;
+}
+
+.trip-card:hover .trip-card-title { color: var(--accent); }
+
+.trip-card-duration { font-size: 0.92rem; color: var(--muted); margin: 0; }
+
+/* ---------- note list ---------- */
+
+.note-list { padding: 1rem 0 4rem; }
+
+.note-card {
+  display: block;
+  padding: 1.6rem 0;
+  border-bottom: 1px solid var(--line);
+  text-decoration: none;
+  color: inherit;
+}
+
+.note-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Semantic mode only: how close this note was to the query. Shown because the
+   ranking is otherwise unexplainable — and because the cutoff is a guess worth
+   checking against real scores. */
+.note-card-score {
+  margin-left: auto;
+  color: var(--accent);
+}
+
+.note-card-title {
+  font-family: var(--serif);
+  font-size: 1.3rem;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0.35rem 0 0.3rem;
+}
+
+.note-card-authors { font-size: 0.85rem; color: var(--muted); margin: 0 0 0.5rem; }
+
+.note-card-summary { font-size: 0.92rem; color: var(--muted); margin: 0 0 0.7rem; }
+
+.note-card .tags .tag { cursor: default; pointer-events: none; }
+
+/* ---------- empty / loading state ---------- */
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.4rem;
+  text-align: center;
+  padding: 3rem 1.5rem;
+  margin: 2rem 0;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+}
+
+.empty-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 26rem;
+}
+
+.empty-media {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-bottom: 0.6rem;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.empty-media svg { width: 1.3rem; height: 1.3rem; }
+
+.empty-title {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text);
+  margin: 0;
+}
+
+.empty-description {
+  font-family: var(--sans);
+  font-size: 0.88rem;
+  line-height: 1.65;
+  color: var(--muted);
+  margin: 0;
+}
+
+.empty-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.85rem;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.spinner {
+  width: 1.2rem;
+  height: 1.2rem;
+  border: 2px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  border-top-color: var(--accent);
+  border-radius: var(--radius-pill);
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 2.4s; }
+}
+
+/* ---------- note page ---------- */
+
+.note-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  gap: 3rem;
+  align-items: start;
+  padding-top: 3rem;
+  padding-bottom: 5rem;
+  max-width: 1060px;
+}
+
+/* ---------- the region band above a trip ---------- */
+
+/* An <aside> under the title: what the trip was, then where it was, then the trip itself.
+   Its own element rather than part of the header, because it is the one thing on the page
+   the prose does not depend on. Bled a little wider so it reads as a band, not a figure. */
+.note-aside { display: block; }
+
+.region-map {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0 0 2rem;
+  background: var(--bg);
+}
+
+.region-country {
+  fill: var(--line);
+  stroke: var(--bg);
+  stroke-width: 0.6;
+}
+
+/* The country this trip is filed under, held a shade above its neighbours — the dots say
+   where you were, this says which coastline to read them against. */
+.region-country.is-here { fill: color-mix(in srgb, var(--accent) 26%, var(--line)); }
+
+.region-city-dot {
+  fill: var(--accent);
+  stroke: var(--bg);
+  stroke-width: 1.5;
+}
+
+/* The halo is what makes a name readable over a coastline: the stroke is painted first and
+   the letters sit on top of it, so the text carries its own background wherever it lands. */
+.region-city-label {
+  font-family: var(--sans);
+  font-size: 12px;
+  fill: var(--text);
+  stroke: var(--bg);
+  stroke-width: 3px;
+  paint-order: stroke;
+  stroke-linejoin: round;
+  dominant-baseline: middle;
+}
+
+.region-city.is-flipped .region-city-label { text-anchor: end; }
+
+/* Only drawn for a label that had to move: it ties the name back to the dot it names. */
+.region-city-leader {
+  stroke: var(--faint);
+  stroke-width: 1;
+}
+
+/* ---------- the flights above a trip ---------- */
+
+/* Sans, boxed and tabular, sitting between the map and the prose: a boarding pass is a
+   table of facts, and it should not pretend to be part of the travelogue's voice. */
+.flights { margin: 0 0 1rem; }
+
+.flight {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 1.5rem 1.5rem;
+  font-family: var(--sans);
+}
+
+.flight + .flight { margin-top: 0.7rem; }
+
+.flight-head {
+  display: flex;
+  justify-content: center;
+  font-size: 0.78rem;
+  padding: 0 0 1rem;
+}
+
+/* The direction is the quiet half of the caption: the route beside it already says which
+   way the leg runs, so the word only needs to name it — faint, not bold. */
+.flight-name { color: var(--faint); letter-spacing: 0.01em; }
+
+/* The journey itself, city to city — the head's headline, so it keeps the ink. */
+.flight-route { font-weight: 600; letter-spacing: 0.01em; }
+
+/* A hairline dot parts the two, but only when a label is there to precede it. */
+.flight-name + .flight-route::before {
+  content: "·";
+  margin-right: 0.5rem;
+  color: var(--line);
+}
+
+.flight-date { color: var(--faint); font-variant-numeric: tabular-nums; }
+
+/* Scoped past `.note ol/li`, which would otherwise lend this list the prose indent and
+   the row spacing meant for the travelogue — and the indent is what pushes the whole leg
+   off the card's centre line. */
+.flights .flight-legs { list-style: none; margin: 0; padding: 0; }
+
+.flights li { margin: 0; }
+
+/* Equal flanks around a bounded middle track, so the line — and the plane pinned to its
+   midpoint — sits at the card's exact centre on every leg, whatever the airport names
+   weigh. Centring the whole three-column unit instead would drift with the names: two
+   legs' planes would no longer share a vertical axis. The ends centre within their own
+   halves, reading as one balanced block. */
+.flight-leg {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(4rem, 13rem) minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.leg-end { display: grid; text-align: center; }
+
+.leg-code {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.3;
+}
+
+.leg-time { font-size: 0.85rem; font-variant-numeric: tabular-nums; line-height: 1.4; }
+
+/* The day this end falls on, on its own line under the time — so a leg that crosses
+   midnight prints the later date plainly beneath its clock. Faint and unbolded: the code is
+   the headline, the date a quiet gloss below it, not a flag competing with it. */
+.leg-day {
+  font-size: 0.72rem;
+  color: var(--faint);
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+
+.leg-path {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.leg-line {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 1px;
+  background: var(--line);
+}
+
+/* Carrying the card's own background, so the line stops at the plane's edges instead of
+   running through it. */
+.leg-plane {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(45deg);
+  width: 0.95rem;
+  height: 0.95rem;
+  padding: 0 0.15rem;
+  box-sizing: content-box;
+  color: var(--faint);
+  background: var(--surface);
+}
+
+.leg-carrier {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-align: center;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* A dashed rule with the wait written into it — the gap between two legs, drawn as a gap.
+   Scoped past `.flights li` above so it keeps its own vertical margin. */
+.flights .flight-layover {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.72rem;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+  margin: 1.3rem 0;
+}
+
+.flight-layover::before,
+.flight-layover::after {
+  content: "";
+  flex: 1;
+  border-top: 1px dashed var(--line);
+}
+
+.note-header { margin-bottom: 2.5rem; }
+
+/* The title is an <a> to the source, so it stays inline — it takes its colour from
+   `.note a` below. */
+.note-header a {
+  font-family: var(--serif);
+  font-size: 2.1rem;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+/* A trip's title is the page's own, not a link out to a source the way a paper's is. */
+.note-header h1 {
+  font-family: var(--serif);
+  font-size: 2.1rem;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.3rem;
+}
+
+.note-header .authors { color: var(--muted); margin: 0 0 0.25rem; }
+
+.note-header .venue { color: var(--faint); font-size: 0.9rem; margin: 0 0 0.5rem; }
+
+.note-header .publish-date {
+  font-size: 0.8rem;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  margin: 0 0 1rem;
+}
+
+.note {
+  font-family: var(--serif);
+  font-size: 1.06rem;
+  min-width: 0;
+}
+
+.note h2 {
+  font-size: 1.4rem;
+  margin: 2.8rem 0 0.9rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--line);
+  letter-spacing: -0.005em;
+}
+
+.note h3 { font-size: 1.15rem; margin: 2rem 0 0.6rem; }
+
+.note p { margin: 0 0 1.1rem; }
+
+.note ul, .note ol { padding-left: 1.3rem; margin: 0 0 1.1rem; }
+
+.note li { margin-bottom: 0.55rem; }
+
+.note li::marker { color: var(--faint); }
+
+.note a { color: var(--accent); text-underline-offset: 2px; }
+
+.note blockquote {
+  margin: 1.4rem 0;
+  padding: 0.2rem 0 0.2rem 1.1rem;
+  border-left: 3px solid var(--accent);
+  color: var(--muted);
+  font-style: italic;
+}
+
+.note table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  margin: 0 0 1.2rem;
+}
+
+.note th, .note td {
+  border: 1px solid var(--line);
+  padding: 0.5rem 0.7rem;
+  text-align: left;
+}
+
+.note th { background: var(--surface); font-weight: 600; }
+
+.note hr { border: none; border-top: 1px solid var(--line); margin: 2.5rem 0; }
+
+.note img { max-width: 100%; height: auto; border-radius: var(--radius); }
+
+.table-scroll { overflow-x: auto; }
+
+/* ---------- photos ---------- */
+
+/* A run of images in one paragraph becomes a single-row filmstrip: every photo sits on
+   one line at the same height (`--row`), and anything past the column's width scrolls
+   sideways rather than wrapping to a second row. Equal height is what aligns them top and
+   bottom; each photo's width follows its own aspect ratio (`--ar`, w/h, set from the loaded
+   image by trip.js), so nothing is cropped once the ratio is known. */
+.photo-grid {
+  --row: 23rem;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 1.6rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.photo-grid .photo {
+  --ar: 1.5; /* A guess, until the image loads and reports its true ratio. */
+  flex: 0 0 auto;
+  height: var(--row);
+  width: calc(var(--ar) * var(--row));
+}
+
+.photo-figure { margin: 1.6rem 0; }
+
+/* The photo is a button, so it must not look like one. */
+.photo {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: var(--radius);
+  cursor: zoom-in;
+  overflow: hidden;
+}
+
+.photo img {
+  display: block;
+  width: 100%;
+  border-radius: var(--radius);
+  transition: opacity 0.15s ease;
+}
+
+.photo:hover img { opacity: 0.88; }
+
+/* No focus ring on the cells: the grid clips it top and bottom against the fixed row
+   height, and closing the lightbox restores focus to the cell that opened it — so the ring
+   flashes back onto the thumbnail, half cut off. */
+.photo:focus-visible { outline: none; }
+
+/* The cell is fixed at the row height and widened to the photo's aspect ratio, so the
+   image fills it exactly. object-fit: cover only bites during the brief window before the
+   real ratio loads and the guessed 1.5 is still in force. */
+.photo-grid .photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* A skeleton fills each cell until its thumbnail arrives — the reserved box would otherwise
+   be blank. A tint of the theme's own greys, so it reads in light and dark alike, with a
+   sheen sweeping across to say "loading" rather than "broken". Cleared by JS on load. */
+.photo-grid .photo.is-loading {
+  position: relative;
+  background: color-mix(in srgb, var(--muted) 14%, transparent);
+}
+
+.photo-grid .photo.is-loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in srgb, var(--muted) 18%, transparent) 50%,
+    transparent 70%
+  );
+  transform: translateX(-100%);
+  animation: photo-shimmer 1.3s ease-in-out infinite;
+}
+
+@keyframes photo-shimmer { to { transform: translateX(100%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .photo-grid .photo.is-loading::after { animation: none; }
+}
+
+.photo-figure figcaption {
+  margin-top: 0.5rem;
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--faint);
+  text-align: center;
+}
+
+/* ---------- lightbox ---------- */
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1.5rem;
+  background: rgb(0 0 0 / 82%);
+  backdrop-filter: blur(4px);
+}
+
+.lightbox[hidden] { display: none; }
+
+/* The page behind must not scroll under the overlay. */
+body.is-locked { overflow: hidden; }
+
+.lightbox-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0;
+  min-width: 0;
+}
+
+.lightbox-img {
+  max-width: 100%;
+  max-height: calc(100vh - 8rem);
+  /* Holds the frame open while the photo loads, so the caption and the arrows don't collapse
+     inward onto an empty box. Every photo is larger than this once loaded, so the min never
+     bites the final size; a portrait's letterboxing falls on the dark backdrop, unseen. */
+  min-width: min(70vw, 44rem);
+  min-height: min(50vh, 26rem);
+  object-fit: contain;
+  border-radius: var(--radius);
+}
+
+.lightbox-caption {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: rgb(255 255 255 / 72%);
+  text-align: center;
+  max-width: 40rem;
+}
+
+.lightbox-caption[hidden] { display: none; }
+
+/* Shown over the reserved frame while the photo is on its way from the resize proxy, and
+   cleared the moment it loads. The wrapper owns the centring so the inner .spinner is free
+   to keep the whole `transform` for its own rotation. Light on the dark backdrop. */
+.lightbox-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: none;
+}
+
+.lightbox.is-loading .lightbox-spinner { display: block; }
+
+.lightbox-spinner .spinner {
+  width: 2.2rem;
+  height: 2.2rem;
+  border-width: 3px;
+  border-color: rgb(255 255 255 / 25%);
+  border-top-color: rgb(255 255 255 / 90%);
+}
+
+/* White regardless of theme: these sit on the dimmed backdrop, not on the page. */
+.lightbox-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  color: #fff;
+  background: rgb(255 255 255 / 10%);
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.lightbox-btn:hover { background: rgb(255 255 255 / 22%); }
+
+.lightbox-btn[hidden] { display: none; }
+
+.lightbox-btn svg { width: 1.2rem; height: 1.2rem; }
+
+.lightbox-close {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+}
+
+/* ---------- toc ---------- */
+
+.sidebar { position: sticky; top: 5rem; }
+
+.toc {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  border-left: 1px solid var(--line);
+  padding-left: 1rem;
+}
+
+.toc-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--faint);
+  margin-bottom: 0.7rem;
+}
+
+.toc a {
+  display: block;
+  padding: 0.28rem 0;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.toc a.level-3 { padding-left: 0.8rem; font-size: 0.8rem; }
+
+/* ---------- ask-the-note assistant ---------- */
+
+.chat-fab {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 12%);
+}
+
+.chat-fab svg { width: 1.35rem; height: 1.35rem; }
+
+.chat-panel {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 5.4rem;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  width: min(24rem, calc(100vw - 3rem));
+  height: min(32rem, calc(100vh - 8rem));
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 16px 48px rgb(0 0 0 / 16%);
+  overflow: hidden;
+  transition: width 0.18s ease, height 0.18s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-panel { transition: none; }
+}
+
+/* Beats the `display: flex` above, which would otherwise defeat the `hidden` attribute. */
+.chat-panel[hidden] { display: none; }
+
+.chat-panel.is-expanded {
+  width: min(44rem, calc(100vw - 3rem));
+  height: min(44rem, calc(100vh - 8rem));
+}
+
+.chat-panel.is-expanded .chat-msg { font-size: 0.95rem; }
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.8rem 0.9rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.chat-header-actions { display: flex; gap: 0.35rem; }
+
+.chat-header .icon-btn { width: 1.85rem; height: 1.85rem; color: var(--text); }
+
+.chat-header .icon-btn svg { width: 0.95rem; height: 0.95rem; }
+
+.chat-title {
+  font-family: var(--serif);
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.chat-subtitle {
+  font-size: 0.72rem;
+  color: var(--faint);
+  margin: 0;
+}
+
+.chat-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.chat-intro {
+  margin: auto 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.chat-intro p { margin: 0 0 0.9rem; }
+
+.chat-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.chat-chip {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: left;
+}
+
+/* The expanded panel's chip: a named ask on top, the prompt it actually sends below.
+   The label leads in the text colour so the two lines read as heading and body rather
+   than as one wrapped sentence. */
+.chat-chip-rich {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.55rem 0.75rem;
+}
+
+.chat-chip-label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.chat-chip-detail {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--faint);
+}
+
+.chat-chip-rich:hover .chat-chip-label { color: var(--accent); }
+
+.chat-msg {
+  max-width: 90%;
+  padding: 0.55rem 0.8rem;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.chat-msg-user {
+  align-self: flex-end;
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+/* The user's turn is plain escaped text, not Markdown, so its line breaks only
+   survive if whitespace is preserved. */
+.chat-msg-user p { white-space: pre-wrap; }
+
+.chat-msg-model {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 0;
+  color: var(--text);
+}
+
+.chat-msg-error { color: var(--accent); }
+
+.chat-msg :first-child { margin-top: 0; }
+.chat-msg :last-child { margin-bottom: 0; }
+
+.chat-msg p { margin: 0 0 0.7rem; }
+
+.chat-msg ul, .chat-msg ol { padding-left: 1.2rem; margin: 0 0 0.7rem; }
+
+.chat-msg li { margin-bottom: 0.3rem; }
+
+.chat-msg h1, .chat-msg h2, .chat-msg h3, .chat-msg h4 {
+  font-family: var(--serif);
+  font-size: 0.98rem;
+  margin: 1rem 0 0.5rem;
+}
+
+.chat-msg .katex-display { margin: 0.7rem 0; overflow-x: auto; overflow-y: hidden; }
+
+.chat-dots { display: inline-flex; gap: 0.25rem; padding: 0.35rem 0; }
+
+.chat-dots i {
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: var(--radius-pill);
+  background: var(--faint);
+  animation: chat-blink 1.2s ease-in-out infinite;
+}
+
+.chat-dots i:nth-child(2) { animation-delay: 0.2s; }
+.chat-dots i:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes chat-blink {
+  0%, 60%, 100% { opacity: 0.25; }
+  30% { opacity: 1; }
+}
+
+/* The composer is one rounded surface: the textarea sits on top, its controls on a
+   toolbar underneath. */
+.chat-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.9rem;
+  padding: 0.6rem 0.7rem 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.chat-input {
+  display: block;
+  width: 100%;
+  resize: none;
+  min-height: 1.5rem;
+  max-height: 8.75rem;
+  padding: 0.1rem 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--text);
+  background: none;
+  border: none;
+}
+
+.chat-input:focus { outline: none; }
+
+.chat-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.chat-model { position: relative; }
+
+/* Matches the send button's 2rem so the toolbar reads as one row of controls. */
+.chat-model-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 2rem;
+  padding: 0 0.4rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.chat-model-trigger:hover,
+.chat-model-trigger[aria-expanded="true"] { color: var(--accent); }
+
+.chat-model-trigger:focus-visible { outline: none; }
+
+.chat-model-trigger svg { width: 0.85rem; height: 0.85rem; }
+
+.chat-model-badge {
+  padding: 0.05rem 0.4rem;
+  font-size: 0.68rem;
+  color: var(--muted);
+  background: var(--accent-soft);
+  border-radius: var(--radius-pill);
+}
+
+/* Opens upward: the composer already sits at the bottom of the panel. */
+.chat-model-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.4rem);
+  z-index: 2;
+  min-width: 13rem;
+  max-height: 16rem;
+  overflow-y: auto;
+  padding: 0.3rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 12%);
+}
+
+.chat-model-group {
+  margin: 0.4rem 0 0.2rem;
+  padding: 0 0.5rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.chat-model-option {
+  display: block;
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.chat-model-option:hover { background: var(--accent-soft); }
+
+.chat-model-option[aria-selected="true"] .chat-model-name { color: var(--accent); }
+
+.chat-model-name {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--text);
+}
+
+.chat-model-vendor {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.chat-send {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.chat-send svg { width: 1rem; height: 1rem; }
+
+.chat-send.is-busy svg { width: 0.85rem; height: 0.85rem; }

@@ -1,0 +1,56 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notes</title>
+<link rel="stylesheet" href="assets/css/style.css">
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="icon-btn" href="index.html" aria-label="Home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
+    </a>
+    <button id="theme-toggle" class="icon-btn" aria-label="Toggle theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="intro">
+    <h1>Notes</h1>
+    <p class="lede">Things I've read, and what I took away from them.</p>
+  </section>
+
+  <section class="controls">
+    <div class="search-field">
+      <input id="search" type="search" placeholder="Search titles, authors, keywords…" autocomplete="off">
+      <!-- Rides inside the input's right edge: the mode belongs to the query, not
+           beside it. aria-checked is the whole state — "on" means semantic. -->
+      <button id="search-mode" class="search-switch" type="button" role="switch" aria-checked="false">
+        <span class="search-switch-thumb" aria-hidden="true"></span>
+        <span class="search-switch-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        </span>
+        <span class="search-switch-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/><circle cx="12" cy="12" r="2.6"/></svg>
+        </span>
+      </button>
+    </div>
+    <p id="search-status" class="search-status" role="status" aria-live="polite"></p>
+    <div id="tags" class="tags"></div>
+  </section>
+
+  <section id="list" class="note-list">
+    <div class="empty">
+      <div class="empty-header">
+        <div class="empty-media"><span class="spinner" aria-hidden="true"></span></div>
+        <p class="empty-title">Loading notes…</p>
+        <p class="empty-description">Fetching the note index.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="assets/js/theme.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/semantic.js"></script>
+<script src="assets/js/app.js"></script>

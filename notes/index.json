@@ -1,0 +1,13 @@
+[
+  {
+    "id": "1943-a-logical-calculus-of-the-ideas-immanent-in-nervous-activity",
+    "title": "A Logical Calculus of the Ideas Immanent in Nervous Activity",
+    "authors": "Warren S. McCulloch, Walter Pitts",
+    "venue": "Bulletin of Mathematical Biophysics, 5(4), 115–133",
+    "year": 1943,
+    "tags": ["Nervous Activity", "Excitatory Synapse", "Inhibitory Synapse", "Temporal Summation", "Spatial Summation"],
+    "summary": "Because of the “all-or-none” character of nervous activity, neural events and the relations among them can be treated by means of propositional logic. It is found that the behavior of every net can be described in these terms, with the addition of more complicated logical means for nets containing circles; and that for any logical expression satisfying certain conditions, one can find a net behaving in the fashion it describes. It is shown that many particular choices among possible neurophysiological assumptions are equivalent, in the sense that for every net behaving under one assumption, there exists another net which behaves under the other and gives the same results, although perhaps not in the same time. Various applications of the calculus are discussed.",
+    "url": "https://doi.org/10.1007/BF02478259",
+    "file": "1943-a-logical-calculus-of-the-ideas-immanent-in-nervous-activity.md"
+  }
+]

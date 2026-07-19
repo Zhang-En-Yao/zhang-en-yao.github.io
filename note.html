@@ -1,0 +1,39 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notes</title>
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="icon-btn" href="notes.html" aria-label="Back to the notes">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+    </a>
+    <button id="theme-toggle" class="icon-btn" aria-label="Toggle theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="wrap note-layout">
+  <article id="note" class="note">
+    <div class="empty">
+      <div class="empty-header">
+        <div class="empty-media"><span class="spinner" aria-hidden="true"></span></div>
+        <p class="empty-title">Loading note…</p>
+        <p class="empty-description">Fetching the markdown source.</p>
+      </div>
+    </div>
+  </article>
+  <aside class="sidebar">
+    <nav id="toc" class="toc"></nav>
+  </aside>
+</main>
+
+<script src="assets/js/theme.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="assets/js/markdown.js"></script>
+<script src="assets/js/note.js"></script>
+<script src="assets/js/chat.js"></script>
