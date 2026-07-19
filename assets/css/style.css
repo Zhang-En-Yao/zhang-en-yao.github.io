@@ -1256,6 +1256,11 @@ body.is-locked { overflow: hidden; }
 
 .sidebar { position: sticky; top: 5rem; }
 
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .note-layout { grid-template-columns: minmax(0, 1fr); }
+}
+
 .toc {
   font-size: 0.85rem;
   line-height: 1.5;
