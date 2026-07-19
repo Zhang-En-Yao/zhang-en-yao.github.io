@@ -96,7 +96,7 @@ function renderNext(trips) {
   nextEl.innerHTML = `
     <a class="travel-next" href="${tripHref(trip)}">
       <span class="travel-next-label">Next</span>
-      <span class="travel-next-place">${esc(tripTitle(trip))}</span>
+      <span class="travel-next-place">${esc(trip.country ?? '')}</span>
       <span class="travel-next-when">${esc(countdown(tripDuration(trip)))}</span>
     </a>`;
 }
