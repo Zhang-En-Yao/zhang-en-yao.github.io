@@ -456,6 +456,7 @@ function renderList(trips, byName) {
             ${t.country ? `<span>${esc(t.country)}</span>` : ''}
             ${t.continent ? `<span>${esc(t.continent)}</span>` : ''}
             ${t.newYear ? '<span class="trip-card-tag">New Year</span>' : ''}
+            ${t.pilgrimage ? '<span class="trip-card-tag">Pilgrimage</span>' : ''}
           </div>
           <h2 class="trip-card-title">${esc(tripTitle(t))}</h2>
           <p class="trip-card-duration">${esc(fmtDuration(tripDuration(t)))}</p>

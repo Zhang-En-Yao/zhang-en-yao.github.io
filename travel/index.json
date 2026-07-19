@@ -3,6 +3,7 @@
     "id": "202610222105",
     "country": "Spain",
     "continent": "Europe",
+    "pilgrimage": true,
     "cities": [
       { "name": "Madrid", "lat": 40.4168, "lon": -3.7038 },
       { "name": "Seville", "lat": 37.3886, "lon": -5.9823 },
