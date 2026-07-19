@@ -198,7 +198,6 @@
     "id": "202512311050",
     "country": "China",
     "continent": "Asia",
-    "newYear": true,
     "cities": [
       { "name": "Hong Kong", "lat": 22.3193, "lon": 114.1694 }
     ],
@@ -459,7 +458,6 @@
     "id": "202312310750",
     "country": "South Korea",
     "continent": "Asia",
-    "newYear": true,
     "cities": [
       { "name": "Seoul", "lat": 37.5665, "lon": 126.978 }
     ],
