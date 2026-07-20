@@ -626,6 +626,100 @@ button, input, textarea, select { font-family: inherit; }
 
 .trip-card-duration { font-size: 0.92rem; color: var(--muted); margin: 0; }
 
+/* ---------- bucket list ---------- */
+
+/* Each reason-to-go is its own section: a heading, a line on what the reason is, then the
+   entries under it as a grid of cards. The list shares the trip card's thumbnail and its
+   type — an entry should read like a trip that simply hasn't happened yet. */
+#list { padding-bottom: 4rem; }
+
+.bucket-section { padding-top: 2.5rem; }
+
+.bucket-section-head { margin-bottom: 1.1rem; }
+
+.bucket-section-title {
+  font-family: var(--serif);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+  letter-spacing: -0.005em;
+}
+
+.bucket-section-lede { font-size: 0.9rem; color: var(--muted); margin: 0; }
+
+.bucket-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.bucket-card {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.bucket-card:hover { border-color: var(--accent); }
+
+.bucket-card:hover .trip-card-map-shape {
+  fill: color-mix(in srgb, var(--accent) 62%, var(--line));
+}
+
+/* The country map is the trip card's, dropped a size to sit inside a bordered cell. */
+.bucket-card .trip-card-map { width: 5.5rem; height: 5.5rem; }
+
+/* Takes the slack so the tick is pushed to the card's right edge. */
+.bucket-card .trip-card-body { flex: 1; }
+
+.bucket-card-when {
+  margin: 0.2rem 0 0.35rem;
+  font-size: 0.82rem;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.bucket-card-note { margin: 0; font-size: 0.86rem; line-height: 1.55; color: var(--muted); }
+
+/* Empty until it is hovered or ticked: an unchecked box that already showed its check
+   would not read as unchecked. On done it fills with the accent and stays. */
+.bucket-tick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  align-self: flex-start;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  color: transparent;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.bucket-tick svg { width: 1rem; height: 1rem; }
+
+.bucket-tick:hover { color: var(--accent); border-color: var(--accent); }
+
+.bucket-card.is-done .bucket-tick {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* A done entry fades back and strikes its name — still on the list, plainly behind you. */
+.bucket-card.is-done { opacity: 0.6; }
+
+.bucket-card.is-done .trip-card-title {
+  text-decoration: line-through;
+  text-decoration-color: var(--faint);
+}
+
 /* ---------- note list ---------- */
 
 .note-list { padding: 1rem 0 4rem; }

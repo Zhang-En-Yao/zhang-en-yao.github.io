@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -)",
+      "Bash(curl -s \"https://cdn.jsdelivr.net/npm/d3-geo@3/dist/d3-geo.min.js\")",
+      "Bash(curl -s \"https://cdn.jsdelivr.net/npm/d3-geo@3/src/contains.js\")",
+      "Bash(curl -s \"https://cdn.jsdelivr.net/npm/d3-geo@3/dist/d3-geo.min.js\" -o geo.js)",
+      "Bash(node -e ' *)"
+    ]
+  }
+}
