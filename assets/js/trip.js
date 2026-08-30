@@ -202,6 +202,72 @@ function pointsBox(points, { margin, minSpanLon, w, h }) {
   };
 }
 
+// Same box, same projection, twice over: once synchronously for the dots (`pointsMapHtml`),
+// and again later — with identical inputs, so it lands on the same pixels — once Overpass's
+// streets have actually arrived. `d3.geoMercator` is pure given the same box and extent, so
+// there's no need to thread the original projection object through the async gap; asking
+// for an equal one back is simpler and just as correct.
+function clusterProjection(pts, { margin, minSpanLon, w, h, pad }) {
+  return d3.geoMercator().fitExtent([[pad, pad], [w - pad, h - pad]], pointsBox(pts, { margin, minSpanLon, w, h }));
+}
+
+// The same box again, but as plain degrees rather than a GeoJSON shape — what Overpass's
+// bounding-box syntax wants, and, critically, *exactly* the box the map is framed to: query
+// any wider and streets would appear that run off the edge of the picture; any narrower and
+// a street inside the frame would be missing from it.
+function clusterBounds(points, margin, minSpanLon, w, h) {
+  const lons = points.map((c) => c.lon);
+  const lats = points.map((c) => c.lat);
+  const [west, east] = [Math.min(...lons), Math.max(...lons)];
+  const [south, north] = [Math.min(...lats), Math.max(...lats)];
+  const spanLon = Math.max((east - west) * margin, minSpanLon);
+  const spanLat = Math.max((north - south) * margin, (minSpanLon * h) / w);
+  const [cx, cy] = [(west + east) / 2, (south + north) / 2];
+  return { west: cx - spanLon / 2, east: cx + spanLon / 2, south: cy - spanLat / 2, north: cy + spanLat / 2 };
+}
+
+// ---------- streets, fetched after the fact ----------
+//
+// The dots are the trip's own data and go up the moment the page renders. Streets are
+// someone else's data, fetched over the network from Overpass — OpenStreetMap's query API —
+// after the fact, so a slow or failed request costs the map its background texture and
+// nothing else. Overpass's public instance carries the same "light, low-traffic use" caveat
+// as OSM's raster tiles did (https://wiki.openstreetmap.org/wiki/Overpass_API#Public_Overpass_API_instances);
+// a site with real traffic would need its own instance or a paid one.
+const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+
+// `out geom` inlines every way's node coordinates directly in the response, so there is no
+// second pass resolving node IDs — worth the slightly heavier payload for how much simpler
+// it makes turning the reply straight into paths.
+function overpassQuery({ south, west, north, east }) {
+  return `[out:json][timeout:25];way["highway"](${south},${west},${north},${east});out geom;`;
+}
+
+function fetchStreets(bounds) {
+  return fetch(OVERPASS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `data=${encodeURIComponent(overpassQuery(bounds))}`,
+  })
+    .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+    .then((data) => (data.elements || []).filter((el) => el.type === 'way' && el.geometry));
+}
+
+// One `<path>` for every way rather than one per node-to-node segment: a street is one
+// continuous line, and `M...L...L...` is both the shorter markup and the one that lets the
+// browser join its corners instead of drawing a chain of disconnected strokes.
+function streetsPathHtml(ways, projection) {
+  return ways
+    .map((way) => {
+      const pts = way.geometry.map((g) => projection([g.lon, g.lat])).filter(Boolean);
+      if (pts.length < 2) return '';
+      const d = `M${pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join('L')}`;
+      return `<path class="region-street" d="${d}" fill="none"/>`;
+    })
+    .filter(Boolean)
+    .join('');
+}
+
 // The label's gap from its dot, the space one label needs to clear the next, and a rough
 // px-per-character for 12px sans — enough to know whether two labels fight, which is all
 // this needs, and it costs no layout pass to find out.
@@ -271,14 +337,12 @@ function layoutCities(cities, projection, { w, h }) {
 // has nothing left to show at that zoom, so it's left off and `scaleBar`/`route` (real
 // facts a projection can still supply without any map data) stand in for it instead.
 function pointsMapHtml(points, {
-  w, h, pad, margin, minSpanLon, features = [], country = null, route = false, scaleBar = false,
+  w, h, pad, margin, minSpanLon, features = [], country = null, route = false, scaleBar = false, streets = false,
 }) {
   const pts = (points || []).filter((c) => Number.isFinite(c.lon) && Number.isFinite(c.lat));
   if (!pts.length) return '';
 
-  const projection = d3
-    .geoMercator()
-    .fitExtent([[pad, pad], [w - pad, h - pad]], pointsBox(pts, { margin, minSpanLon, w, h }));
+  const projection = clusterProjection(pts, { margin, minSpanLon, w, h, pad });
   // Everything outside the band is cut here rather than drawn and overflowed: without it
   // Mercator hands back a path for every country on earth, and the far ones run to
   // coordinates in the millions.
@@ -327,9 +391,13 @@ function pointsMapHtml(points, {
 
   // aria-hidden, and deliberately: every name on it is in the heading and the prose below,
   // so to a screen reader this band is decoration that would otherwise be read twice.
+  // `region-streets` is emitted empty and filled in later, once Overpass answers — see
+  // `insertAreaMaps` — so there is always a stable, correctly-ordered spot to drop it into
+  // rather than searching for one after the fact.
   return `
     <svg class="region-map" viewBox="0 0 ${w} ${h}" aria-hidden="true">
       ${land ? `<g class="region-land">${land}</g>` : ''}
+      ${streets ? '<g class="region-streets"></g>' : ''}
       <g class="region-route-line">${routePath}</g>
       <g class="region-dots">${dots}</g>
       <g class="region-labels">${labels}</g>
@@ -351,20 +419,58 @@ function regionMapHtml(meta, features) {
 // data and the Markdown agree on. Both `<h2>` and `<h3>` are searched, since a dense city
 // splits into several `<h3>` clusters under its own `<h2>` while a small one stays a single
 // section.
+//
+// A cluster map's dots go up immediately; its streets follow once Overpass answers, which
+// can take a few seconds and sometimes doesn't come at all. Neither the rest of this map nor
+// the rest of the page waits on it — a slow or failed request just leaves the dots without
+// their background, not a broken page. A route map (`area.route`) is skipped here entirely:
+// the Camino spans ~100km, and querying every track and footpath across all of Galicia at
+// street level would be a huge, mostly-irrelevant answer to a question nobody asked.
 function insertAreaMaps(bodyEl, meta) {
   const areas = meta.areas || [];
   if (!areas.length) return;
 
   const headings = [...bodyEl.querySelectorAll('h2, h3')];
+  const streetJobs = [];
+
   areas.forEach((area) => {
     const heading = headings.find((h) => h.textContent.trim() === area.heading);
     if (!heading) return;
-    const html = pointsMapHtml(area.points, {
+
+    const pts = (area.points || []).filter((c) => Number.isFinite(c.lon) && Number.isFinite(c.lat));
+    if (!pts.length) return;
+
+    const opts = {
       w: AREA_W, h: area.route ? REGION_H : areaHeight(area.points, AREA_W), pad: AREA_PAD,
-      margin: AREA_MARGIN, minSpanLon: AREA_MIN_SPAN_LON, route: !!area.route, scaleBar: true,
-    });
-    if (html) heading.insertAdjacentHTML('afterend', html);
+      margin: AREA_MARGIN, minSpanLon: AREA_MIN_SPAN_LON, route: !!area.route,
+      scaleBar: true, streets: !area.route,
+    };
+    const html = pointsMapHtml(pts, opts);
+    if (!html) return;
+    heading.insertAdjacentHTML('afterend', html);
+    if (area.route) return;
+
+    const svgEl = heading.nextElementSibling;
+    const streetsEl = svgEl && svgEl.querySelector('.region-streets');
+    if (streetsEl) streetJobs.push({ pts, opts, svgEl, streetsEl });
   });
+
+  // One request at a time, not all at once: every cluster's dots are already on the page by
+  // now, so nothing is blocked on this — it only decides how fast the street layers trickle
+  // in. Overpass's shared public instance is meant for light use, and firing every section's
+  // query in the same instant is exactly the kind of burst its fair-use policy asks against.
+  streetJobs.reduce((chain, job) => chain.then(() => {
+    const projection = clusterProjection(job.pts, job.opts);
+    const bounds = clusterBounds(job.pts, job.opts.margin, job.opts.minSpanLon, job.opts.w, job.opts.h);
+    return fetchStreets(bounds)
+      .then((ways) => {
+        const streetsHtml = streetsPathHtml(ways, projection);
+        if (!streetsHtml) return;
+        job.streetsEl.innerHTML = streetsHtml;
+        job.svgEl.insertAdjacentHTML('afterend', `<p class="map-credit">Streets: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</p>`);
+      })
+      .catch(() => {}); // A quieter map, not a broken one.
+  }), Promise.resolve());
 }
 
 function headerHtml(meta, features) {

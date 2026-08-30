@@ -876,17 +876,23 @@ button, input, textarea, select { font-family: inherit; }
    the prose does not depend on. Bled a little wider so it reads as a band, not a figure. */
 .note-aside { display: block; }
 
+/* `--surface` plus a border, not `--bg`: the trip-wide band above gets away with matching
+   the page background because its land fill gives it a visible shape regardless. A cluster
+   map has no land fill — nothing under the dots at all — so without its own visible card it
+   reads as empty page rather than as a map with few things on it. */
 .region-map {
   display: block;
   width: 100%;
   height: auto;
   margin: 0 0 2rem;
-  background: var(--bg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
 }
 
 .region-country {
   fill: var(--line);
-  stroke: var(--bg);
+  stroke: var(--surface);
   stroke-width: 0.6;
 }
 
@@ -896,7 +902,7 @@ button, input, textarea, select { font-family: inherit; }
 
 .region-city-dot {
   fill: var(--accent);
-  stroke: var(--bg);
+  stroke: var(--surface);
   stroke-width: 1.5;
 }
 
@@ -915,7 +921,7 @@ button, input, textarea, select { font-family: inherit; }
   font-family: var(--sans);
   font-size: 12px;
   fill: var(--text);
-  stroke: var(--bg);
+  stroke: var(--surface);
   stroke-width: 3px;
   paint-order: stroke;
   stroke-linejoin: round;
@@ -932,8 +938,16 @@ button, input, textarea, select { font-family: inherit; }
 
 /* ---------- a section's own cluster map ---------- */
 
-/* A ruler and a compass are what a projection can still draw honestly once there is no
-   basemap under the dots — distance and orientation, not an invented street grid. */
+/* Real street geometry, fetched from Overpass after the map's dots are already up — see
+   `insertAreaMaps` in trip.js. Thin and quiet: the dots and their labels are the map's own
+   data and stay in the accent colour, the streets are borrowed context underneath them. */
+.region-street {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+/* A ruler and a compass are what a projection can draw correctly on its own regardless of
+   whether the streets above ever load — distance and orientation, not borrowed data. */
 .region-scale {
   stroke: var(--faint);
   stroke-width: 1.2;
@@ -959,6 +973,19 @@ button, input, textarea, select { font-family: inherit; }
   fill: var(--muted);
   stroke: none;
 }
+
+/* Only appears once a map's streets actually load — see `insertAreaMaps` — since that's the
+   one piece of a cluster map that is someone else's data and needs crediting under OSM's
+   terms. A map whose streets never arrive stays dots-only and carries no credit line. */
+.map-credit {
+  margin: 0 0 1.5rem;
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--faint);
+  text-align: right;
+}
+
+.map-credit a { color: inherit; }
 
 /* ---------- the flights above a trip ---------- */
 
