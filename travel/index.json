@@ -6,7 +6,8 @@
     "pilgrimage": true,
     "cities": [
       { "name": "Madrid", "lat": 40.4168, "lon": -3.7038 },
-      { "name": "Seville", "lat": 37.3886, "lon": -5.9823 },
+      { "name": "Toledo", "lat": 39.8628, "lon": -4.0273 },
+      { "name": "Sarria", "lat": 42.7759, "lon": -7.4115 },
       { "name": "Santiago de Compostela", "lat": 42.8782, "lon": -8.5445 },
       { "name": "Barcelona", "lat": 41.3851, "lon": 2.1734 }
     ],
@@ -49,6 +50,106 @@
             "airline": "Air China",
             "number": "CA 195"
           }
+        ]
+      }
+    ],
+    "file": "202610222105.md",
+    "areas": [
+      {
+        "heading": "Royal Palace & the Old Quarter",
+        "points": [
+          { "name": "Catedral de la Almudena", "lat": 40.415586, "lon": -3.714558 },
+          { "name": "Palacio Real de Madrid", "lat": 40.417955, "lon": -3.714312 },
+          { "name": "Mercado de San Miguel", "lat": 40.415360, "lon": -3.709010 },
+          { "name": "La Latina", "lat": 40.411000, "lon": -3.710000 },
+          { "name": "Plaza de Oriente", "lat": 40.418000, "lon": -3.712200 },
+          { "name": "Plaza Mayor", "lat": 40.415400, "lon": -3.707400 },
+          { "name": "Real Basílica de San Francisco el Grande", "lat": 40.410551, "lon": -3.714575 }
+        ]
+      },
+      {
+        "heading": "Barrio de las Letras & the Art Triangle",
+        "points": [
+          { "name": "Barrio de Las Letras", "lat": 40.414000, "lon": -3.700000 },
+          { "name": "Calle de Cervantes", "lat": 40.413700, "lon": -3.698100 },
+          { "name": "Calle de Lope de Vega", "lat": 40.413400, "lon": -3.697000 },
+          { "name": "Casa Museo Lope de Vega", "lat": 40.413800, "lon": -3.696700 },
+          { "name": "Corral de Comedias de la Cruz", "lat": 40.415000, "lon": -3.701000 },
+          { "name": "Museo del Prado", "lat": 40.413539, "lon": -3.691434 },
+          { "name": "Plaza de Santa Ana", "lat": 40.414700, "lon": -3.700500 },
+          { "name": "Puerta del Sol", "lat": 40.416900, "lon": -3.703500 },
+          { "name": "Teatro de la Zarzuela", "lat": 40.417160, "lon": -3.697020 }
+        ]
+      },
+      {
+        "heading": "Toledo",
+        "points": [
+          { "name": "Toledo Cathedral", "lat": 39.857140, "lon": -4.023670 },
+          { "name": "Alcázar de Toledo", "lat": 39.856700, "lon": -4.021000 },
+          { "name": "Museo del Greco", "lat": 39.856500, "lon": -4.029200 },
+          { "name": "Iglesia de Santo Tomé", "lat": 39.857700, "lon": -4.028400 },
+          { "name": "Mirador del Valle", "lat": 39.851800, "lon": -4.033600 },
+          { "name": "Puente de San Martín", "lat": 39.858800, "lon": -4.036600 }
+        ]
+      },
+      {
+        "heading": "Camino Francés",
+        "route": true,
+        "points": [
+          { "name": "Sarria", "lat": 42.775864, "lon": -7.411523 },
+          { "name": "Portomarín", "lat": 42.807279, "lon": -7.617731 },
+          { "name": "Gonzar", "lat": 42.824976, "lon": -7.695852 },
+          { "name": "Palas de Rei", "lat": 42.873789, "lon": -7.868793 },
+          { "name": "Melide", "lat": 42.913190, "lon": -8.017113 },
+          { "name": "Arzúa", "lat": 42.927512, "lon": -8.163088 },
+          { "name": "O Pedrouzo", "lat": 42.905472, "lon": -8.360320 },
+          { "name": "Santiago de Compostela", "lat": 42.880690, "lon": -8.545980 }
+        ]
+      },
+      {
+        "heading": "Gothic Quarter & El Born",
+        "points": [
+          { "name": "Plaça del Rei", "lat": 41.383900, "lon": 2.177000 },
+          { "name": "Barcelona Cathedral", "lat": 41.383900, "lon": 2.176200 },
+          { "name": "Carrer Montcada", "lat": 41.385700, "lon": 2.181500 },
+          { "name": "La Llotja de Mar", "lat": 41.382172, "lon": 2.182438 },
+          { "name": "El Born", "lat": 41.383000, "lon": 2.182700 },
+          { "name": "La Rambla", "lat": 41.380900, "lon": 2.173200 },
+          { "name": "Plaça Reial", "lat": 41.380200, "lon": 2.175000 },
+          { "name": "El Raval", "lat": 41.378700, "lon": 2.169500 }
+        ]
+      },
+      {
+        "heading": "The Waterfront",
+        "points": [
+          { "name": "Drassanes Reials", "lat": 41.375200, "lon": 2.176580 },
+          { "name": "Port Vell", "lat": 41.375000, "lon": 2.182000 },
+          { "name": "Barceloneta", "lat": 41.380700, "lon": 2.189000 },
+          { "name": "Parc de la Ciutadella", "lat": 41.388100, "lon": 2.186000 },
+          { "name": "Vila Olímpica", "lat": 41.388500, "lon": 2.195000 },
+          { "name": "Port Olímpic", "lat": 41.387918, "lon": 2.197059 }
+        ]
+      },
+      {
+        "heading": "Eixample & Modernisme",
+        "points": [
+          { "name": "Eixample", "lat": 41.393700, "lon": 2.164500 },
+          { "name": "Palau de la Música Catalana", "lat": 41.387780, "lon": 2.175000 },
+          { "name": "Passeig de Gràcia", "lat": 41.391800, "lon": 2.164500 },
+          { "name": "Casa Batlló", "lat": 41.391700, "lon": 2.165000 },
+          { "name": "La Pedrera / Casa Milà", "lat": 41.395400, "lon": 2.161900 },
+          { "name": "Sagrada Família", "lat": 41.403690, "lon": 2.174330 },
+          { "name": "Avinguda de Gaudí", "lat": 41.408000, "lon": 2.175000 },
+          { "name": "Sant Pau Recinte Modernista", "lat": 41.411870, "lon": 2.173520 }
+        ]
+      },
+      {
+        "heading": "Montjuïc & Poble-sec",
+        "points": [
+          { "name": "Poble-sec", "lat": 41.373900, "lon": 2.163300 },
+          { "name": "Refugi 307", "lat": 41.371440, "lon": 2.166630 },
+          { "name": "Montjuïc", "lat": 41.364400, "lon": 2.158700 },
+          { "name": "Estadi Olímpic Lluís Companys", "lat": 41.364900, "lon": 2.152800 }
         ]
       }
     ]

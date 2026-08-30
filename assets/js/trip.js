@@ -93,18 +93,100 @@ const REGION_PAD = 16;
 const REGION_MARGIN = 2.1;
 const MIN_SPAN_LON = 13; // degrees
 
-// Framed on the cities, not on the country. `country` is a filing label — a week in Hong
-// Kong is filed under China, and a map of China with one dot in the corner of it says
-// nothing about where you went.
-function regionBox(cities) {
-  const lons = cities.map((c) => c.lon);
-  const lats = cities.map((c) => c.lat);
-  const [w, e] = [Math.min(...lons), Math.max(...lons)];
-  const [s, n] = [Math.min(...lats), Math.max(...lats)];
+// A section's own spots (a city's attractions, a trail's stops) sit far closer together
+// than the cities on the trip-wide band above — close enough that the bundled atlas, zoomed
+// in this far, has no coastline left in view to draw. Without a basemap, the honest way to
+// add detail is to shrink what the map is asked to cover: this box is framed per *cluster*
+// (a neighbourhood's worth of spots), not per city, which is what actually buys back the
+// resolution a flat vector fill can't — that, plus a scale bar and a north arrow, which are
+// spatial facts a projection can draw correctly even with no map data under it.
+const AREA_W = 800;
+const AREA_H = 520; // fallback for a degenerate spread — one spot, or several on the same latitude
+const AREA_MIN_H = 320;
+const AREA_MAX_H = 700; // taller than this and the map is costing more scroll than it's buying
+const AREA_PAD = 16;
+const AREA_MARGIN = 1.6;
+const AREA_MIN_SPAN_LON = 0.004; // degrees — a floor for a single spot or two right next to each other
 
-  const spanLon = Math.max((e - w) * REGION_MARGIN, MIN_SPAN_LON);
-  const spanLat = Math.max((n - s) * REGION_MARGIN, (MIN_SPAN_LON * REGION_H) / REGION_W);
-  const [cx, cy] = [(w + e) / 2, (s + n) / 2];
+// A fixed frame either wastes width on a cluster whose spots run mostly north-south or
+// wastes height on one that runs mostly east-west — and either way, "wasted" is space the
+// dots could have used to spread further apart. So the frame's own height instead follows
+// the spread: cos(latitude) turns the degree spans into comparable real distances first,
+// since a degree of longitude is shorter than a degree of latitude away from the equator.
+function areaHeight(points, w) {
+  const lons = points.map((c) => c.lon);
+  const lats = points.map((c) => c.lat);
+  const spanLon = Math.max(...lons) - Math.min(...lons);
+  const spanLat = Math.max(...lats) - Math.min(...lats);
+  if (spanLat <= 0) return AREA_H;
+  const midLat = (Math.max(...lats) + Math.min(...lats)) / 2;
+  const aspect = (spanLon * Math.cos((midLat * Math.PI) / 180)) / spanLat;
+  const h = aspect > 0 ? w / aspect : AREA_H;
+  return Math.min(Math.max(h, AREA_MIN_H), AREA_MAX_H);
+}
+
+// A round-number ruler, picked to land at a comfortable on-screen length rather than at a
+// fixed real-world one — a 100m bar makes sense for a plaza's worth of spots and would be
+// illegibly short for a cluster spanning a whole hillside.
+const SCALE_BAR_STEPS = [10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000, 20000, 25000, 50000];
+
+// Measured at the cluster's own centre, the one line of the map where degrees-to-metres is
+// exactly what it claims to be: Mercator stretches east-west distances toward the poles, so
+// a bar sized at the top edge would read short by the time it's compared to a dot near the
+// bottom.
+function scaleBarHtml(pts, projection, h) {
+  const cx = pts.reduce((s, p) => s + p.lon, 0) / pts.length;
+  const cy = pts.reduce((s, p) => s + p.lat, 0) / pts.length;
+  const p0 = projection([cx, cy]);
+  if (!p0) return '';
+  const metersPerDeg = 111_320 * Math.cos((cy * Math.PI) / 180);
+
+  let meters = SCALE_BAR_STEPS[0];
+  let barPx = 0;
+  for (const m of SCALE_BAR_STEPS) {
+    const p1 = projection([cx + m / metersPerDeg, cy]);
+    if (!p1) continue;
+    meters = m;
+    barPx = Math.abs(p1[0] - p0[0]);
+    if (barPx >= 70) break; // Wide enough to read; no need to grow it further.
+  }
+  if (!barPx) return '';
+
+  const label = meters >= 1000 ? `${meters / 1000} km` : `${meters} m`;
+  return `
+    <g class="region-scale" transform="translate(14, ${h - 16})">
+      <line x1="0" y1="0" x2="${barPx.toFixed(1)}" y2="0"/>
+      <line x1="0" y1="-4" x2="0" y2="4"/>
+      <line x1="${barPx.toFixed(1)}" y1="-4" x2="${barPx.toFixed(1)}" y2="4"/>
+      <text x="${(barPx / 2).toFixed(1)}" y="-7" text-anchor="middle">${label}</text>
+    </g>`;
+}
+
+// North is "up" for free on an unrotated Mercator projection — its meridians run straight
+// up the page — so this is a label, not a calculation.
+function compassHtml(w) {
+  return `
+    <g class="region-compass" transform="translate(${w - 24}, 24)">
+      <line x1="0" y1="8" x2="0" y2="-7"/>
+      <path d="M0,-9 l4,7 l-4,-2 l-4,2 Z"/>
+      <text x="0" y="20" text-anchor="middle">N</text>
+    </g>`;
+}
+
+// Framed on the points, not on the country. `country` is a filing label — a week in Hong
+// Kong is filed under China, and a map of China with one dot in the corner of it says
+// nothing about where you went. Shared by both maps below — the trip-wide band and each
+// section's own cluster map both fit their projection to this box, just at different
+// margins and floors.
+function pointsBox(points, { margin, minSpanLon, w, h }) {
+  const lons = points.map((c) => c.lon);
+  const lats = points.map((c) => c.lat);
+  const [west, east] = [Math.min(...lons), Math.max(...lons)];
+  const [south, north] = [Math.min(...lats), Math.max(...lats)];
+
+  const spanLon = Math.max((east - west) * margin, minSpanLon);
+  const spanLat = Math.max((north - south) * margin, (minSpanLon * h) / w);
+  const [cx, cy] = [(west + east) / 2, (south + north) / 2];
   // A MultiPoint rather than a polygon of the box: a ring's orientation decides which side
   // of it d3 thinks is inside, and a box wound the wrong way measures the whole globe.
   // Four loose corners cannot be wound at all, and under Mercator — whose meridians and
@@ -136,13 +218,13 @@ const LABEL_CHAR_W = 6.6;
 //
 // Labels dodge other cities' *dots* as well as their labels. A name is unreadable with a
 // dot sitting in the middle of it, and the dot it collides with is never its own.
-function layoutCities(cities, projection) {
+function layoutCities(cities, projection, { w, h }) {
   const placed = cities
     .map((c) => {
       const p = projection([c.lon, c.lat]);
       if (!p) return null;
       // A label near the right edge would run off it, so it changes sides instead.
-      const flip = p[0] > REGION_W * 0.7;
+      const flip = p[0] > w * 0.7;
       return {
         name: c.name,
         x: p[0],
@@ -170,7 +252,7 @@ function layoutCities(cities, projection) {
       const [a0, a1] = box(prev);
       if (hits(c, a0, a1, prev.labelY)) c.labelY = prev.labelY + LABEL_LINE;
     }
-    c.labelY = Math.min(c.labelY, REGION_H - 8); // Never off the bottom of the band.
+    c.labelY = Math.min(c.labelY, h - 8); // Never off the bottom of the band.
 
     // Then slide clear of anyone else's dot that ended up inside the name.
     for (const other of placed) {
@@ -183,31 +265,47 @@ function layoutCities(cities, projection) {
   return placed;
 }
 
-function regionMapHtml(meta, features) {
-  const cities = (meta.cities || []).filter((c) => Number.isFinite(c.lon) && Number.isFinite(c.lat));
-  if (!features.length || !cities.length) return '';
+// Both maps on this page — the trip-wide band and each section's own cluster map — go
+// through here. `features`/`country` are only ever set for the trip-wide band, whose scale
+// still has an atlas coastline worth drawing; a cluster map is small enough that the atlas
+// has nothing left to show at that zoom, so it's left off and `scaleBar`/`route` (real
+// facts a projection can still supply without any map data) stand in for it instead.
+function pointsMapHtml(points, {
+  w, h, pad, margin, minSpanLon, features = [], country = null, route = false, scaleBar = false,
+}) {
+  const pts = (points || []).filter((c) => Number.isFinite(c.lon) && Number.isFinite(c.lat));
+  if (!pts.length) return '';
 
   const projection = d3
     .geoMercator()
-    .fitExtent([[REGION_PAD, REGION_PAD], [REGION_W - REGION_PAD, REGION_H - REGION_PAD]], regionBox(cities));
+    .fitExtent([[pad, pad], [w - pad, h - pad]], pointsBox(pts, { margin, minSpanLon, w, h }));
   // Everything outside the band is cut here rather than drawn and overflowed: without it
   // Mercator hands back a path for every country on earth, and the far ones run to
   // coordinates in the millions.
-  projection.clipExtent([[0, 0], [REGION_W, REGION_H]]);
-  const path = d3.geoPath(projection);
+  projection.clipExtent([[0, 0], [w, h]]);
 
-  const land = features
-    .map((f) => {
-      const d = path(f);
-      if (!d) return ''; // Clipped away entirely: not in this part of the world.
-      const cls = f.properties.name === meta.country ? 'region-country is-here' : 'region-country';
-      return `<path class="${cls}" d="${d}"/>`;
-    })
-    .join('');
+  const land = features.length
+    ? features
+      .map((f) => {
+        const d = d3.geoPath(projection)(f);
+        if (!d) return ''; // Clipped away entirely: not in this part of the world.
+        const cls = f.properties.name === country ? 'region-country is-here' : 'region-country';
+        return `<path class="${cls}" d="${d}"/>`;
+      })
+      .join('')
+    : '';
+
+  // A cluster map draws its spots in list order as a line before the dots go down, so a
+  // trail's day-by-day stops read as a route rather than a scatter. Order comes from `pts`,
+  // not from `placed` below — that array gets sorted top-down for label placement.
+  const routeLine = route ? pts.map((c) => projection([c.lon, c.lat])).filter(Boolean) : [];
+  const routePath = routeLine.length > 1
+    ? `<polyline class="region-route" points="${routeLine.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')}" fill="none"/>`
+    : '';
 
   // Two layers, not one group per city: every label has to sit above every dot, and in a
   // tight cluster the dot that would cover a name belongs to the city drawn after it.
-  const placed = layoutCities(cities, projection);
+  const placed = layoutCities(pts, projection, { w, h });
   const dots = placed
     .map((c) => `<circle class="region-city-dot" cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="4"/>`)
     .join('');
@@ -230,11 +328,43 @@ function regionMapHtml(meta, features) {
   // aria-hidden, and deliberately: every name on it is in the heading and the prose below,
   // so to a screen reader this band is decoration that would otherwise be read twice.
   return `
-    <svg class="region-map" viewBox="0 0 ${REGION_W} ${REGION_H}" aria-hidden="true">
-      <g class="region-land">${land}</g>
+    <svg class="region-map" viewBox="0 0 ${w} ${h}" aria-hidden="true">
+      ${land ? `<g class="region-land">${land}</g>` : ''}
+      <g class="region-route-line">${routePath}</g>
       <g class="region-dots">${dots}</g>
       <g class="region-labels">${labels}</g>
+      ${scaleBar ? scaleBarHtml(pts, projection, h) : ''}
+      ${scaleBar ? compassHtml(w) : ''}
     </svg>`;
+}
+
+function regionMapHtml(meta, features) {
+  return pointsMapHtml(meta.cities, {
+    w: REGION_W, h: REGION_H, pad: REGION_PAD, margin: REGION_MARGIN, minSpanLon: MIN_SPAN_LON,
+    features, country: meta.country,
+  });
+}
+
+// `meta.areas` pairs a section heading with the spots to plot under it — e.g. one
+// neighbourhood's worth of a city's attractions, or a trail's day-by-day stops. Matched by
+// exact heading text against the rendered headings, since that's the one thing both the
+// data and the Markdown agree on. Both `<h2>` and `<h3>` are searched, since a dense city
+// splits into several `<h3>` clusters under its own `<h2>` while a small one stays a single
+// section.
+function insertAreaMaps(bodyEl, meta) {
+  const areas = meta.areas || [];
+  if (!areas.length) return;
+
+  const headings = [...bodyEl.querySelectorAll('h2, h3')];
+  areas.forEach((area) => {
+    const heading = headings.find((h) => h.textContent.trim() === area.heading);
+    if (!heading) return;
+    const html = pointsMapHtml(area.points, {
+      w: AREA_W, h: area.route ? REGION_H : areaHeight(area.points, AREA_W), pad: AREA_PAD,
+      margin: AREA_MARGIN, minSpanLon: AREA_MIN_SPAN_LON, route: !!area.route, scaleBar: true,
+    });
+    if (html) heading.insertAdjacentHTML('afterend', html);
+  });
 }
 
 function headerHtml(meta, features) {
@@ -655,6 +785,7 @@ if (!id) {
 
           const bodyEl = noteEl.querySelector('.note-body');
           decorateBody(bodyEl, tocEl);
+          insertAreaMaps(bodyEl, meta);
           appendPhotoStrip(bodyEl, meta);
           initLightbox(bodyEl, buildGalleries(bodyEl));
 

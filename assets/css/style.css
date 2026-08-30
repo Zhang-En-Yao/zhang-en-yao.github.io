@@ -900,6 +900,15 @@ button, input, textarea, select { font-family: inherit; }
   stroke-width: 1.5;
 }
 
+/* A trail's own map connects its stops in visit order, under the dots — the walk itself,
+   not just where it paused. */
+.region-route {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+  opacity: 0.55;
+}
+
 /* The halo is what makes a name readable over a coastline: the stroke is painted first and
    the letters sit on top of it, so the text carries its own background wherever it lands. */
 .region-city-label {
@@ -919,6 +928,36 @@ button, input, textarea, select { font-family: inherit; }
 .region-city-leader {
   stroke: var(--faint);
   stroke-width: 1;
+}
+
+/* ---------- a section's own cluster map ---------- */
+
+/* A ruler and a compass are what a projection can still draw honestly once there is no
+   basemap under the dots — distance and orientation, not an invented street grid. */
+.region-scale {
+  stroke: var(--faint);
+  stroke-width: 1.2;
+}
+
+.region-scale text {
+  font-family: var(--sans);
+  font-size: 10px;
+  fill: var(--muted);
+  stroke: none;
+}
+
+.region-compass {
+  stroke: var(--faint);
+  stroke-width: 1.2;
+}
+
+.region-compass path { fill: var(--faint); stroke: none; }
+
+.region-compass text {
+  font-family: var(--sans);
+  font-size: 10px;
+  fill: var(--muted);
+  stroke: none;
 }
 
 /* ---------- the flights above a trip ---------- */
