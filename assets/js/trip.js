@@ -100,30 +100,17 @@ const MIN_SPAN_LON = 13; // degrees
 // (a neighbourhood's worth of spots), not per city, which is what actually buys back the
 // resolution a flat vector fill can't — that, plus a scale bar and a north arrow, which are
 // spatial facts a projection can draw correctly even with no map data under it.
-const AREA_W = 800;
-const AREA_H = 520; // fallback for a degenerate spread — one spot, or several on the same latitude
-const AREA_MIN_H = 320;
-const AREA_MAX_H = 700; // taller than this and the map is costing more scroll than it's buying
+//
+// Square, and the same square for every one of them — a city's cluster and the Camino's
+// ~115km route sit on the page one after another, and a reader flipping between them reads
+// a run of consistent frames faster than a run of ones that keep resizing. The frame no
+// longer chases each cluster's own aspect ratio to avoid "wasted" space; a route, whose
+// spread is far wider than it is tall, now has real margin above and below it as the plain
+// cost of that consistency — a trade-off made on purpose, not a bug to fix.
+const AREA_SIZE = 700;
 const AREA_PAD = 16;
 const AREA_MARGIN = 1.6;
 const AREA_MIN_SPAN_LON = 0.004; // degrees — a floor for a single spot or two right next to each other
-
-// A fixed frame either wastes width on a cluster whose spots run mostly north-south or
-// wastes height on one that runs mostly east-west — and either way, "wasted" is space the
-// dots could have used to spread further apart. So the frame's own height instead follows
-// the spread: cos(latitude) turns the degree spans into comparable real distances first,
-// since a degree of longitude is shorter than a degree of latitude away from the equator.
-function areaHeight(points, w) {
-  const lons = points.map((c) => c.lon);
-  const lats = points.map((c) => c.lat);
-  const spanLon = Math.max(...lons) - Math.min(...lons);
-  const spanLat = Math.max(...lats) - Math.min(...lats);
-  if (spanLat <= 0) return AREA_H;
-  const midLat = (Math.max(...lats) + Math.min(...lats)) / 2;
-  const aspect = (spanLon * Math.cos((midLat * Math.PI) / 180)) / spanLat;
-  const h = aspect > 0 ? w / aspect : AREA_H;
-  return Math.min(Math.max(h, AREA_MIN_H), AREA_MAX_H);
-}
 
 // A round-number ruler, picked to land at a comfortable on-screen length rather than at a
 // fixed real-world one — a 100m bar makes sense for a plaza's worth of spots and would be
@@ -202,56 +189,23 @@ function pointsBox(points, { margin, minSpanLon, w, h }) {
   };
 }
 
-// Same box, same projection, twice over: once synchronously for the dots (`pointsMapHtml`),
-// and again later — with identical inputs, so it lands on the same pixels — once Overpass's
-// streets have actually arrived. `d3.geoMercator` is pure given the same box and extent, so
-// there's no need to thread the original projection object through the async gap; asking
-// for an equal one back is simpler and just as correct.
+// The same box `pointsMapHtml` frames its dots to, reused to build its street layer with
+// the identical projection — so the two land on the same pixels.
 function clusterProjection(pts, { margin, minSpanLon, w, h, pad }) {
   return d3.geoMercator().fitExtent([[pad, pad], [w - pad, h - pad]], pointsBox(pts, { margin, minSpanLon, w, h }));
 }
 
-// The same box again, but as plain degrees rather than a GeoJSON shape — what Overpass's
-// bounding-box syntax wants, and, critically, *exactly* the box the map is framed to: query
-// any wider and streets would appear that run off the edge of the picture; any narrower and
-// a street inside the frame would be missing from it.
-function clusterBounds(points, margin, minSpanLon, w, h) {
-  const lons = points.map((c) => c.lon);
-  const lats = points.map((c) => c.lat);
-  const [west, east] = [Math.min(...lons), Math.max(...lons)];
-  const [south, north] = [Math.min(...lats), Math.max(...lats)];
-  const spanLon = Math.max((east - west) * margin, minSpanLon);
-  const spanLat = Math.max((north - south) * margin, (minSpanLon * h) / w);
-  const [cx, cy] = [(west + east) / 2, (south + north) / 2];
-  return { west: cx - spanLon / 2, east: cx + spanLon / 2, south: cy - spanLat / 2, north: cy + spanLat / 2 };
-}
-
-// ---------- streets, fetched after the fact ----------
+// ---------- streets, preloaded rather than fetched live ----------
 //
-// The dots are the trip's own data and go up the moment the page renders. Streets are
-// someone else's data, fetched over the network from Overpass — OpenStreetMap's query API —
-// after the fact, so a slow or failed request costs the map its background texture and
-// nothing else. Overpass's public instance carries the same "light, low-traffic use" caveat
-// as OSM's raster tiles did (https://wiki.openstreetmap.org/wiki/Overpass_API#Public_Overpass_API_instances);
-// a site with real traffic would need its own instance or a paid one.
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
-
-// `out geom` inlines every way's node coordinates directly in the response, so there is no
-// second pass resolving node IDs — worth the slightly heavier payload for how much simpler
-// it makes turning the reply straight into paths.
-function overpassQuery({ south, west, north, east }) {
-  return `[out:json][timeout:25];way["highway"](${south},${west},${north},${east});out geom;`;
-}
-
-function fetchStreets(bounds) {
-  return fetch(OVERPASS_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `data=${encodeURIComponent(overpassQuery(bounds))}`,
-  })
-    .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-    .then((data) => (data.elements || []).filter((el) => el.type === 'way' && el.geometry));
-}
+// A cluster map's street geometry comes from OpenStreetMap via Overpass — but not live, not
+// from this file: querying Overpass on every page view was both slow (a few seconds per
+// cluster, easily the dominant cost of opening this page) and needless, since the streets
+// around a fixed set of coordinates do not change between one visitor and the next. Instead
+// assets/data/build-streets.py fetches each cluster once, offline, into
+// travel/streets/<trip-id>.json — a plain `{ heading: [[[lon,lat], …], …] }` map, one
+// coordinate array per way — and the trip's own `fetch` picks that up alongside its
+// Markdown (see the bottom of this file). Re-run that script whenever a trip's `areas`
+// change; nothing here talks to Overpass at all.
 
 // One `<path>` for every way rather than one per node-to-node segment: a street is one
 // continuous line, and `M...L...L...` is both the shorter markup and the one that lets the
@@ -259,7 +213,7 @@ function fetchStreets(bounds) {
 function streetsPathHtml(ways, projection) {
   return ways
     .map((way) => {
-      const pts = way.geometry.map((g) => projection([g.lon, g.lat])).filter(Boolean);
+      const pts = way.map(([lon, lat]) => projection([lon, lat])).filter(Boolean);
       if (pts.length < 2) return '';
       const d = `M${pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join('L')}`;
       return `<path class="region-street" d="${d}" fill="none"/>`;
@@ -275,12 +229,32 @@ const LABEL_GAP = 11;
 const LABEL_LINE = 15;
 const LABEL_CHAR_W = 6.6;
 
+// Osaka and Kyoto are a third of a degree apart — genuinely distinct dots that just happen
+// to sit close together at this map's scale — and no framing should paper over that; the
+// dots stay put there and only the labels move. But two spots can also be close enough in
+// reality that their dots would otherwise render as one indistinguishable blob (a building
+// on the avenue named after it, say): under DOT_MIN_SEP px apart is past the point where
+// "the dots are the truth" is still useful, since there is no longer a visible dot to be
+// truthful about. Only that case gets a small symmetric nudge, along the line already
+// between the two points — the one direction that still points each dot roughly toward
+// where it really is, rather than off in an arbitrary one.
+const DOT_MIN_SEP = 9;
+function declumpDots(placed) {
+  for (let i = 0; i < placed.length; i++) {
+    for (let j = i + 1; j < placed.length; j++) {
+      const [a, b] = [placed[i], placed[j]];
+      const [dx, dy] = [b.x - a.x, b.y - a.y];
+      const dist = Math.hypot(dx, dy);
+      if (dist >= DOT_MIN_SEP) continue;
+      const push = (DOT_MIN_SEP - dist) / 2;
+      const [ux, uy] = dist > 0.01 ? [dx / dist, dy / dist] : [1, 0]; // Coincident: pick an axis.
+      a.x -= ux * push; a.y -= uy * push;
+      b.x += ux * push; b.y += uy * push;
+    }
+  }
+}
+
 // Places each city's dot, then moves the labels — never the dots — until nothing collides.
-//
-// Osaka and Kyoto are a third of a degree apart. No framing separates them, and none
-// should: they really are that close, and the dots are the truth of the map. So the dots
-// stay put and the labels move off them, on leader lines. Otherwise the closest pair of
-// cities on a trip is exactly the pair whose names you cannot read.
 //
 // Labels dodge other cities' *dots* as well as their labels. A name is unreadable with a
 // dot sitting in the middle of it, and the dot it collides with is never its own.
@@ -289,20 +263,19 @@ function layoutCities(cities, projection, { w, h }) {
     .map((c) => {
       const p = projection([c.lon, c.lat]);
       if (!p) return null;
-      // A label near the right edge would run off it, so it changes sides instead.
-      const flip = p[0] > w * 0.7;
-      return {
-        name: c.name,
-        x: p[0],
-        y: p[1],
-        labelX: flip ? p[0] - LABEL_GAP : p[0] + LABEL_GAP,
-        labelY: p[1],
-        flip,
-        width: c.name.length * LABEL_CHAR_W,
-      };
+      return { name: c.name, x: p[0], y: p[1], width: c.name.length * LABEL_CHAR_W };
     })
-    .filter(Boolean)
-    .sort((a, b) => a.y - b.y); // Top down, so each label only has to clear the ones above.
+    .filter(Boolean);
+
+  declumpDots(placed);
+
+  placed.forEach((c) => {
+    // A label near the right edge would run off it, so it changes sides instead.
+    c.flip = c.x > w * 0.7;
+    c.labelX = c.flip ? c.x - LABEL_GAP : c.x + LABEL_GAP;
+    c.labelY = c.y;
+  });
+  placed.sort((a, b) => a.y - b.y); // Top down, so each label only has to clear the ones above.
 
   const box = (c) => (c.flip
     ? [c.labelX - c.width, c.labelX]
@@ -337,7 +310,7 @@ function layoutCities(cities, projection, { w, h }) {
 // has nothing left to show at that zoom, so it's left off and `scaleBar`/`route` (real
 // facts a projection can still supply without any map data) stand in for it instead.
 function pointsMapHtml(points, {
-  w, h, pad, margin, minSpanLon, features = [], country = null, route = false, scaleBar = false, streets = false,
+  w, h, pad, margin, minSpanLon, features = [], country = null, route = false, scaleBar = false, streetWays = null,
 }) {
   const pts = (points || []).filter((c) => Number.isFinite(c.lon) && Number.isFinite(c.lat));
   if (!pts.length) return '';
@@ -358,6 +331,8 @@ function pointsMapHtml(points, {
       })
       .join('')
     : '';
+
+  const streets = streetWays ? streetsPathHtml(streetWays, projection) : '';
 
   // A cluster map draws its spots in list order as a line before the dots go down, so a
   // trail's day-by-day stops read as a route rather than a scatter. Order comes from `pts`,
@@ -390,20 +365,20 @@ function pointsMapHtml(points, {
     .join('');
 
   // aria-hidden, and deliberately: every name on it is in the heading and the prose below,
-  // so to a screen reader this band is decoration that would otherwise be read twice.
-  // `region-streets` is emitted empty and filled in later, once Overpass answers — see
-  // `insertAreaMaps` — so there is always a stable, correctly-ordered spot to drop it into
-  // rather than searching for one after the fact.
+  // so to a screen reader this band is decoration that would otherwise be read twice. The
+  // credit line is its own element after the `<svg>`, not inside it, since a screen reader
+  // does need to reach it even though the map itself is decoration.
   return `
     <svg class="region-map" viewBox="0 0 ${w} ${h}" aria-hidden="true">
       ${land ? `<g class="region-land">${land}</g>` : ''}
-      ${streets ? '<g class="region-streets"></g>' : ''}
+      ${streets ? `<g class="region-streets">${streets}</g>` : ''}
       <g class="region-route-line">${routePath}</g>
       <g class="region-dots">${dots}</g>
       <g class="region-labels">${labels}</g>
       ${scaleBar ? scaleBarHtml(pts, projection, h) : ''}
       ${scaleBar ? compassHtml(w) : ''}
-    </svg>`;
+    </svg>
+    ${streets ? '<p class="map-credit">Streets: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</p>' : ''}`;
 }
 
 function regionMapHtml(meta, features) {
@@ -420,57 +395,27 @@ function regionMapHtml(meta, features) {
 // splits into several `<h3>` clusters under its own `<h2>` while a small one stays a single
 // section.
 //
-// A cluster map's dots go up immediately; its streets follow once Overpass answers, which
-// can take a few seconds and sometimes doesn't come at all. Neither the rest of this map nor
-// the rest of the page waits on it — a slow or failed request just leaves the dots without
-// their background, not a broken page. A route map (`area.route`) is skipped here entirely:
-// the Camino spans ~100km, and querying every track and footpath across all of Galicia at
-// street level would be a huge, mostly-irrelevant answer to a question nobody asked.
-function insertAreaMaps(bodyEl, meta) {
+// `streets` is this trip's preloaded `travel/streets/<id>.json` (or `{}` if there isn't
+// one), keyed the same way `meta.areas` is — see the comment above `streetsPathHtml`. A
+// route map (`area.route`) gets its streets too, but assets/data/build-streets.py fetches
+// those with a much lighter touch: the Camino spans ~100km, so it's queried for primary and
+// secondary roads only, over a tighter box than the map's own rendered frame — full
+// street-level detail across that much of Galicia would dwarf every city cluster combined.
+function insertAreaMaps(bodyEl, meta, streets) {
   const areas = meta.areas || [];
   if (!areas.length) return;
 
   const headings = [...bodyEl.querySelectorAll('h2, h3')];
-  const streetJobs = [];
-
   areas.forEach((area) => {
     const heading = headings.find((h) => h.textContent.trim() === area.heading);
     if (!heading) return;
-
-    const pts = (area.points || []).filter((c) => Number.isFinite(c.lon) && Number.isFinite(c.lat));
-    if (!pts.length) return;
-
-    const opts = {
-      w: AREA_W, h: area.route ? REGION_H : areaHeight(area.points, AREA_W), pad: AREA_PAD,
+    const html = pointsMapHtml(area.points, {
+      w: AREA_SIZE, h: AREA_SIZE, pad: AREA_PAD,
       margin: AREA_MARGIN, minSpanLon: AREA_MIN_SPAN_LON, route: !!area.route,
-      scaleBar: true, streets: !area.route,
-    };
-    const html = pointsMapHtml(pts, opts);
-    if (!html) return;
-    heading.insertAdjacentHTML('afterend', html);
-    if (area.route) return;
-
-    const svgEl = heading.nextElementSibling;
-    const streetsEl = svgEl && svgEl.querySelector('.region-streets');
-    if (streetsEl) streetJobs.push({ pts, opts, svgEl, streetsEl });
+      scaleBar: true, streetWays: streets[area.heading],
+    });
+    if (html) heading.insertAdjacentHTML('afterend', html);
   });
-
-  // One request at a time, not all at once: every cluster's dots are already on the page by
-  // now, so nothing is blocked on this — it only decides how fast the street layers trickle
-  // in. Overpass's shared public instance is meant for light use, and firing every section's
-  // query in the same instant is exactly the kind of burst its fair-use policy asks against.
-  streetJobs.reduce((chain, job) => chain.then(() => {
-    const projection = clusterProjection(job.pts, job.opts);
-    const bounds = clusterBounds(job.pts, job.opts.margin, job.opts.minSpanLon, job.opts.w, job.opts.h);
-    return fetchStreets(bounds)
-      .then((ways) => {
-        const streetsHtml = streetsPathHtml(ways, projection);
-        if (!streetsHtml) return;
-        job.streetsEl.innerHTML = streetsHtml;
-        job.svgEl.insertAdjacentHTML('afterend', `<p class="map-credit">Streets: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</p>`);
-      })
-      .catch(() => {}); // A quieter map, not a broken one.
-  }), Promise.resolve());
 }
 
 function headerHtml(meta, features) {
@@ -881,17 +826,27 @@ if (!id) {
         return;
       }
 
-      return fetch(`travel/${meta.file}`)
-        .then((r) => {
+      return Promise.all([
+        fetch(`travel/${meta.file}`).then((r) => {
           if (!r.ok) throw new Error(r.status);
           return r.text();
-        })
-        .then((md) => {
+        }),
+        // Preloaded street geometry for this trip's cluster maps (assets/data/build-streets.py),
+        // fetched alongside the travelogue rather than after it renders: this is data the
+        // page already has on disk, not a live query, so there's no reason for the maps to
+        // wait on it in series. Its own absence is normal, not an error — a trip with no
+        // cluster maps, or one whose streets haven't been generated yet, just gets plain dot
+        // maps instead.
+        fetch(`travel/streets/${meta.id}.json`)
+          .then((r) => (r.ok ? r.json() : {}))
+          .catch(() => ({})),
+      ])
+        .then(([md, streets]) => {
           noteEl.innerHTML = `${headerHtml(meta, features)}<div class="note-body">${renderMarkdown(md)}</div>`;
 
           const bodyEl = noteEl.querySelector('.note-body');
           decorateBody(bodyEl, tocEl);
-          insertAreaMaps(bodyEl, meta);
+          insertAreaMaps(bodyEl, meta, streets);
           appendPhotoStrip(bodyEl, meta);
           initLightbox(bodyEl, buildGalleries(bodyEl));
 
