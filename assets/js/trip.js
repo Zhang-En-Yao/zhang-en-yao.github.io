@@ -68,6 +68,47 @@ const AREA_PAD = 16;
 const AREA_MARGIN = 1.6;
 const AREA_MIN_SPAN_LON = 0.004; // degrees — a floor for a single spot or two right next to each other
 
+// The largest span any legitimate single-map cluster actually reaches (measured on
+// Barcelona's Waterfront tour, Port Vell to Poblenou, ~3.4km) — a JSON trip's own subsection
+// isn't hand-split into several `area` entries the way the old Markdown-plus-index.json
+// design needed; instead `clusterPoints` below groups a subsection's points by this cap at
+// render time, and renders one map per resulting group. assets/data/build-streets.py's own
+// `cluster_points` must compute the identical grouping, so the Nth map here and the Nth
+// fetch there always agree on which points go together.
+const CLUSTER_CAP_M = 3500;
+
+function haversineM(a, b) {
+  const R = 6371000;
+  const [lat1, lon1, lat2, lon2] = [a.lat, a.lon, b.lat, b.lon].map((d) => (d * Math.PI) / 180);
+  const [dlat, dlon] = [lat2 - lat1, lon2 - lon1];
+  const h = Math.sin(dlat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dlon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+// Union-find over the distance cap: two points end up in the same group the moment anything
+// links them within CLUSTER_CAP_M, even through a chain of other points — a straight distance
+// matrix would instead ask "are point 1 and point 9 close", which is the wrong question for a
+// long, narrow cluster (a promenade, a run of plazas) where consecutive points are close but
+// the two ends are not.
+function clusterPoints(points, capM) {
+  const parent = points.map((_, i) => i);
+  const find = (x) => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
+  const union = (a, b) => { const [ra, rb] = [find(a), find(b)]; if (ra !== rb) parent[ra] = rb; };
+  for (let i = 0; i < points.length; i++) {
+    for (let j = i + 1; j < points.length; j++) {
+      if (haversineM(points[i], points[j]) <= capM) union(i, j);
+    }
+  }
+  const order = [];
+  const groups = new Map();
+  points.forEach((p, i) => {
+    const r = find(i);
+    if (!groups.has(r)) { groups.set(r, []); order.push(r); }
+    groups.get(r).push(p);
+  });
+  return order.map((r) => groups.get(r));
+}
+
 // A round-number ruler, picked to land at a comfortable on-screen length rather than at a
 // fixed real-world one — a 100m bar makes sense for a plaza's worth of spots and would be
 // illegibly short for a cluster spanning a whole hillside.
@@ -176,6 +217,25 @@ function streetsPathHtml(ways, projection) {
     })
     .filter(Boolean)
     .join('');
+}
+
+// A cluster/route map's own points, handed to Google Maps rather than re-solved here — this
+// site has no routing engine of its own, and shouldn't grow one just to answer "how do I
+// actually get between these dots". One point opens a pin; two or more open turn-by-turn
+// directions through them in the same order the map draws its route line, so the link matches
+// what's on screen. Never shown on the trip-wide band (see `scaleBar` at the call site) —
+// a country-scale hop isn't "directions" in any useful sense.
+function googleMapsUrl(points) {
+  const all = (points || []).filter((c) => Number.isFinite(c.lon) && Number.isFinite(c.lat));
+  // Consecutive duplicates collapsed: a day's "morning: town A → town B" stop and the very
+  // next row landing on B are the same pin, and a leg from a point back to itself is not a
+  // real leg of the route.
+  const pts = all.filter((c, i) => i === 0 || c.lat !== all[i - 1].lat || c.lon !== all[i - 1].lon);
+  if (!pts.length) return '';
+  if (pts.length === 1) {
+    return `https://www.google.com/maps/search/?api=1&query=${pts[0].lat},${pts[0].lon}`;
+  }
+  return `https://www.google.com/maps/dir/${pts.map((c) => `${c.lat},${c.lon}`).join('/')}`;
 }
 
 // The label's gap from its dot, the space one label needs to clear the next, and a rough
@@ -320,6 +380,14 @@ function pointsMapHtml(points, {
     })
     .join('');
 
+  // Gated on `scaleBar`, the same flag that already marks "this is a cluster/route map, not
+  // the trip-wide band" at the call site — a Maps link and an OSM credit are both real facts
+  // about *this* map's own points, not something the band above has an equivalent of.
+  const osmCredit = streets
+    ? 'Streets: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
+    : '';
+  const credit = [osmCredit].filter(Boolean).join(' · ');
+
   // aria-hidden, and deliberately: every name on it is in the heading and the prose below,
   // so to a screen reader this band is decoration that would otherwise be read twice. The
   // credit line is its own element after the `<svg>`, not inside it, since a screen reader
@@ -334,7 +402,7 @@ function pointsMapHtml(points, {
       ${scaleBar ? scaleBarHtml(pts, projection, h) : ''}
       ${scaleBar ? compassHtml(w) : ''}
     </svg>
-    ${streets ? '<p class="map-credit">Streets: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</p>' : ''}`;
+    ${credit ? `<p class="map-credit">${credit}</p>` : ''}`;
 }
 
 function regionMapHtml(meta, features) {
@@ -344,6 +412,13 @@ function regionMapHtml(meta, features) {
   });
 }
 
+// ---------- legacy path: a Markdown travelogue with `meta.areas` in index.json ----------
+//
+// A trip whose `file` ends in `.md` still renders this way. No current trip does both — the
+// one trip that ever used `areas` (see `renderTripContent` below for its replacement) has
+// moved to a JSON content file — but a future Markdown-only trip that just wants a photo
+// gallery and prose keeps working unchanged, so this stays rather than being ripped out.
+//
 // `meta.areas` pairs a section heading with the spots to plot under it — e.g. one
 // neighbourhood's worth of a city's attractions, or a trail's day-by-day stops. Matched by
 // exact heading text against the rendered headings, since that's the one thing both the
@@ -351,27 +426,186 @@ function regionMapHtml(meta, features) {
 // splits into several `<h3>` clusters under its own `<h2>` while a small one stays a single
 // section.
 //
-// `streets` is this trip's preloaded `travel/streets/<id>.json` (or `{}` if there isn't
-// one), keyed the same way `meta.areas` is — see the comment above `streetsPathHtml`. A
-// route map (`area.route`) gets its streets too, but assets/data/build-streets.py fetches
-// those with a much lighter touch: the Camino spans ~100km, so it's queried for primary and
-// secondary roads only, over a tighter box than the map's own rendered frame — full
-// street-level detail across that much of Galicia would dwarf every city cluster combined.
+// A heading's points aren't always one cluster: a section whose named spots span too far
+// apart for one walkable-scale map (a day's theme that happens to visit two different cities,
+// say) is split into several `area` entries that all share the same `heading` text —
+// assets/data/check-areas.py's distance cap is what decides that split when the data is
+// written, not anything here. This function's job is only to render every area under a given
+// heading, in the order they're listed, as that many separate maps.
+//
+// `streets` is this trip's preloaded `travel/streets/<id>.json` (or `{}` if there isn't one).
+// Its keys mostly are the heading text — see the comment above `streetsPathHtml` — except
+// where a heading covers more than one area, where `streetsKey` below disambiguates them the
+// same way assets/data/build-streets.py's `area_key()` does; the two must stay in step; if
+// this drifts, streetWays will look up either the wrong area's ways or `undefined`, silently
+// leaving one of two maps under the same heading blank rather than throwing. A route map
+// (`area.route`) gets its streets too, but build-streets.py fetches those with a much lighter
+// touch: the Camino spans ~100km, so it's queried down through tertiary roads only, over a
+// tighter box than the map's own rendered frame — full street-level detail across that much
+// of Galicia would dwarf every city cluster combined.
+function streetsKey(areas, area) {
+  const sameHeading = areas.filter((a) => a.heading === area.heading);
+  if (sameHeading.length === 1) return area.heading;
+  return `${area.heading} #${sameHeading.indexOf(area) + 1}`;
+}
+
 function insertAreaMaps(bodyEl, meta, streets) {
   const areas = meta.areas || [];
   if (!areas.length) return;
 
   const headings = [...bodyEl.querySelectorAll('h2, h3')];
+  // Grouped by heading text first, so every area sharing one heading is inserted together in
+  // one `insertAdjacentHTML` call — calling it once per area on the same heading element would
+  // insert each new map right after the heading itself, pushing the previous one down and
+  // rendering the group in reverse of the order `meta.areas` actually lists them in.
+  const byHeading = new Map();
   areas.forEach((area) => {
-    const heading = headings.find((h) => h.textContent.trim() === area.heading);
+    if (!byHeading.has(area.heading)) byHeading.set(area.heading, []);
+    byHeading.get(area.heading).push(area);
+  });
+
+  byHeading.forEach((group, headingText) => {
+    const heading = headings.find((h) => h.textContent.trim() === headingText);
     if (!heading) return;
-    const html = pointsMapHtml(area.points, {
-      w: AREA_SIZE, h: AREA_SIZE, pad: AREA_PAD,
-      margin: AREA_MARGIN, minSpanLon: AREA_MIN_SPAN_LON, route: !!area.route,
-      scaleBar: true, streetWays: streets[area.heading],
-    });
+    const html = group
+      .map((area) => pointsMapHtml(area.points, {
+        w: AREA_SIZE, h: AREA_SIZE, pad: AREA_PAD,
+        margin: AREA_MARGIN, minSpanLon: AREA_MIN_SPAN_LON, route: !!area.route,
+        scaleBar: true, streetWays: streets[streetsKey(areas, area)],
+      }))
+      .join('');
     if (html) heading.insertAdjacentHTML('afterend', html);
   });
+}
+
+// ---------- current path: a trip whose `file` is a JSON content document ----------
+//
+// The point of this format over the Markdown one above: a subsection's `points` are the
+// map's data *and* the prose's data, the same array, so there is no heading text for the two
+// to agree on and nothing for assets/data/check-areas.py to have needed to lint in the first
+// place. A map is built straight from the object being rendered, not found afterwards by
+// searching the DOM for a heading that happens to match a string stored somewhere else.
+
+// One `<h4>` block per point — the closest thing this format has to the old Markdown's own
+// `#### Name` / `*Kind*` / prose paragraphs, kept only because a point may not have a `body`
+// yet (see the module-level note in travel/202610222105.json): a name and a kind alone still
+// reads as an entry, not as a blank space where one is missing.
+function pointHtml(point) {
+  return `
+    <h4>${esc(point.name)}</h4>
+    ${point.kind ? `<p><em>${esc(point.kind)}</em></p>` : ''}
+    ${(point.body || []).map((p) => `<p>${marked.parseInline(p)}</p>`).join('')}`;
+}
+
+// A subsection's own points, split by CLUSTER_CAP_M into however many maps that actually
+// takes — almost always one. `keyBase` plus a `#N` suffix when there is more than one group
+// is the exact key assets/data/build-streets.py's `cluster_points` output is cached under.
+function subsectionMapsHtml(points, streets, keyBase) {
+  const groups = clusterPoints(points, CLUSTER_CAP_M);
+  return groups
+    .map((group, i) => pointsMapHtml(group, {
+      w: AREA_SIZE, h: AREA_SIZE, pad: AREA_PAD, margin: AREA_MARGIN, minSpanLon: AREA_MIN_SPAN_LON,
+      scaleBar: true, streetWays: streets[groups.length === 1 ? keyBase : `${keyBase} #${i + 1}`],
+    }))
+    .join('');
+}
+
+function introHtml(paragraphs) {
+  return (paragraphs || []).map((p) => `<p>${marked.parseInline(p)}</p>`).join('');
+}
+
+// Two points that end up this close together — a day's own cathedral and the hostel across
+// its square, say, named in two different subsections — are one physical stop, not two: on a
+// route map spanning a whole region they'd otherwise sit as overlapping dots with fighting
+// labels at the one place the trail actually pauses for two days. `clusterPoints` at a small
+// radius groups them the same way it groups a subsection's own points at the much larger
+// CLUSTER_CAP_M; picking the first of each group keeps the earliest-named point (and the
+// route line's order) rather than an arbitrary one.
+const SAME_SITE_M = 300;
+
+function dedupeSameSite(points) {
+  return clusterPoints(points, SAME_SITE_M).map((group) => group[0]);
+}
+
+// `skipMap` is set for a subsection inside a `route` section — its points are already drawn
+// on the one combined map `sectionHtml` renders for the whole section, so a second map here
+// with the same points (or a same-day subset of them) would just repeat it.
+function subsectionHtml(sub, streets, sectionHeading, skipMap) {
+  const points = sub.points || [];
+  return `
+    <h3>${esc(sub.heading)}</h3>
+    ${skipMap ? '' : subsectionMapsHtml(points, streets, `${sectionHeading} / ${sub.heading}`)}
+    ${sub.lodging ? `<p>Lodging: ${esc(sub.lodging)}</p>` : ''}
+    ${introHtml(sub.intro)}
+    ${points.map(pointHtml).join('')}`;
+}
+
+// A `route` section (the Camino) draws one map for the whole section, under its own `<h2>`,
+// pooling every subsection's points — a day-by-day narrative, one combined line on the map —
+// rather than the CLUSTER_CAP_M split a city section's subsections get, since a route is
+// deliberately the one kind of section meant to span a whole region. Its own key has no `/
+// subheading` or `#N` suffix: there is exactly one map, so there is nothing to disambiguate.
+function sectionHtml(section, streets) {
+  const subs = section.subsections || [];
+  const routeMap = section.route
+    ? pointsMapHtml(dedupeSameSite(subs.flatMap((s) => s.points || [])), {
+      w: AREA_SIZE, h: AREA_SIZE, pad: AREA_PAD, margin: AREA_MARGIN, minSpanLon: AREA_MIN_SPAN_LON,
+      route: true, scaleBar: true, streetWays: streets[section.heading],
+    })
+    : '';
+  return `
+    <h2>${esc(section.heading)}</h2>
+    ${routeMap}
+    ${section.lodging ? `<p>Lodging: ${esc(section.lodging)}</p>` : ''}
+    ${introHtml(section.intro)}
+    ${subs.map((s) => subsectionHtml(s, streets, section.heading, !!section.route)).join('')}`;
+}
+
+// The day-by-day table and its Google Maps link are regenerated from `stops` every render —
+// the link is never itself stored, so there is nothing in the data for it to go stale against.
+function dailyItineraryHtml(days) {
+  if (!days || !days.length) return '';
+  const dayHtml = days.map((day) => {
+    const rows = day.stops.map((s) => `
+      <tr>
+        <td>${esc(s.time)}</td>
+        <td>${esc(s.place)}</td>
+        <td>${Number.isFinite(s.lat) ? `${s.lat}, ${s.lon}` : '—'}</td>
+      </tr>`).join('');
+    const url = googleMapsUrl(day.stops);
+    return `
+      <h3>${esc(day.heading)}</h3>
+      <table>
+        <thead><tr><th>Time</th><th>Place</th><th>Coordinates</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      ${url ? `<p><a href="${url}" target="_blank" rel="noopener">Google Maps</a></p>` : ''}`;
+  }).join('');
+  return `<h2>Day-by-Day Itinerary</h2>${dayHtml}`;
+}
+
+function lodgingTableHtml(rows) {
+  if (!rows || !rows.length) return '';
+  const body = rows.map((r) => `
+    <tr><td>${esc(r.date)}</td><td>${esc(r.name)}</td><td>${r.lat}, ${r.lon}</td></tr>`).join('');
+  return `
+    <h2>Lodging Coordinates</h2>
+    <table>
+      <thead><tr><th>Date</th><th>Lodging</th><th>Coordinates</th></tr></thead>
+      <tbody>${body}</tbody>
+    </table>`;
+}
+
+function renderTripContent(data, meta, streets) {
+  const bodyEl = tripEl.querySelector('.prose');
+  bodyEl.innerHTML = (data.sections || []).map((s) => sectionHtml(s, streets)).join('')
+    + dailyItineraryHtml(data.dailyItinerary)
+    + lodgingTableHtml(data.lodgingTable)
+    + (data.note ? `<h2>Coordinate note</h2><p>${esc(data.note)}</p>` : '');
+  decorateBody(bodyEl, tocEl);
+  appendPhotoStrip(bodyEl, meta);
+  tripPhotos = buildGalleries(bodyEl);
+  return bodyEl;
 }
 
 function headerHtml(meta, features) {
@@ -782,10 +1016,15 @@ if (!id) {
         return;
       }
 
+      // `.json` is the current content format (see `renderTripContent`); `.md` is the older
+      // Markdown-plus-index.json-areas one, still served as-is for any trip that hasn't been
+      // migrated yet.
+      const isJson = meta.file.endsWith('.json');
+
       return Promise.all([
         fetch(`travel/${meta.file}`).then((r) => {
           if (!r.ok) throw new Error(r.status);
-          return r.text();
+          return isJson ? r.json() : r.text();
         }),
         // Preloaded street geometry for this trip's cluster maps (assets/data/build-streets.py),
         // fetched alongside the travelogue rather than after it renders: this is data the
@@ -797,10 +1036,11 @@ if (!id) {
           .then((r) => (r.ok ? r.json() : {}))
           .catch(() => ({})),
       ])
-        .then(([md, streets]) => {
+        .then(([content, streets]) => {
           tripStreets = streets;
           tripEl.innerHTML = `${headerHtml(meta, features)}<div class="prose"></div>`;
-          renderProse(md, meta);
+          if (isJson) renderTripContent(content, meta, streets);
+          else renderProse(content, meta);
           initLightbox(tripEl.querySelector('.prose'));
         });
     })
