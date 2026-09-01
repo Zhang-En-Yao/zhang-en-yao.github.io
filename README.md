@@ -1,31 +1,41 @@
-# Notes
+# zhangenyao.github.io
 
-A static site deployed on GitHub Pages: <https://zhangenyao.github.io>
+A static site on GitHub Pages: <https://zhangenyao.github.io>
 
-## Adding a note
+- **Travels** — a world map of every trip, and a travelogue for each one.
+- **Bucket List** — festivals worth crossing a border for.
 
-1. Create a Markdown file under `notes/`, e.g. `notes/attention-is-all-you-need.md`.
-   Start the body at `##` (the title comes from the metadata, so there's no need for an `#`).
+No build step. Every page is plain HTML that loads its own CSS and JS from `assets/`.
 
-2. Add an entry at the top of the array in `notes/index.json`:
+## Adding a trip
+
+1. Create a Markdown travelogue under `travel/`, e.g. `travel/202610222105.md`. Start the
+   body at `#`/`##` — the title is built from the cities in the index.
+
+2. Add an entry to the top of `travel/index.json` (newest first):
 
    ```json
    {
-     "id": "attention-is-all-you-need",
-     "title": "Attention Is All You Need",
-     "authors": "Ashish Vaswani, et al.",
-     "venue": "NeurIPS 2017",
-     "year": 2017,
-     "tags": ["Neural Networks", "NLP"],
-     "summary": "A one-line summary, shown in the list.",
-     "url": "https://arxiv.org/abs/1706.03762",
-     "file": "attention-is-all-you-need.md"
+     "id": "202610222105",
+     "country": "Spain",
+     "continent": "Europe",
+     "cities": [
+       { "name": "Madrid", "lat": 40.4168, "lon": -3.7038 }
+     ],
+     "file": "202610222105.md"
    }
    ```
 
-   `id` must match the file name, and `file` points at the Markdown file. Notes appear in the list in the same order as this array, so put new ones first. `url`, `venue`, `year`, `tags`, and `summary` are all optional.
+   `id` leads with a zero-padded date so trips sort chronologically on their own. `country`
+   must match a name in `assets/data/countries-50m.json` for the map tint. `file` is
+   optional — an entry without one is a dot on the map with no travelogue behind it.
 
-3. `git push`, and it goes live a minute or two later.
+3. `git push`; it is live a minute or two later.
+
+Optional keys: `flights` (see below), `photos` / `photoRepo` (a filmstrip at the foot of the
+travelogue, served from a per-trip photo repo through jsDelivr), `areas` (a small labelled
+map under a named section heading — the `heading` must match a heading in the Markdown),
+`newYear` / `pilgrimage` (card tags).
 
 ## Adding flights to a trip
 
@@ -36,7 +46,6 @@ of its own. The block renders above the travelogue on `trip.html`.
 ```json
 "flights": [
   {
-    "label": "Outbound",
     "legs": [
       {
         "from": { "code": "TPE", "city": "Taipei" },
@@ -45,14 +54,6 @@ of its own. The block renders above the travelogue on `trip.html`.
         "arrive": "2019/06/14 23:35",
         "airline": "Cathay Pacific",
         "number": "CX 407"
-      },
-      {
-        "from": { "code": "HKG", "city": "Hong Kong" },
-        "to":   { "code": "KIX", "city": "Osaka" },
-        "depart": "2019/06/15 01:55",
-        "arrive": "2019/06/15 06:40",
-        "airline": "Cathay Pacific",
-        "number": "CX 566"
       }
     ]
   }
@@ -60,28 +61,35 @@ of its own. The block renders above the travelogue on `trip.html`.
 ```
 
 **Write every time as the local clock at its own airport** — exactly what the boarding pass
-says. Nothing converts them, so a time in any other zone will be wrong on the page. The date
-format is the trip's own: `YYYY/MM/DD HH:MM`, and the time may be dropped if you don't have
-it.
+says. Nothing converts them. The date format is `YYYY/MM/DD HH:MM`, and the time may be
+dropped. A card is dated by its first departure, and every time under it that falls on a
+later day is badged `+1`. `airline`, `number`, and each `city` are optional; give a place at
+least a `code` or a `city`.
 
-The page derives the rest. A card is dated by its first departure, and every time under it
-that falls on a later day is badged `+1` — so an overnight leg, or a transfer sitting over
-midnight, says so. Layovers show their length, because both of those clocks belong to the
-same airport; a leg never shows how long it took, because that would need a timezone for
-both ends and this file has none.
+## Adding a bucket-list entry
 
-`label`, `airline`, `number`, and each `city` are optional. Give a place at least a `code`
-or a `city`.
+Add to `bucket-list/index.json`: `id`, `name`, `country`, `category` (`religion` /
+`newyear` / `festival`), `month`, optional `day`, `when` (a human phrase), `note`, `cities`,
+and `done: true` once it has happened.
 
 ## Writing support
 
-- **Markdown**: headings, lists, tables, code blocks, blockquotes. `##` and `###` are picked up automatically by the table of contents on the right.
-- **Math**: `$...$` inline, `$$...$$` for display blocks (rendered with KaTeX).
-- **Images**: put them in `assets/img/` and reference them as `![caption](../assets/img/xxx.png)`.
+- **Markdown**: headings, lists, tables, links, code blocks, blockquotes. `##` and `###`
+  feed the table of contents on the right of a travelogue.
+- **Photos in the body**: a paragraph of only images becomes a column of captioned figures;
+  wrap the run in `<div class="photo-strip"> … </div>` (blank lines around the images) to
+  make it a horizontal filmstrip instead.
+- **Translation**: `trip.html` has a language menu in the header. Picking a language loads
+  [transformers.js](https://github.com/huggingface/transformers.js) and the NLLB-200
+  distilled model (~300 MB, quantised) from a CDN, translates the travelogue in the browser,
+  and caches the result in `localStorage` per trip + language. The model itself is cached by
+  the browser after the first download; nothing is sent to a server. The Markdown is split
+  into a markup skeleton plus prose strings so headings, lists, and tables survive.
 
 ## Local preview
 
-Notes are loaded with `fetch`, so opening `index.html` straight from the filesystem gets blocked by the browser's CORS rules. Start a local server instead:
+Pages load their data with `fetch`, so opening a file straight from disk is blocked by CORS.
+Serve the folder instead:
 
 ```sh
 python3 -m http.server 8000
@@ -92,10 +100,14 @@ Then open <http://localhost:8000>.
 ## Structure
 
 ```
-index.html          Note list (search + tag filter)
-note.html           Single-note reading page (?id=...)
-notes/index.json    Metadata for every note
-notes/*.md          Note bodies
-assets/css/         Styles (including dark mode)
-assets/js/          List, note rendering, theme toggle
+index.html           The hub
+travel.html          World map + list of trips
+trip.html            One travelogue (?id=…) — maps, flights, photos, translation
+bucket-list.html     Festivals, grouped by reason to go
+travel/*.md          Travelogue bodies
+travel/index.json    Trip metadata
+bucket-list/index.json
+assets/css/           core · home · cards · travel · bucket · trip · translate
+assets/js/            per-page scripts, plus shared ui.js / markdown.js / thumb.js
+assets/data/          world atlas (TopoJSON) and the scripts that build it
 ```

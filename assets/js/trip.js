@@ -1,8 +1,9 @@
-// The trip page: renders one travelogue, turns its photos into a gallery, and hands
-// chat.js a companion for it. Depends on ui.js (`esc`, `fmtDate`, `emptyState`) and
-// markdown.js (`renderMarkdown`, `decorateBody`).
+// The trip page: renders one travelogue and turns its photos into a gallery. Depends on
+// ui.js (`esc`, `fmtDate`, `emptyState`) and markdown.js (`renderMarkdown`, `decorateBody`).
+// translate.js hangs a language menu off the header and re-renders the body through the
+// `render` callback handed out on `trip:loaded`.
 
-const noteEl = document.getElementById('note');
+const tripEl = document.getElementById('trip');
 const tocEl = document.getElementById('toc');
 const id = new URLSearchParams(location.search).get('id');
 
@@ -32,49 +33,6 @@ const PHOTO_REPO_BRANCH = 'main';
 const PHOTO_PROXY = 'https://wsrv.nl/';
 const PHOTO_THUMB_W = 900;
 const PHOTO_FULL_W = 2000;
-
-const SUGGESTIONS = [
-  {
-    label: 'Itinerary',
-    short: 'How was this trip laid out?',
-    detailed:
-      'Lay this trip out day by day: where I went, in what order, and how long each part took.',
-  },
-  {
-    label: 'Highlights',
-    short: 'What was worth going to?',
-    detailed:
-      'Pick out the places this trip rates most highly, and say in one line each what made them worth the visit.',
-  },
-  {
-    label: 'Logistics',
-    short: 'Pull out the practical details.',
-    detailed:
-      'Collect every practical detail into a table: transport, where I stayed, what things cost, and anything worth booking ahead.',
-  },
-];
-
-// The model gets the Markdown source, so a photo reaches it as `![alt](url)` — the alt
-// text, and nothing else. It cannot see the image. Hence the note about captions.
-function systemPrompt(meta, markdown) {
-  return `You are a well-travelled companion helping a reader dig into a travelogue.
-
-Places: ${tripTitle(meta)}
-${meta.country ? `Country: ${meta.country}` : ''}
-${tripDuration(meta) ? `When: ${fmtDuration(tripDuration(meta))}` : ''}
-${flightsText(meta)}
-Here is the full travelogue (Markdown):
-
-<travelogue>
-${markdown}
-</travelogue>
-
-Rules:
-- Answer from the travelogue above. If it does not cover something, say so plainly, then add outside knowledge only if it helps — and label it as going beyond the travelogue.
-- Photos appear as Markdown image links. You can read their captions, but you cannot see the images — never describe a photo as though you had looked at it.
-- Reply in the language the reader writes in; default to English.
-- Be concise and concrete. Quote the travelogue directly when it helps.`;
-}
 
 // The band under the title: where this trip happened, at the scale of the region rather
 // than the country. Mercator, like the cards on the travel page — at one region's scale the
@@ -558,24 +516,6 @@ function flightHtml(flight) {
     </div>`;
 }
 
-// The same flights for the model, which gets the travelogue but not the page. The prose
-// rarely says which airport at what hour, and "Logistics" is one of the three things a
-// reader asks this chat — so the itinerary goes in rather than being reconstructed from a
-// sentence about a long night in a terminal. The timezone caveat is spelled out: without
-// it the model will happily subtract two local clocks and report a nine-hour flight.
-function flightsText(meta) {
-  const lines = (meta.flights || []).flatMap((f) =>
-    (f.legs || [])
-      .filter((l) => l && l.from && l.to)
-      .map((l) => {
-        const carrier = [l.airline, l.number].filter(Boolean).join(' ');
-        const end = (p, stamp) => `${p.code || p.city || '?'}${p.city && p.code ? ` (${p.city})` : ''} ${stamp || ''}`.trim();
-        return `- ${end(l.from, l.depart)} → ${end(l.to, l.arrive)}${carrier ? ` on ${carrier}` : ''}`;
-      }));
-  if (!lines.length) return '';
-  return `\nFlights (each time is local to that airport, so never subtract one from another to get a duration):\n${lines.join('\n')}\n`;
-}
-
 function flightsHtml(meta) {
   const flights = (meta.flights || []).map(flightHtml).filter(Boolean);
   if (!flights.length) return '';
@@ -710,8 +650,11 @@ function appendPhotoStrip(bodyEl, meta) {
   bodyEl.appendChild(strip);
 }
 
-function initLightbox(bodyEl, photos) {
-  if (!photos.length) return;
+// Wired once, against `.prose` (which survives a re-render — only its innerHTML is
+// replaced) and the live `tripPhotos` array, so a translation swapping the body in does
+// not need to re-arm it or stack a second set of document listeners.
+function initLightbox(bodyEl) {
+  if (!tripPhotos.length) return; // No photos in this travelogue, and a translation adds none.
 
   const box = document.createElement('div');
   box.className = 'lightbox';
@@ -744,6 +687,7 @@ function initLightbox(bodyEl, photos) {
   let opener = null; // Where focus came from, and where it has to go back to.
 
   function show(i) {
+    const photos = tripPhotos;
     at = (i + photos.length) % photos.length; // Wraps, so the arrows never dead-end.
     capEl.textContent = photos[at].alt || '';
     capEl.hidden = !photos[at].alt;
@@ -753,6 +697,9 @@ function initLightbox(bodyEl, photos) {
 
   function open(i, from) {
     opener = from;
+    // A single photo has nowhere to step to — re-checked per open, since a re-render can
+    // change the count.
+    stepEls.forEach((el) => { el.hidden = tripPhotos.length < 2; });
     show(i);
     box.hidden = false;
     document.body.classList.add('is-locked');
@@ -765,9 +712,6 @@ function initLightbox(bodyEl, photos) {
     opener?.focus();
     opener = null;
   }
-
-  // A single photo has nowhere to step to.
-  stepEls.forEach((el) => { el.hidden = photos.length < 2; });
 
   bodyEl.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-photo]');
@@ -784,13 +728,33 @@ function initLightbox(bodyEl, photos) {
   document.addEventListener('keydown', (e) => {
     if (box.hidden) return;
     if (e.key === 'Escape') close();
-    else if (e.key === 'ArrowLeft' && photos.length > 1) show(at - 1);
-    else if (e.key === 'ArrowRight' && photos.length > 1) show(at + 1);
+    else if (e.key === 'ArrowLeft' && tripPhotos.length > 1) show(at - 1);
+    else if (e.key === 'ArrowRight' && tripPhotos.length > 1) show(at + 1);
   });
 }
 
+// ---------- render, and re-render ----------
+//
+// The body is built once from the Markdown, then can be rebuilt in place when a
+// translation comes back (translate.js). The section maps and the photo strip are driven
+// by `meta`, not by the Markdown, so a translated document keeps them — the one seam is
+// that insertAreaMaps matches a section's map to its heading by text, so a translated
+// render is handed a `meta` whose `areas[].heading` have been translated to match.
+let tripStreets = {};
+let tripPhotos = [];
+
+function renderProse(markdown, meta) {
+  const bodyEl = tripEl.querySelector('.prose');
+  bodyEl.innerHTML = renderMarkdown(markdown);
+  decorateBody(bodyEl, tocEl);
+  insertAreaMaps(bodyEl, meta, tripStreets);
+  appendPhotoStrip(bodyEl, meta);
+  tripPhotos = buildGalleries(bodyEl);
+  return bodyEl;
+}
+
 if (!id) {
-  noteEl.innerHTML = emptyState({
+  tripEl.innerHTML = emptyState({
     icon: 'file',
     title: 'No trip specified',
     description: 'This page needs an <code>?id=</code> parameter to know which trip to open.',
@@ -814,10 +778,10 @@ if (!id) {
       document.title = `${tripTitle(meta)} — Travels`;
 
       // An entry with no `file` is a place and a date on the map and nothing more —
-      // it has been logged, not written up. Show what there is rather than 404ing,
-      // and leave the chat out of it: there is no travelogue to ground it in.
+      // it has been logged, not written up. Show what there is rather than 404ing;
+      // `trip:loaded` never fires, so there is no language menu on this branch.
       if (!meta.file) {
-        noteEl.innerHTML = headerHtml(meta, features) + emptyState({
+        tripEl.innerHTML = headerHtml(meta, features) + emptyState({
           icon: 'file',
           title: 'Not written up yet',
           description: 'This trip is on the map, but there is no travelogue for it.',
@@ -842,28 +806,25 @@ if (!id) {
           .catch(() => ({})),
       ])
         .then(([md, streets]) => {
-          noteEl.innerHTML = `${headerHtml(meta, features)}<div class="note-body">${renderMarkdown(md)}</div>`;
+          tripStreets = streets;
+          tripEl.innerHTML = `${headerHtml(meta, features)}<div class="prose"></div>`;
+          renderProse(md, meta);
+          initLightbox(tripEl.querySelector('.prose'));
 
-          const bodyEl = noteEl.querySelector('.note-body');
-          decorateBody(bodyEl, tocEl);
-          insertAreaMaps(bodyEl, meta, streets);
-          appendPhotoStrip(bodyEl, meta);
-          initLightbox(bodyEl, buildGalleries(bodyEl));
-
-          document.dispatchEvent(new CustomEvent('chat:init', {
+          // The language menu (translate.js) re-renders the body through this: `render`
+          // takes translated Markdown plus a `meta` whose section headings have been
+          // translated to match, or the originals to revert.
+          document.dispatchEvent(new CustomEvent('trip:loaded', {
             detail: {
-              title: 'Ask this trip',
-              subtitle: 'Model · grounded in this travelogue',
-              placeholder: 'Ask about this trip…',
-              intro: 'Ask me anything about this trip.',
-              system: systemPrompt(meta, md),
-              suggestions: SUGGESTIONS,
+              markdown: md,
+              meta,
+              render: (nextMarkdown, nextMeta) => renderProse(nextMarkdown, nextMeta || meta),
             },
           }));
         });
     })
     .catch(() => {
-      noteEl.innerHTML = emptyState({
+      tripEl.innerHTML = emptyState({
         icon: 'search',
         title: 'Trip not found',
         description: `No trip matches <code>${esc(id)}</code>, or its file could not be fetched. ${SERVE_HINT}`,

@@ -1,0 +1,243 @@
+/* Loaded by every page: design tokens, reset, the shared layout wrapper, and the
+   handful of primitives that appear site-wide — the header, icon buttons, the
+   empty/loading block, and the code styling that prose and chat replies share. */
+
+/* ---------- tokens ---------- */
+
+:root {
+  --bg: #fbfaf8;
+  --surface: #ffffff;
+  --text: #1e1c1a;
+  --muted: #6b6560;
+  --faint: #948f89;
+  --line: #e5e1db;
+  --accent: #8a4b2a;
+  --accent-soft: #f2e9e3;
+
+  --radius: 10px;
+  --radius-sm: 4px;
+  --radius-pill: 999px;
+
+  --serif: "Iowan Old Style", "Source Serif 4", Georgia, "Songti TC", "Noto Serif TC", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Noto Sans TC", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+}
+
+[data-theme="dark"] {
+  --bg: #16151a;
+  --surface: #1e1d23;
+  --text: #e8e5e0;
+  --muted: #a09a94;
+  --faint: #746e68;
+  --line: #2e2c34;
+  --accent: #d99a6c;
+  --accent-soft: #2a2229;
+}
+
+/* ---------- base ---------- */
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Form controls don't inherit the page font. Anything that can land inside the
+   serif .prose column (.btn, .empty-description) still names --sans explicitly. */
+button, input, textarea, select { font-family: inherit; }
+
+.wrap {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ---------- page intro (home, travel, bucket list) ---------- */
+
+.intro { padding: 3.5rem 0 2rem; }
+
+.intro h1 {
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  margin: 0 0 0.4rem;
+  letter-spacing: -0.01em;
+}
+
+.lede { color: var(--muted); margin: 0; }
+
+/* ---------- header ---------- */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(150%) blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+
+.site-header .wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 3.5rem;
+}
+
+/* A cluster of controls at the right end of the header (theme, and on a trip the
+   language menu) sits together rather than spreading across the bar. */
+.header-tools { display: flex; align-items: center; gap: 0.5rem; }
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  border-radius: var(--radius-pill);
+  width: 2rem;
+  height: 2rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.icon-btn svg { width: 1rem; height: 1rem; }
+
+.icon-btn:hover,
+.btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ---------- empty / loading state ---------- */
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.4rem;
+  text-align: center;
+  padding: 3rem 1.5rem;
+  margin: 2rem 0;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+}
+
+.empty-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 26rem;
+}
+
+.empty-media {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-bottom: 0.6rem;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.empty-media svg { width: 1.3rem; height: 1.3rem; }
+
+.empty-title {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text);
+  margin: 0;
+}
+
+.empty-description {
+  font-family: var(--sans);
+  font-size: 0.88rem;
+  line-height: 1.65;
+  color: var(--muted);
+  margin: 0;
+}
+
+.empty-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.85rem;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.spinner {
+  width: 1.2rem;
+  height: 1.2rem;
+  border: 2px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  border-top-color: var(--accent);
+  border-radius: var(--radius-pill);
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 2.4s; }
+}
+
+/* ---------- shared code styling ---------- */
+
+/* Inline code and code blocks look the same wherever prose is rendered: the trip
+   body, a chat reply, or an empty state's hint. */
+.prose code,
+.chat-msg code,
+.empty-description code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: var(--accent-soft);
+  padding: 0.12em 0.35em;
+  border-radius: var(--radius-sm);
+}
+
+.prose pre,
+.chat-msg pre {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+.chat-msg pre { padding: 0.7rem; }
+
+.prose pre code,
+.chat-msg pre code { background: none; padding: 0; }
+
+.prose pre code { font-size: 0.85rem; }

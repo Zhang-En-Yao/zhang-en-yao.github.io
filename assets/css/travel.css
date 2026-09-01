@@ -1,0 +1,205 @@
+/* The travel page: the world map, the "next trip" banner, and the list of trips
+   under the map. The trip cards themselves are in cards.css. */
+
+/* The one trip on this page that hasn't happened yet, so it gets the accent and the
+   rest of the page stays in greys. Inline-flex: the banner is as wide as its text,
+   which keeps it reading as a note above the map rather than a bar across it. */
+.travel-next {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0 0 0.9rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  font-size: 0.82rem;
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 0.28s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.travel-next:hover { border-color: var(--accent); }
+
+.travel-next-label {
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.travel-next-place { font-weight: 600; }
+
+.travel-next-when {
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .travel-next { transition: none; }
+}
+
+/* ---------- the world map ---------- */
+
+/* The tooltip is positioned against this box, so it has to be the containing block. */
+.map { position: relative; }
+
+.map-svg { display: block; width: 100%; height: auto; }
+
+/* How far the map is zoomed in. Set by the script on `.map`, read by everything drawn in
+   map units that must not grow with the zoom. 1 is the whole world. */
+.map { --map-k: 1; }
+
+/* A click on a country flies to its continent, and the next one to the country.
+   Slow enough to follow the land moving — which is the whole point, since the frame that
+   arrives is only legible if you saw where it came from. */
+.map-scene { transition: transform 0.72s cubic-bezier(0.33, 1, 0.68, 1); }
+
+/* The land is the page's rule colour: present, but never competing with the dots.
+   The hairline between countries is the background showing through. */
+.map-country {
+  fill: var(--line);
+  stroke: var(--bg);
+  stroke-width: calc(0.5px / var(--map-k));
+  cursor: pointer;
+  transition: fill 0.28s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+/* Somewhere I've been, tinted rather than filled: mixing against the land keeps it a
+   shade *of* the map in both themes, instead of a light wash that vanishes in one.
+   Ordered before the hover rules on purpose — it carries the same specificity as
+   `.map-country:hover`, so the one that wins is whichever is written last. */
+.map-country.is-visited { fill: color-mix(in srgb, var(--accent) 30%, var(--line)); }
+
+/* Every country lights up under the pointer, visited or not — each one carries a <title>
+   with its name, so the highlight is what tells you which shape that name belongs to. */
+.map-country:hover { fill: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+
+/* Somewhere I've been goes further, so the two never read as the same state. */
+.map-country.is-visited:hover { fill: color-mix(in srgb, var(--accent) 70%, var(--line)); }
+
+.map-marker { cursor: pointer; }
+
+/* The overshoot is the point: the dot springs out rather than inflating, which is what
+   makes it feel like it answered you.
+   Sized against the zoom rather than in flat map units: a dot is a label for a city, not a
+   thing on the ground, so it stays the same size on screen however far the map flies in. */
+.map-marker-dot {
+  fill: var(--accent);
+  stroke: var(--bg);
+  stroke-width: calc(1.5px / var(--map-k));
+  r: calc(4px / var(--map-k));
+  transition: r 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* The real hit target. A 4px dot is an unfair thing to ask anyone to hit, least of all
+   on a phone, so an invisible disc more than twice its size takes the pointer. */
+.map-marker-halo {
+  fill: transparent;
+  r: calc(9px / var(--map-k));
+}
+
+.map-marker:hover .map-marker-dot,
+.map-marker.is-active .map-marker-dot { r: calc(6px / var(--map-k)); }
+
+.map-marker:focus-visible { outline: none; }
+
+.map-marker:focus-visible .map-marker-halo {
+  fill: color-mix(in srgb, var(--accent) 22%, transparent);
+  stroke: var(--accent);
+  stroke-width: calc(1px / var(--map-k));
+}
+
+/* Glass: enough of the surface to hold text against a coastline, but thin enough that the
+   land still reads through it. The blur is what buys the legibility that the missing
+   opacity would have. `saturate` compensates the wash-out that blurring alone leaves. */
+.glass {
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  backdrop-filter: blur(12px) saturate(1.6);
+  -webkit-backdrop-filter: blur(12px) saturate(1.6);
+  border: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+}
+
+/* Where the blur cannot be had, the glass would be unreadable rather than merely plain,
+   so it pays the opacity back. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass { background: color-mix(in srgb, var(--surface) 92%, transparent); }
+}
+
+/* Where you are and the way back. Sits over the map's own corner rather than above it, so
+   arriving at a continent doesn't shove the whole page down a line. */
+.map-nav {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* An .icon-btn, minus the fill: the map behind it is the background. */
+.map-back { background: color-mix(in srgb, var(--surface) 55%, transparent); }
+
+/* Bare text over the map, held up by the blur alone — a place name reads as a label on the
+   map rather than a chip sitting on top of it. */
+.map-crumb {
+  padding: 0.2rem 0.6rem;
+  font-family: var(--serif);
+  font-size: 0.82rem;
+  color: var(--muted);
+  border-radius: var(--radius-pill);
+}
+
+/* Nothing to name at the world level, and an empty pill is worse than none. */
+.map-crumb:empty { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .map-country,
+  .map-marker-dot,
+  .map-scene,
+  .map-tip { transition: none; }
+}
+
+/* Fades and lifts into place rather than blinking on. `visibility` is what keeps it out
+   of the way when it is off — `display: none` cannot be transitioned. */
+.map-tip {
+  position: absolute;
+  z-index: 5;
+  visibility: hidden;
+  opacity: 0;
+  transform: translate(-50%, calc(-100% - 0.1rem));
+  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.33, 1, 0.68, 1),
+    visibility 0s linear 0.2s;
+  pointer-events: none;
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--radius);
+  white-space: nowrap;
+}
+
+.map-tip.is-on {
+  visibility: visible;
+  opacity: 1;
+  transform: translate(-50%, calc(-100% - 0.6rem));
+  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.33, 1, 0.68, 1),
+    visibility 0s;
+}
+
+.map-tip-title {
+  display: block;
+  font-family: var(--serif);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.map-tip-meta {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- trip list ---------- */
+
+.trip-list { padding: 2.5rem 0 4rem; }

@@ -1,0 +1,89 @@
+/* The shared vocabulary of the two list pages — travel and the bucket list. Both
+   draw the same stats line and the same country-thumbnail card (see thumb.js), so
+   the rules live here once and both pages link this file. */
+
+.travel-stats {
+  margin: 0 0 0.9rem;
+  font-size: 0.8rem;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* ---------- country-thumbnail card ---------- */
+
+.trip-card {
+  display: flex;
+  gap: 1.1rem;
+  align-items: center;
+  padding: 1.2rem 0;
+  border-bottom: 1px solid var(--line);
+  text-decoration: none;
+  color: inherit;
+}
+
+/* The country itself, scaled to fill the frame — so a card is legible at a glance as
+   "Japan" rather than as a photo that could have been taken anywhere. */
+.trip-card-map {
+  flex-shrink: 0;
+  width: 7rem;
+  height: 7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.trip-card-map-shape {
+  fill: color-mix(in srgb, var(--accent) 28%, var(--line));
+  transition: fill 0.28s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.trip-card-map-dot { fill: var(--accent); }
+
+.trip-card:hover .trip-card-map { border-color: var(--accent); }
+
+.trip-card:hover .trip-card-map-shape {
+  fill: color-mix(in srgb, var(--accent) 62%, var(--line));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trip-card-map-shape { transition: none; }
+}
+
+.trip-card-body { min-width: 0; }
+
+.trip-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A quiet accent-tinted pill — "New Year", "Pilgrimage", "Done" — so it reads as a
+   marker, not another line of meta text. */
+.trip-card-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+.trip-card-title {
+  font-family: var(--serif);
+  font-size: 1.3rem;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0.2rem 0 0.3rem;
+}
+
+.trip-card:hover .trip-card-title { color: var(--accent); }
+
+.trip-card-duration { font-size: 0.92rem; color: var(--muted); margin: 0; }

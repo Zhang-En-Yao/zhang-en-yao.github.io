@@ -109,25 +109,28 @@
       {
         "heading": "Gothic Quarter & El Born",
         "points": [
+          { "name": "La Rambla", "lat": 41.380900, "lon": 2.173200 },
+          { "name": "Plaça Reial", "lat": 41.380200, "lon": 2.175000 },
+          { "name": "El Raval", "lat": 41.378700, "lon": 2.169500 },
+          { "name": "Barri Gòtic", "lat": 41.383300, "lon": 2.176600 },
           { "name": "Plaça del Rei", "lat": 41.383900, "lon": 2.177000 },
           { "name": "Barcelona Cathedral", "lat": 41.383900, "lon": 2.176200 },
           { "name": "Carrer Montcada", "lat": 41.385700, "lon": 2.181500 },
           { "name": "La Llotja de Mar", "lat": 41.382172, "lon": 2.182438 },
-          { "name": "El Born", "lat": 41.383000, "lon": 2.182700 },
-          { "name": "La Rambla", "lat": 41.380900, "lon": 2.173200 },
-          { "name": "Plaça Reial", "lat": 41.380200, "lon": 2.175000 },
-          { "name": "El Raval", "lat": 41.378700, "lon": 2.169500 }
+          { "name": "El Born", "lat": 41.383600, "lon": 2.182700 },
+          { "name": "El Born CCM", "lat": 41.385400, "lon": 2.183200 },
+          { "name": "Fossar de les Moreres", "lat": 41.384100, "lon": 2.181700 }
         ]
       },
       {
         "heading": "The Waterfront",
         "points": [
-          { "name": "Drassanes Reials", "lat": 41.375200, "lon": 2.176580 },
           { "name": "Port Vell", "lat": 41.375000, "lon": 2.182000 },
           { "name": "Barceloneta", "lat": 41.380700, "lon": 2.189000 },
           { "name": "Parc de la Ciutadella", "lat": 41.388100, "lon": 2.186000 },
           { "name": "Vila Olímpica", "lat": 41.388500, "lon": 2.195000 },
-          { "name": "Port Olímpic", "lat": 41.387918, "lon": 2.197059 }
+          { "name": "Port Olímpic", "lat": 41.387918, "lon": 2.197059 },
+          { "name": "Poblenou", "lat": 41.403600, "lon": 2.195500 }
         ]
       },
       {
@@ -136,6 +139,7 @@
           { "name": "Eixample", "lat": 41.393700, "lon": 2.164500 },
           { "name": "Palau de la Música Catalana", "lat": 41.387780, "lon": 2.175000 },
           { "name": "Passeig de Gràcia", "lat": 41.391800, "lon": 2.164500 },
+          { "name": "Casa Amatller", "lat": 41.391650, "lon": 2.164900 },
           { "name": "Casa Batlló", "lat": 41.391700, "lon": 2.165000 },
           { "name": "La Pedrera / Casa Milà", "lat": 41.395400, "lon": 2.161900 },
           { "name": "Sagrada Família", "lat": 41.403690, "lon": 2.174330 },
@@ -149,6 +153,7 @@
           { "name": "Poble-sec", "lat": 41.373900, "lon": 2.163300 },
           { "name": "Refugi 307", "lat": 41.371440, "lon": 2.166630 },
           { "name": "Montjuïc", "lat": 41.364400, "lon": 2.158700 },
+          { "name": "Anella Olímpica", "lat": 41.364600, "lon": 2.153300 },
           { "name": "Estadi Olímpic Lluís Companys", "lat": 41.364900, "lon": 2.152800 }
         ]
       }
