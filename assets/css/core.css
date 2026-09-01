@@ -90,10 +90,6 @@ button, input, textarea, select { font-family: inherit; }
   height: 3.5rem;
 }
 
-/* A cluster of controls at the right end of the header (theme, and on a trip the
-   language menu) sits together rather than spreading across the bar. */
-.header-tools { display: flex; align-items: center; gap: 0.5rem; }
-
 .icon-btn {
   display: inline-flex;
   align-items: center;

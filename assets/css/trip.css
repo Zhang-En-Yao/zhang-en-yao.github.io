@@ -1,7 +1,6 @@
 /* The trip page: one travelogue. The two-column layout, the header band with its
    region map and flights, the prose itself, the photo gallery and lightbox, and the
-   sticky table of contents. The ask-this-page assistant is in chat.css; the language
-   menu is in translate.css. */
+   sticky table of contents. */
 
 .trip-layout {
   display: grid;

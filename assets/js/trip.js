@@ -1,7 +1,5 @@
 // The trip page: renders one travelogue and turns its photos into a gallery. Depends on
 // ui.js (`esc`, `fmtDate`, `emptyState`) and markdown.js (`renderMarkdown`, `decorateBody`).
-// translate.js hangs a language menu off the header and re-renders the body through the
-// `render` callback handed out on `trip:loaded`.
 
 const tripEl = document.getElementById('trip');
 const tocEl = document.getElementById('toc');
@@ -650,11 +648,10 @@ function appendPhotoStrip(bodyEl, meta) {
   bodyEl.appendChild(strip);
 }
 
-// Wired once, against `.prose` (which survives a re-render — only its innerHTML is
-// replaced) and the live `tripPhotos` array, so a translation swapping the body in does
-// not need to re-arm it or stack a second set of document listeners.
+// Wired once, against `.prose` and the module-level `tripPhotos` array that renderProse
+// fills, so the lightbox reads whatever is currently in the gallery.
 function initLightbox(bodyEl) {
-  if (!tripPhotos.length) return; // No photos in this travelogue, and a translation adds none.
+  if (!tripPhotos.length) return; // No photos in this travelogue.
 
   const box = document.createElement('div');
   box.className = 'lightbox';
@@ -697,8 +694,7 @@ function initLightbox(bodyEl) {
 
   function open(i, from) {
     opener = from;
-    // A single photo has nowhere to step to — re-checked per open, since a re-render can
-    // change the count.
+    // A single photo has nowhere to step to.
     stepEls.forEach((el) => { el.hidden = tripPhotos.length < 2; });
     show(i);
     box.hidden = false;
@@ -733,13 +729,10 @@ function initLightbox(bodyEl) {
   });
 }
 
-// ---------- render, and re-render ----------
+// ---------- render ----------
 //
-// The body is built once from the Markdown, then can be rebuilt in place when a
-// translation comes back (translate.js). The section maps and the photo strip are driven
-// by `meta`, not by the Markdown, so a translated document keeps them — the one seam is
-// that insertAreaMaps matches a section's map to its heading by text, so a translated
-// render is handed a `meta` whose `areas[].heading` have been translated to match.
+// The section maps and the photo strip are driven by `meta`, not by the Markdown, so they
+// are stitched in here after the prose is laid down.
 let tripStreets = {};
 let tripPhotos = [];
 
@@ -778,8 +771,7 @@ if (!id) {
       document.title = `${tripTitle(meta)} — Travels`;
 
       // An entry with no `file` is a place and a date on the map and nothing more —
-      // it has been logged, not written up. Show what there is rather than 404ing;
-      // `trip:loaded` never fires, so there is no language menu on this branch.
+      // it has been logged, not written up. Show what there is rather than 404ing.
       if (!meta.file) {
         tripEl.innerHTML = headerHtml(meta, features) + emptyState({
           icon: 'file',
@@ -810,17 +802,6 @@ if (!id) {
           tripEl.innerHTML = `${headerHtml(meta, features)}<div class="prose"></div>`;
           renderProse(md, meta);
           initLightbox(tripEl.querySelector('.prose'));
-
-          // The language menu (translate.js) re-renders the body through this: `render`
-          // takes translated Markdown plus a `meta` whose section headings have been
-          // translated to match, or the originals to revert.
-          document.dispatchEvent(new CustomEvent('trip:loaded', {
-            detail: {
-              markdown: md,
-              meta,
-              render: (nextMarkdown, nextMeta) => renderProse(nextMarkdown, nextMeta || meta),
-            },
-          }));
         });
     })
     .catch(() => {

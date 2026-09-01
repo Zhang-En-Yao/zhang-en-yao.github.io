@@ -79,12 +79,10 @@ and `done: true` once it has happened.
 - **Photos in the body**: a paragraph of only images becomes a column of captioned figures;
   wrap the run in `<div class="photo-strip"> … </div>` (blank lines around the images) to
   make it a horizontal filmstrip instead.
-- **Translation**: `trip.html` has a language menu in the header. Picking a language loads
-  [transformers.js](https://github.com/huggingface/transformers.js) and the NLLB-200
-  distilled model (~300 MB, quantised) from a CDN, translates the travelogue in the browser,
-  and caches the result in `localStorage` per trip + language. The model itself is cached by
-  the browser after the first download; nothing is sent to a server. The Markdown is split
-  into a markup skeleton plus prose strings so headings, lists, and tables survive.
+- **Selection translation**: selecting a passage in a travelogue puts a **Translate** pill
+  at its end; clicking sends just that selection to a Cloudflare Worker LLM gateway
+  (GPT-OSS 120B) and streams the translation into a sheet (right on desktop, bottom on
+  mobile). One paragraph at a time, target language remembered (`assets/js/translate.js`).
 
 ## Local preview
 
@@ -102,7 +100,7 @@ Then open <http://localhost:8000>.
 ```
 index.html           The hub
 travel.html          World map + list of trips
-trip.html            One travelogue (?id=…) — maps, flights, photos, translation
+trip.html            One travelogue (?id=…) — maps, flights, photos, selection translation
 bucket-list.html     Festivals, grouped by reason to go
 travel/*.md          Travelogue bodies
 travel/index.json    Trip metadata
