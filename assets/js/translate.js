@@ -126,7 +126,7 @@ function initSelectionTranslate() {
   sheet.innerHTML = `
     <div class="tr-sheet-head">
       <select class="tr-sheet-lang" data-lang aria-label="Target language">
-        ${LANGS.map((l) => `<option value="${l.code}">${esc(l.name)}</option>`).join('')}
+        ${LANGS.map((l) => `<option value="${l.code}">${esc(l.native)}</option>`).join('')}
       </select>
       <button type="button" class="tr-sheet-close" data-close aria-label="Close">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
@@ -202,7 +202,7 @@ function initSelectionTranslate() {
     inflight?.abort();
     inflight = new AbortController();
     const mine = inflight;
-    showStatus(emptyState({ icon: 'spinner', title: 'Translating', description: `Translating into ${l.native}..., please wait a moment.` }));
+    showStatus(emptyState({ icon: 'spinner', title: 'Translating', description: `Translating into ${l.name}..., please wait a moment.` }));
 
     try {
       const out = await translateText(l, sourceText, (partial) => {
