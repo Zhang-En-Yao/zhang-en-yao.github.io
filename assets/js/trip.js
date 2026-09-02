@@ -650,22 +650,10 @@ function dailyItineraryHtml(days, pointNames) {
       </tr>`);
   }).join('');
   return `
-    <h2>Day-by-Day Itinerary</h2>
+    <h2>Itinerary</h2>
     <table>
       <thead><tr><th>Date</th><th>Time</th><th>Place</th><th>Category</th></tr></thead>
       <tbody>${rows}</tbody>
-    </table>`;
-}
-
-function lodgingTableHtml(rows) {
-  if (!rows || !rows.length) return '';
-  const body = rows.map((r) => `
-    <tr><td>${esc(r.date)}</td><td>${esc(r.name)}</td><td>${r.lat}, ${r.lon}</td></tr>`).join('');
-  return `
-    <h2>Lodging Coordinates</h2>
-    <table>
-      <thead><tr><th>Date</th><th>Lodging</th><th>Coordinates</th></tr></thead>
-      <tbody>${body}</tbody>
     </table>`;
 }
 
@@ -673,7 +661,6 @@ function renderTripContent(data, meta, streets) {
   const bodyEl = tripEl.querySelector('.prose');
   bodyEl.innerHTML = (data.sections || []).map((s) => sectionHtml(s, streets)).join('')
     + dailyItineraryHtml(data.dailyItinerary, pointNameSet(data))
-    + lodgingTableHtml(data.lodgingTable)
     + (data.note ? `<h2>Coordinate note</h2><p>${esc(data.note)}</p>` : '');
   decorateBody(bodyEl, tocEl);
   appendPhotoStrip(bodyEl, meta);
