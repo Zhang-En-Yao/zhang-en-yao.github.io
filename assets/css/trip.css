@@ -170,13 +170,13 @@
 
 /* Sans, boxed and tabular, sitting between the map and the prose: a boarding pass is a
    table of facts, and it should not pretend to be part of the travelogue's voice. */
-.flights { margin: 0 0 2.25rem; }
+.flights { margin: 0 0 2rem; }
 
 .flight {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
-  padding: 1.5rem 1.5rem;
+  padding: 1.75rem;
   font-family: var(--sans);
 }
 
@@ -609,3 +609,62 @@ body.is-locked { overflow: hidden; }
 .toc-h2-toggle[aria-expanded='false'] .toc-chevron { transform: rotate(-90deg); }
 
 .toc-h3-list a { padding-left: 0.8rem; font-size: 0.8rem; }
+
+/* ---------- jump-back pill ---------- */
+
+/* Shown by jumpback.js after a Contents link or an itinerary stop throws you across
+   the page — one tap back to where you were reading, plus a × to send it away. */
+.jumpback {
+  position: fixed;
+  z-index: 25;
+  left: 50%;
+  bottom: 1.25rem;
+  display: inline-flex;
+  align-items: stretch;
+  color: var(--bg);
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-lift);
+  opacity: 0;
+  transform: translate(-50%, 0.75rem);
+  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.jumpback.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+.jumpback[hidden] { display: none; }
+
+.jumpback button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.jumpback-go { padding: 0.5rem 0.7rem 0.5rem 0.85rem; border-radius: var(--radius-pill) 0 0 var(--radius-pill); }
+
+.jumpback-dismiss {
+  padding: 0.5rem 0.7rem;
+  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+  border-left: 1px solid color-mix(in srgb, var(--bg) 28%, transparent);
+}
+
+.jumpback-go svg { width: 1rem; height: 1rem; }
+.jumpback-dismiss svg { width: 0.85rem; height: 0.85rem; opacity: 0.75; }
+
+.jumpback button:hover { filter: brightness(1.08); }
+
+@media (min-width: 900px) {
+  .jumpback { left: auto; right: 1.5rem; transform: translateY(0.75rem); }
+  .jumpback.is-on { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jumpback { transition: opacity 0.22s ease; }
+}
