@@ -206,7 +206,7 @@
 /* Scoped past `.prose ol/li`, which would otherwise lend this list the prose indent and
    the row spacing meant for the travelogue — and the indent is what pushes the whole leg
    off the card's centre line. */
-.flights .flight-legs { list-style: none; margin: 0; padding: 0; }
+.flights .flight-legs { list-style: none; margin: 1rem; padding: 0; }
 
 .flights li { margin: 0; }
 
