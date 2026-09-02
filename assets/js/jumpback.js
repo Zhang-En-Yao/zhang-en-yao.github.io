@@ -9,7 +9,7 @@
   const REVEAL_MIN = 240; // px the jump must move the viewport before a way back is worth offering
   const NEAR_ORIGIN = 120; // once you're back within this of the origin, the offer has done its job
   const HEADER_OFFSET = 80; // matches core.css `scroll-padding-top` — where an anchor actually lands
-  const LINGER_MS = 13_000; // how long it waits, unused, before fading itself
+  const LINGER_MS = 13000; // how long it waits, unused, before fading itself
 
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
