@@ -3,43 +3,52 @@
 .hub {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(23rem, 1fr));
-  gap: 1rem;
-  padding-bottom: 4rem;
+  gap: 1.25rem;
+  padding-bottom: 5rem;
 }
 
 .hub-card {
   display: block;
-  padding: 1.6rem;
+  padding: 2rem;
   background: var(--surface);
-  border: 1px solid var(--line);
   border-radius: var(--radius);
   text-decoration: none;
   color: inherit;
+  transition: transform 0.28s cubic-bezier(0.33, 1, 0.68, 1), box-shadow 0.28s ease;
 }
 
-.hub-card:hover { border-color: var(--accent); }
+.hub-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lift);
+}
 
 .hub-media {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  margin-bottom: 1rem;
-  border-radius: var(--radius);
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 1.1rem;
+  border-radius: var(--radius-sm);
   background: var(--accent-soft);
   color: var(--accent);
 }
 
-.hub-media svg { width: 1.4rem; height: 1.4rem; }
+.hub-media svg { width: 1.5rem; height: 1.5rem; }
 
 .hub-title {
   font-family: var(--serif);
-  font-size: 1.3rem;
+  font-size: 1.4rem;
   font-weight: 600;
-  margin: 0 0 0.3rem;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.35rem;
 }
 
 .hub-card:hover .hub-title { color: var(--accent); }
 
-.hub-description { font-size: 0.92rem; color: var(--muted); margin: 0; }
+.hub-description { font-size: 0.98rem; color: var(--muted); margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hub-card { transition: box-shadow 0.28s ease; }
+  .hub-card:hover { transform: none; }
+}

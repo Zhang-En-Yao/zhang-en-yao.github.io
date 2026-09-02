@@ -11,7 +11,7 @@
   font-family: var(--sans);
   font-size: 0.76rem;
   font-weight: 600;
-  color: #fff;
+  color: var(--bg);
   background: var(--accent);
   border: none;
   border-radius: var(--radius-pill);

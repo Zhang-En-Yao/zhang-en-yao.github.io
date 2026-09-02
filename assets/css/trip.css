@@ -23,10 +23,15 @@
 
 .trip-header h1 {
   font-family: var(--serif);
-  font-size: 2.1rem;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
-  margin: 0 0 0.3rem;
+  font-size: 2.6rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin: 0 0 0.4rem;
+}
+
+@media (max-width: 640px) {
+  .trip-header h1 { font-size: 2rem; }
 }
 
 .trip-header .venue { color: var(--faint); font-size: 0.9rem; margin: 0 0 0.5rem; }
@@ -165,7 +170,7 @@
 
 /* Sans, boxed and tabular, sitting between the map and the prose: a boarding pass is a
    table of facts, and it should not pretend to be part of the travelogue's voice. */
-.flights { margin: 0 0 1rem; }
+.flights { margin: 0 0 2.25rem; }
 
 .flight {
   border: 1px solid var(--line);
@@ -296,21 +301,33 @@
 
 .prose {
   font-family: var(--serif);
-  font-size: 1.06rem;
+  font-size: 1.08rem;
+  line-height: 1.65;
   min-width: 0;
 }
 
 .prose h2 {
-  font-size: 1.4rem;
-  margin: 2.8rem 0 0.9rem;
+  font-size: 1.55rem;
+  font-weight: 600;
+  margin: 3rem 0 0.9rem;
   padding-bottom: 0.4rem;
   border-bottom: 1px solid var(--line);
-  letter-spacing: -0.005em;
+  letter-spacing: -0.025em;
 }
 
-.prose h3 { font-size: 1.15rem; margin: 2rem 0 0.6rem; }
+.prose h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 2rem 0 0.6rem;
+  letter-spacing: -0.02em;
+}
 
-.prose h4 { font-size: 1.02rem; margin: 1.6rem 0 0.5rem; }
+.prose h4 {
+  font-size: 1.04rem;
+  font-weight: 600;
+  margin: 1.6rem 0 0.5rem;
+  letter-spacing: -0.01em;
+}
 
 .prose p { margin: 0 0 1.1rem; }
 
@@ -320,7 +337,13 @@
 
 .prose li::marker { color: var(--faint); }
 
-.prose a { color: var(--accent); text-underline-offset: 2px; }
+.prose a {
+  color: var(--accent);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+.prose a:hover { text-decoration: underline; }
 
 .prose blockquote {
   margin: 1.4rem 0;

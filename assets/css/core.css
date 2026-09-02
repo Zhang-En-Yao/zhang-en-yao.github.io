@@ -5,33 +5,42 @@
 /* ---------- tokens ---------- */
 
 :root {
-  --bg: #fbfaf8;
-  --surface: #ffffff;
-  --text: #1e1c1a;
-  --muted: #6b6560;
-  --faint: #948f89;
-  --line: #e5e1db;
-  --accent: #8a4b2a;
-  --accent-soft: #f2e9e3;
+  --bg: #faf8f5;
+  --surface: #f1ede7;
+  --text: #26221e;
+  --muted: #6f695f;
+  --faint: #928b7f;
+  --line: #ddd6cb;
+  --accent: #bf4a00;
+  --accent-soft: #fbe9dc;
 
-  --radius: 10px;
-  --radius-sm: 4px;
+  --radius: 18px;
+  --radius-sm: 8px;
   --radius-pill: 999px;
 
-  --serif: "Iowan Old Style", "Source Serif 4", Georgia, "Songti TC", "Noto Serif TC", serif;
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Noto Sans TC", sans-serif;
+  --shadow: 0 4px 20px rgb(0 0 0 / 6%), 0 1px 3px rgb(0 0 0 / 4%);
+  --shadow-lift: 0 12px 40px rgb(0 0 0 / 12%), 0 2px 8px rgb(0 0 0 / 6%);
+
+  /* SF-family system stack. --serif is kept as an alias so the existing
+     `font-family: var(--serif)` heading rules pick up the Apple face too. */
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    "Segoe UI", Roboto, "PingFang TC", "Noto Sans TC", sans-serif;
+  --serif: var(--sans);
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
 }
 
 [data-theme="dark"] {
-  --bg: #16151a;
-  --surface: #1e1d23;
-  --text: #e8e5e0;
-  --muted: #a09a94;
-  --faint: #746e68;
-  --line: #2e2c34;
-  --accent: #d99a6c;
-  --accent-soft: #2a2229;
+  --bg: #14120f;
+  --surface: #201d19;
+  --text: #f2efe8;
+  --muted: #a49c8e;
+  --faint: #837b6d;
+  --line: #383430;
+  --accent: #ff9f47;
+  --accent-soft: #33241a;
+
+  --shadow: 0 4px 20px rgb(0 0 0 / 40%), 0 1px 3px rgb(0 0 0 / 30%);
+  --shadow-lift: 0 12px 40px rgb(0 0 0 / 55%), 0 2px 8px rgb(0 0 0 / 40%);
 }
 
 /* ---------- base ---------- */
@@ -45,8 +54,10 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--sans);
-  line-height: 1.7;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Form controls don't inherit the page font. Anything that can land inside the
@@ -61,16 +72,29 @@ button, input, textarea, select { font-family: inherit; }
 
 /* ---------- page intro (home, travel, bucket list) ---------- */
 
-.intro { padding: 3.5rem 0 2rem; }
+.intro { padding: 4rem 0 2.25rem; }
 
 .intro h1 {
   font-family: var(--serif);
-  font-size: 2.4rem;
-  margin: 0 0 0.4rem;
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1.08;
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.03em;
+}
+
+.lede {
+  color: var(--muted);
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 400;
   letter-spacing: -0.01em;
 }
 
-.lede { color: var(--muted); margin: 0; }
+@media (max-width: 640px) {
+  .intro h1 { font-size: 2.2rem; }
+  .lede { font-size: 1.05rem; }
+}
 
 /* ---------- header ---------- */
 
@@ -78,9 +102,10 @@ button, input, textarea, select { font-family: inherit; }
   position: sticky;
   top: 0;
   z-index: 10;
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
-  backdrop-filter: saturate(150%) blur(8px);
-  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
 }
 
 .site-header .wrap {
@@ -94,23 +119,31 @@ button, input, textarea, select { font-family: inherit; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--line);
-  background: var(--surface);
+  border: none;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
   color: var(--muted);
   border-radius: var(--radius-pill);
-  width: 2rem;
-  height: 2rem;
+  width: 2.1rem;
+  height: 2.1rem;
   font-size: 0.9rem;
   cursor: pointer;
   line-height: 1;
   text-decoration: none;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
 .icon-btn svg { width: 1rem; height: 1rem; }
 
-.icon-btn:hover,
-.btn:hover {
+.icon-btn:hover {
   color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.icon-btn:active { transform: scale(0.94); }
+
+.btn:hover {
+  color: var(--bg);
+  background: var(--accent);
   border-color: var(--accent);
 }
 
@@ -125,7 +158,7 @@ button, input, textarea, select { font-family: inherit; }
   text-align: center;
   padding: 3rem 1.5rem;
   margin: 2rem 0;
-  border: 1px dashed var(--line);
+  background: var(--surface);
   border-radius: var(--radius);
 }
 
@@ -154,9 +187,10 @@ button, input, textarea, select { font-family: inherit; }
 
 .empty-title {
   font-family: var(--serif);
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
   color: var(--text);
   margin: 0;
 }
@@ -181,16 +215,18 @@ button, input, textarea, select { font-family: inherit; }
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.4rem 0.85rem;
+  padding: 0.5rem 1.1rem;
   font-family: var(--sans);
-  font-size: 0.85rem;
+  font-size: 0.9rem;
+  font-weight: 500;
   line-height: 1.4;
   color: var(--text);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--radius-pill);
   text-decoration: none;
   cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 .spinner {
