@@ -638,15 +638,18 @@ function dailyItineraryHtml(days, pointNames) {
   const rows = days.flatMap((day) => {
     const [date, category] = splitDayHeading(day.heading);
     const url = googleMapsUrl(day.stops);
-    const categoryCell = url
+    // Only the day's first row carries the link — every row already repeats the same
+    // category text for the same day, and a link on each of them would just be the same
+    // "open this day's route" target copied down the column rather than a second fact.
+    const linkedCategory = url
       ? `<a href="${url}" target="_blank" rel="noopener">${esc(category)}</a>`
       : esc(category);
-    return day.stops.map((s) => `
+    return day.stops.map((s, i) => `
       <tr>
         <td>${esc(date)}</td>
         <td>${esc(s.time)}</td>
         <td>${stopHtml(s.place, pointNames)}</td>
-        <td>${categoryCell}</td>
+        <td>${i === 0 ? linkedCategory : esc(category)}</td>
       </tr>`);
   }).join('');
   return `
