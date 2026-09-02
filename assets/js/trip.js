@@ -561,27 +561,100 @@ function sectionHtml(section, streets) {
     ${subs.map((s) => subsectionHtml(s, streets, section.heading, !!section.route)).join('')}`;
 }
 
-// The day-by-day table and its Google Maps link are regenerated from `stops` every render —
-// the link is never itself stored, so there is nothing in the data for it to go stale against.
-function dailyItineraryHtml(days) {
+// Every point's own name, gathered once per render — a day's stop links up to that point's
+// `<h4>` write-up above when its name resolves to one of these (see `resolveStopTarget`), and
+// stays plain text otherwise.
+function pointNameSet(data) {
+  const names = new Set();
+  (data.sections || []).forEach((s) => (s.subsections || []).forEach((sub) => (sub.points || [])
+    .forEach((p) => names.add(p.name))));
+  return names;
+}
+
+// A stop's own label isn't always a point's exact name — "Sarria to Portomarín" describes a
+// morning's walk, and its destination, not the label itself, is what has a write-up; "Hostal
+// dos Reis Católicos / Parador" and "Santiago Cathedral / Old Town" each name two things at
+// once, only one of which is a documented point. Tried in order: the label as its own exact
+// name; the destination of a "… to X" leg; then, for a "X / Y" label, each side in turn — first
+// for an exact match, then (since "Santiago Cathedral" names the same place as the documented
+// "Cathedral of Santiago de Compostela" without being the same string) for either name simply
+// containing the other. `null` means genuinely nothing to link to — a lodging or a
+// coordinate-less placeholder ("Barcelona", for a departure) with no point behind it at all.
+// Exact first, then whichever documented point simply contains this name or is contained by
+// it — "Santiago de Compostela" naming, loosely, either "Cathedral of Santiago de Compostela"
+// or "Santiago de Compostela Old Town" (the earlier point wins on a tie, which is what "the
+// medieval pilgrimage city" being written up before "after the pilgrimage" already implies).
+// The fuzzy tier is only ever tried on an already-split fragment (a "to" destination, or one
+// side of a "/"), never on a whole unsplit label — "Sarria to Portomarín" itself fuzzy-contains
+// both "Sarria" and "Portomarín", and only splitting first picks the one actually meant: where
+// the leg is going, not where it started.
+function findPointName(name, pointNames) {
+  if (pointNames.has(name)) return name;
+  return [...pointNames].find((n) => n.includes(name) || name.includes(n)) || null;
+}
+
+function resolveStopTarget(place, pointNames) {
+  if (pointNames.has(place)) return place;
+  const to = place.match(/ to (.+)$/);
+  if (to) {
+    const dest = findPointName(to[1], pointNames);
+    if (dest) return dest;
+  }
+  if (place.includes(' / ')) {
+    for (const part of place.split(' / ')) {
+      const found = findPointName(part, pointNames);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+// The link target is computed the same way `decorateBody` will id that point's own `<h4>` once
+// the page has rendered — see `slug()` in markdown.js. Point names are unique across a trip in
+// practice, so recomputing the slug fresh here (rather than sharing decorateBody's own
+// collision-tracking `used` set) lands on the same id.
+function stopHtml(place, pointNames) {
+  const target = resolveStopTarget(place, pointNames);
+  return target ? `<a href="#${slug(target, new Set())}">${esc(place)}</a>` : esc(place);
+}
+
+// "2026/10/25 — Toledo" -> ["2026/10/25", "Toledo"]; a heading with no " — " (shouldn't happen
+// once every day has a label, but cheaper to handle than to assume) reads as a bare date with
+// no category.
+function splitDayHeading(heading) {
+  const i = heading.indexOf(' — ');
+  return i === -1 ? [heading, ''] : [heading.slice(0, i), heading.slice(i + 3)];
+}
+
+// One table for the whole trip rather than one per day — a reader scanning for "when was I at
+// X" reads down a single date column faster than they'd open N separate tables. Coordinates
+// are dropped: they're the map layer's own data (every stop that has a write-up is already a
+// dot on a cluster map above, and clicking its name gets there), not something a reader of an
+// itinerary table needs spelled out in decimal degrees. A day's Google Maps link rides on its
+// own Category cell instead of a row of its own — every stop in a day already repeats that
+// day's category, so the link is already on every row that shares it, at no extra height.
+function dailyItineraryHtml(days, pointNames) {
   if (!days || !days.length) return '';
-  const dayHtml = days.map((day) => {
-    const rows = day.stops.map((s) => `
-      <tr>
-        <td>${esc(s.time)}</td>
-        <td>${esc(s.place)}</td>
-        <td>${Number.isFinite(s.lat) ? `${s.lat}, ${s.lon}` : '—'}</td>
-      </tr>`).join('');
+  const rows = days.flatMap((day) => {
+    const [date, category] = splitDayHeading(day.heading);
     const url = googleMapsUrl(day.stops);
-    return `
-      <h3>${esc(day.heading)}</h3>
-      <table>
-        <thead><tr><th>Time</th><th>Place</th><th>Coordinates</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      ${url ? `<p><a href="${url}" target="_blank" rel="noopener">Google Maps</a></p>` : ''}`;
+    const categoryCell = url
+      ? `<a href="${url}" target="_blank" rel="noopener">${esc(category)}</a>`
+      : esc(category);
+    return day.stops.map((s) => `
+      <tr>
+        <td>${esc(date)}</td>
+        <td>${esc(s.time)}</td>
+        <td>${stopHtml(s.place, pointNames)}</td>
+        <td>${categoryCell}</td>
+      </tr>`);
   }).join('');
-  return `<h2>Day-by-Day Itinerary</h2>${dayHtml}`;
+  return `
+    <h2>Day-by-Day Itinerary</h2>
+    <table>
+      <thead><tr><th>Date</th><th>Time</th><th>Place</th><th>Category</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
 }
 
 function lodgingTableHtml(rows) {
@@ -599,7 +672,7 @@ function lodgingTableHtml(rows) {
 function renderTripContent(data, meta, streets) {
   const bodyEl = tripEl.querySelector('.prose');
   bodyEl.innerHTML = (data.sections || []).map((s) => sectionHtml(s, streets)).join('')
-    + dailyItineraryHtml(data.dailyItinerary)
+    + dailyItineraryHtml(data.dailyItinerary, pointNameSet(data))
     + lodgingTableHtml(data.lodgingTable)
     + (data.note ? `<h2>Coordinate note</h2><p>${esc(data.note)}</p>` : '');
   decorateBody(bodyEl, tocEl);

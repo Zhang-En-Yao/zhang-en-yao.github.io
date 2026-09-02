@@ -553,4 +553,36 @@ body.is-locked { overflow: hidden; }
 
 .toc a:hover { color: var(--accent); }
 
-.toc a.level-3 { padding-left: 0.8rem; font-size: 0.8rem; }
+/* Each `h2`'s own row: its link takes the growable space, the toggle sits fixed beside it — so
+   a long section title never pushes the chevron out to its own line or under the link. */
+.toc-h2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.toc-h2 a { flex: 1; }
+
+.toc-h2-toggle {
+  flex: none;
+  padding: 0.28rem 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+}
+
+.toc-chevron {
+  display: block;
+  width: 0.9rem;
+  height: 0.9rem;
+  color: var(--faint);
+  transition: transform 0.15s ease;
+}
+
+/* Pointing right while its own `h3`s are hidden, down once expanded — rotated purely off
+   aria-expanded so the arrow can never disagree with what's actually shown below it. */
+.toc-h2-toggle[aria-expanded='false'] .toc-chevron { transform: rotate(-90deg); }
+
+.toc-h3-list a { padding-left: 0.8rem; font-size: 0.8rem; }
