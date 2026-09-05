@@ -5,7 +5,11 @@
       "Bash(curl -s \"https://cdn.jsdelivr.net/npm/d3-geo@3/dist/d3-geo.min.js\")",
       "Bash(curl -s \"https://cdn.jsdelivr.net/npm/d3-geo@3/src/contains.js\")",
       "Bash(curl -s \"https://cdn.jsdelivr.net/npm/d3-geo@3/dist/d3-geo.min.js\" -o geo.js)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(git -C /Users/zhangen-yao/Desktop/zhang-en-yao.github.io diff --stat)",
+      "Bash(git -C /Users/zhangen-yao/Desktop/zhang-en-yao.github.io diff assets/css/travel.css assets/js/travel.js)",
+      "Bash(curl -s -D - -o /tmp/states_resp.json \"https://flights-proxy.enyaochang.workers.dev/api/flights/states\" -H \"Origin: https://zhangenyao.github.io\")",
+      "Bash(python3 -c ' *)"
     ]
   }
 }
