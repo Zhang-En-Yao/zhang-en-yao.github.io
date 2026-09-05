@@ -956,26 +956,21 @@ function initLightbox(bodyEl) {
   box.setAttribute('role', 'dialog');
   box.setAttribute('aria-modal', 'true');
   box.setAttribute('aria-label', 'Photo');
+  // No on-screen prev/next: stepping between photos is the arrow keys and a horizontal
+  // swipe (see below), nothing to click. The only button is Close.
   box.innerHTML = `
     <button class="lightbox-btn lightbox-close" type="button" data-close aria-label="Close">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
     </button>
-    <button class="lightbox-btn lightbox-prev" type="button" data-step="-1" aria-label="Previous photo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
-    </button>
     <figure class="lightbox-figure">
       <img class="lightbox-img" alt="">
       <figcaption class="lightbox-caption"></figcaption>
-    </figure>
-    <button class="lightbox-btn lightbox-next" type="button" data-step="1" aria-label="Next photo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
-    </button>`;
+    </figure>`;
   document.body.appendChild(box);
 
   const imgEl = box.querySelector('.lightbox-img');
   const capEl = box.querySelector('.lightbox-caption');
   const closeEl = box.querySelector('[data-close]');
-  const stepEls = [...box.querySelectorAll('[data-step]')];
 
   let at = 0;
   let opener = null; // Where focus came from, and where it has to go back to.
@@ -991,8 +986,6 @@ function initLightbox(bodyEl) {
 
   function open(i, from) {
     opener = from;
-    // A single photo has nowhere to step to.
-    stepEls.forEach((el) => { el.hidden = tripPhotos.length < 2; });
     show(i);
     box.hidden = false;
     document.body.classList.add('is-locked');
@@ -1012,8 +1005,6 @@ function initLightbox(bodyEl) {
   });
 
   box.addEventListener('click', (e) => {
-    const step = e.target.closest('[data-step]');
-    if (step) return show(at + Number(step.dataset.step));
     // The backdrop is the dialog itself; a click that lands on the photo is not a miss.
     if (e.target.closest('[data-close]') || !e.target.closest('.lightbox-figure')) close();
   });
@@ -1024,6 +1015,25 @@ function initLightbox(bodyEl) {
     else if (e.key === 'ArrowLeft' && tripPhotos.length > 1) show(at - 1);
     else if (e.key === 'ArrowRight' && tripPhotos.length > 1) show(at + 1);
   });
+
+  // A horizontal swipe steps photos: drag left (finger moves toward −x) for the next one,
+  // right for the previous, the same direction the arrow keys read. Only a gesture that is
+  // more sideways than vertical and clears SWIPE_MIN counts — a vertical drag or a tap is
+  // left alone so the caption stays scrollable and a tap on the backdrop still closes.
+  const SWIPE_MIN = 45;
+  let startX = 0;
+  let startY = 0;
+  box.addEventListener('touchstart', (e) => {
+    startX = e.changedTouches[0].clientX;
+    startY = e.changedTouches[0].clientY;
+  }, { passive: true });
+  box.addEventListener('touchend', (e) => {
+    if (tripPhotos.length < 2) return;
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    if (Math.abs(dx) < SWIPE_MIN || Math.abs(dx) < Math.abs(dy)) return;
+    show(at + (dx < 0 ? 1 : -1));
+  }, { passive: true });
 }
 
 // ---------- render ----------
