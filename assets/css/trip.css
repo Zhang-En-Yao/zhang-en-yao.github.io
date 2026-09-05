@@ -71,7 +71,7 @@
   margin: 0 0 2rem;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }
 
 .region-country {
