@@ -1,0 +1,322 @@
+{
+  "title": "Okinawa — Historical Itinerary",
+  "sections": [
+    {
+      "heading": "Northern Okinawa",
+      "intro": [
+        "The Motobu peninsula and the small islands off its tip: the prefecture's aquarium on the grounds of a 1975 world's fair, and a round island that until this century could only be reached by boat."
+      ],
+      "subsections": [
+        {
+          "heading": "Ocean Expo Park",
+          "intro": [],
+          "points": [
+            {
+              "name": "Okinawa Churaumi Aquarium",
+              "kind": "Aquarium",
+              "lat": 26.69439,
+              "lon": 127.87794,
+              "body": [
+                "The aquarium is the anchor of the Ocean Expo Park, laid out on the Motobu headland on the grounds of Expo '75 — the International Ocean Exposition held in 1975–76 to mark Okinawa's return to Japanese sovereignty three years earlier, after twenty-seven years of United States military administration. The present building opened in 2002, replacing a smaller aquarium put up for the fair on the same site. Its name joins the Okinawan words *chura*, beautiful, and *umi*, sea.",
+                "The building steps down the slope, so that a visitor descends from shallow reef tanks to the deep-water \"Kuroshio Sea,\" a tank of roughly 7,500 cubic metres named for the warm current that runs past the islands and is pumped through it. Seen through an acrylic panel 8.2 metres by 22.5 — for years among the largest in the world — it holds whale sharks and manta rays; Churaumi was the first aquarium to keep whale sharks over the long term and the first to record captive manta ray births."
+              ]
+            }
+          ]
+        },
+        {
+          "heading": "Kouri Island",
+          "intro": [],
+          "points": [
+            {
+              "name": "Kouri Bridge",
+              "kind": "Bridge",
+              "lat": 26.6905,
+              "lon": 128.0147,
+              "body": [
+                "The bridge opened in 2005, a 1,960-metre span linking the small island of Kouri to Yagaji Island, which a causeway and the older Warumi Bridge of 2010 in turn tie back to the Motobu mainland. It is one of the longest toll-free bridges in Japan, and it replaced the ferry that had been Kouri's only fixed connection to the rest of Okinawa. It runs low over shallow water above a pale sand-and-coral bottom, and the drive out across that bright turquoise is the image the island trades on."
+              ]
+            },
+            {
+              "name": "Kouri Island",
+              "kind": "Island",
+              "lat": 26.7036,
+              "lon": 128.0178,
+              "body": [
+                "Kouri is a near-circular island of about 3 square kilometres in Nakijin village, ringed by a single road roughly 8 kilometres round. It carries a Ryukyuan origin legend in which a boy and a girl — the first people — fall to the island from the sky and learn love by watching the dugongs; the story has earned it the tourist name \"Island of Love\" and made a photo-stop of two heart-shaped gaps in the rocks off the northern shore, fixed in the public mind by a 2013 airline advertisement. The island still grows sugarcane and is known for its sea urchin, landed in early summer."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "Naha",
+      "intro": [
+        "The Ryukyu Kingdom's capital and modern Okinawa's: the royal castle on the hill at Shuri, the cliff-top shrine over the harbour, and the mile of shopfronts that came back fastest after 1945."
+      ],
+      "subsections": [
+        {
+          "heading": "Shuri and the Ryukyu court",
+          "intro": [],
+          "points": [
+            {
+              "name": "Shuri Castle Park",
+              "kind": "Castle / World Heritage Site",
+              "lat": 26.217,
+              "lon": 127.7194,
+              "body": [
+                "Shuri was the seat of the Ryukyu Kingdom, which from 1429 ruled the island chain as a single state, trading across maritime East Asia and sending tribute to the Ming and later the Qing court; after a Satsuma invasion in 1609 it also owed obligations to that Japanese domain while keeping its throne and its ties to China. The castle was the royal residence and the kingdom's administrative and ceremonial centre, its main hall — the Seiden — facing west toward China, its lacquer-red colour and its carving a mixture of Chinese and Japanese forms with Ryukyuan ones. In 1879 Japan abolished the kingdom, exiled the last king Shō Tai, and made the islands Okinawa Prefecture.",
+                "Stripped of its court, the castle served as a garrison and a school and fell into decay; it was slated for demolition before being saved and named a national treasure in the 1920s. In the 1945 Battle of Okinawa the Japanese Thirty-Second Army dug its headquarters into tunnels beneath the hill, and American naval gunfire and bombing levelled the site. The University of the Ryukyus stood on the ground into the 1970s; the Seiden was rebuilt from old photographs and records and reopened in 1992, and the stone foundations and the sacred sites around them were inscribed as World Heritage in 2000. On the night of 31 October 2019 a fire destroyed the Seiden and the halls beside it once more; this visit falls during the rebuilding, with the main hall due to be finished in 2026."
+              ]
+            }
+          ]
+        },
+        {
+          "heading": "Naminoue",
+          "intro": [],
+          "points": [
+            {
+              "name": "Naminoue Shrine",
+              "kind": "Shinto shrine",
+              "lat": 26.2213,
+              "lon": 127.6668,
+              "body": [
+                "Naminoue — \"above the waves\" — stands on a coral bluff that drops straight to the sea, and it was a sacred place in the indigenous Ryukyuan religion, a point for prayer toward Nirai Kanai, the world beyond the horizon, long before it held a shrine building. Under later Japanese influence it was recast as a Shinto shrine linked to the Kumano cult, and in the modern prefecture it was ranked as Okinawa's first shrine, at the head of the island's Shinto hierarchy.",
+                "The buildings were destroyed in 1945 and rebuilt in stages, the present hall dating from 1993. Directly below is Naminoue Beach, the only beach within the city of Naha, now backed by an elevated expressway carried offshore. Beside the shrine is the Buddhist temple Gokoku-ji, founded in 1368, where officers of Commodore Matthew Perry's squadron were quartered and where Perry signed a compact with the Ryukyu Kingdom in 1854, days after forcing open Japan itself."
+              ]
+            },
+            {
+              "name": "Okinawa Gokoku Shrine",
+              "kind": "Shinto shrine",
+              "lat": 26.20314,
+              "lon": 127.67608,
+              "body": [
+                "Founded in 1936 in Onoyama Park, across the Kokuba estuary from Naminoue, this is Okinawa's Gokoku — \"nation-protecting\" — shrine, one of a class established across prewar Japan to enshrine the local war dead. It now venerates some 178,000 people who died in and around the 1945 Battle of Okinawa: soldiers and conscripts, the very large number of Okinawan civilians killed with them, and the war dead of other prefectures who fell on the islands. Burned out in the battle, it was rebuilt in 1965 and sits among the sports grounds and gymnasiums of the park."
+              ]
+            }
+          ]
+        },
+        {
+          "heading": "The Miracle Mile",
+          "intro": [],
+          "points": [
+            {
+              "name": "Kokusai-dori",
+              "kind": "Shopping street",
+              "lat": 26.214,
+              "lon": 127.688,
+              "body": [
+                "The \"International Street\" runs about 1.6 kilometres through central Naha, from the prefectural offices to Asato. The name comes from the Ernie Pyle International Theater, a cinema that opened along it in 1948 under American administration and was itself named for the war correspondent Ernie Pyle, killed by machine-gun fire on Iejima just off Okinawa in April 1945.",
+                "The whole district had been flattened in the 1945 battle, and the speed with which shops and crowds came back to this one street earned it the nickname the \"Miracle Mile.\" It is now the tourist spine of the city — souvenir shops, izakaya and department stores, with the covered Heiwa-dori arcade and the Makishi public market running off it to the south — and is closed to traffic on Sunday afternoons."
+              ]
+            }
+          ]
+        },
+        {
+          "heading": "Naha after dark",
+          "intro": [],
+          "points": [
+            {
+              "name": "Pino's Place",
+              "kind": "Jazz bar",
+              "lat": 26.21153,
+              "lon": 127.67391,
+              "body": [
+                "Okinawa has had a live jazz circuit since the 1950s, when it played the clubs around the American bases, and several small rooms in Naha still carry it on. Pino's Place, in the Higashi-machi block near Asahibashi, has run nightly sets of jazz standards and Latin numbers for some forty years, in a narrow low-lit bar a few minutes' walk from the western end of Kokusai-dōri. Its coordinates here are approximate."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "Urasoe",
+      "intro": [
+        "The stretch of coast just north of Naha, where the American administration left a grid of concrete family houses and an ice-cream counter built to supply the bases, and where a mall and a digital-art park now sit on later reclaimed land."
+      ],
+      "subsections": [
+        {
+          "heading": "American Urasoe",
+          "intro": [],
+          "points": [
+            {
+              "name": "Minatogawa Foreign Housing District",
+              "kind": "Neighbourhood",
+              "lat": 26.26301,
+              "lon": 127.71533,
+              "body": [
+                "This grid of low houses near the Urasoe waterfront was built in the 1950s and 1960s as rental housing for American military families during the United States administration of Okinawa. The type is distinctive: single-storey flat-roofed boxes of poured reinforced concrete, built that way against typhoons and termites, set back from straight streets that were given English names.",
+                "After the 1972 reversion and the departure of most of the tenants, the houses passed to Okinawan landlords and were let cheaply; from the 2000s they were taken over one by one as cafés, bakeries, bookshops and studios, and the district — marketed as \"Minatogawa Stateside Town\" — became one of the island's most self-consciously stylish quarters. The blank concrete \"American house\" has since been copied as a look for new shops and restaurants across Okinawa."
+              ]
+            },
+            {
+              "name": "Blue Seal Makiminato Honten",
+              "kind": "Ice cream parlour",
+              "lat": 26.26734,
+              "lon": 127.72146,
+              "body": [
+                "Blue Seal began in 1948 as the retail side of Foremost Dairies, an American firm brought in to supply milk and ice cream to the United States forces on Okinawa; the \"blue seal\" was the stamp certifying the product fit for the bases. In 1963 the business moved to this spot on Route 58 in Makiminato and opened its counter to Okinawans, and the Makiminato shop has been the company's flagship since — a 1960s American roadside diner in form, with a small company museum upstairs. The brand sells itself on the line \"born in America, raised in Okinawa,\" and its signature flavour is the deep-purple Okinawan sweet potato, *beni-imo*."
+              ]
+            },
+            {
+              "name": "teamLab Future Park Okinawa",
+              "kind": "Digital art installation",
+              "lat": 26.26175,
+              "lon": 127.69818,
+              "body": [
+                "This is a permanent installation by teamLab, the Tokyo art collective founded in 2001 whose projection-and-sensor environments have become a global museum draw. \"Future Park\" is the collective's education-minded format: collaborative, interactive rooms aimed at children, where — in the best-known piece, *Sketch Aquarium* — a child's crayon drawing of a fish is scanned and set swimming across the walls among everyone else's. It opened in 2020 inside San-A Urasoe West Coast PARCO CITY, a large mall built in 2019 on reclaimed land along the Urasoe shore."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "Tomigusuku",
+      "intro": [
+        "A former military island off the shore south of Naha Airport, handed back early and given over to sunsets and low-flying planes."
+      ],
+      "subsections": [
+        {
+          "heading": "Senaga Island",
+          "intro": [],
+          "points": [
+            {
+              "name": "Senaga Island",
+              "kind": "Island",
+              "lat": 26.17602,
+              "lon": 127.6406,
+              "body": [
+                "Senaga is a small island off the Tomigusuku shore, just south of the end of Naha Airport's runway and joined to the main island by a short causeway. Requisitioned by the U.S. military after the war and used for fuel and ammunition, it was returned in 1977 — unusually early — and slowly turned over to leisure.",
+                "On its western slope is Umikaji Terrace, a bank of white cuboid shops and restaurants opened in 2015 in imitation of a Greek island village, facing the open sea and the sunset. Aircraft on final approach to Naha pass low overhead every few minutes, which is much of the appeal; there is also a hot-spring hotel drawing on a well beneath the island, and a small *utaki* sacred site on the summit."
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "dailyItinerary": [
+    {
+      "heading": "2026/04/30 — Arrival",
+      "stops": [
+        {
+          "time": "Evening",
+          "place": "Naha Airport",
+          "lat": 26.2072,
+          "lon": 127.6461
+        },
+        {
+          "time": "Evening",
+          "place": "Kokusai-dori",
+          "lat": 26.214,
+          "lon": 127.688
+        }
+      ]
+    },
+    {
+      "heading": "2026/05/01 — Northern Okinawa",
+      "stops": [
+        {
+          "time": "Morning",
+          "place": "Kokusai-dori",
+          "lat": 26.214,
+          "lon": 127.688
+        },
+        {
+          "time": "11:00",
+          "place": "Okinawa Churaumi Aquarium",
+          "lat": 26.69439,
+          "lon": 127.87794
+        },
+        {
+          "time": "14:00",
+          "place": "Kouri Bridge",
+          "lat": 26.6905,
+          "lon": 128.0147
+        },
+        {
+          "time": "14:30",
+          "place": "Kouri Island",
+          "lat": 26.7036,
+          "lon": 128.0178
+        }
+      ]
+    },
+    {
+      "heading": "2026/05/02 — Naha and the Ryukyu court",
+      "stops": [
+        {
+          "time": "Morning",
+          "place": "Shuri Castle Park",
+          "lat": 26.217,
+          "lon": 127.7194
+        },
+        {
+          "time": "Afternoon",
+          "place": "Naminoue Shrine",
+          "lat": 26.2213,
+          "lon": 127.6668
+        },
+        {
+          "time": "Afternoon",
+          "place": "Okinawa Gokoku Shrine",
+          "lat": 26.20314,
+          "lon": 127.67608
+        },
+        {
+          "time": "Evening",
+          "place": "Kokusai-dori",
+          "lat": 26.214,
+          "lon": 127.688
+        },
+        {
+          "time": "Night",
+          "place": "Pino's Place",
+          "lat": 26.21153,
+          "lon": 127.67391
+        }
+      ]
+    },
+    {
+      "heading": "2026/05/03 — The central coast",
+      "stops": [
+        {
+          "time": "Morning",
+          "place": "teamLab Future Park Okinawa",
+          "lat": 26.26175,
+          "lon": 127.69818
+        },
+        {
+          "time": "Midday",
+          "place": "Minatogawa Foreign Housing District",
+          "lat": 26.26301,
+          "lon": 127.71533
+        },
+        {
+          "time": "Afternoon",
+          "place": "Blue Seal Makiminato Honten",
+          "lat": 26.26734,
+          "lon": 127.72146
+        },
+        {
+          "time": "Evening",
+          "place": "Senaga Island",
+          "lat": 26.17602,
+          "lon": 127.6406
+        }
+      ]
+    },
+    {
+      "heading": "2026/05/04 — Departure",
+      "stops": [
+        {
+          "time": "Morning",
+          "place": "Naha Airport",
+          "lat": 26.2072,
+          "lon": 127.6461
+        }
+      ]
+    }
+  ]
+}

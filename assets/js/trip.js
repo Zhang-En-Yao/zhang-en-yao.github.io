@@ -12,10 +12,10 @@ const WORLD_SRC = 'assets/data/countries-50m.json';
 // files sit at the root of each repo. By default the repo is `<PHOTO_REPO_OWNER>/<id>`
 // on branch main — so a photo listed as "DSCF0683.jpeg" on trip 202606191345 is fetched from
 //   https://cdn.jsdelivr.net/gh/ZhangEnYao/202606191345@main/DSCF0683.jpeg
-// A trip whose repo is owned or named differently sets `photoRepo` on its index.json entry
-// to an "owner/repo" slug (optionally "owner/repo@branch"), used in place of that default.
-// A `photos` entry that is already a full http(s) URL is used verbatim, so a one-off photo
-// can live anywhere.
+// A trip whose repo is owned or named differently sets `photoRepo` (on its content JSON, or
+// on its index.json entry) to an "owner/repo" slug (optionally "owner/repo@branch"), used in
+// place of that default. A `photos` entry that is already a full http(s) URL is used
+// verbatim, so a one-off photo can live anywhere.
 const PHOTO_CDN = 'https://cdn.jsdelivr.net/gh';
 const PHOTO_REPO_OWNER = 'ZhangEnYao';
 const PHOTO_REPO_BRANCH = 'main';
@@ -665,7 +665,14 @@ function renderTripContent(data, meta, streets) {
   bodyEl.innerHTML = (data.sections || []).map((s) => sectionHtml(s, streets)).join('')
     + dailyItineraryHtml(data.dailyItinerary, pointNameSet(data))
     + (data.note ? `<h2>Coordinate note</h2><p>${esc(data.note)}</p>` : '');
-  appendPhotoStrip(bodyEl, meta); // Before decorateBody, so its "Gallery" h2 is anchored and listed.
+  // Photos live on the content JSON (`data.photos` / `data.photoRepo`); the index.json entry
+  // is the older place and is still read as a fallback, which is all a Markdown trip has.
+  const photoMeta = {
+    ...meta,
+    photos: data.photos || meta.photos,
+    photoRepo: data.photoRepo || meta.photoRepo,
+  };
+  appendPhotoStrip(bodyEl, photoMeta); // Before decorateBody, so its "Gallery" h2 is anchored and listed.
   decorateBody(bodyEl, tocEl);
   tripPhotos = buildGalleries(bodyEl);
   return bodyEl;
@@ -902,13 +909,12 @@ function buildGalleries(bodyEl) {
   return photos;
 }
 
-// The trip's own photos, declared in index.json instead of the travelogue: a `photos` array
-// on the trip's entry, each item a filename served from the root of that trip's photo repo
-// (or an object with `file` and optional `alt`, or a full http(s) URL to override the
-// repo). They render as one filmstrip at the foot of the note by building the same
-// `<div class="photo-strip">` the Markdown hack used to spell out by hand, then letting
-// buildGalleries turn it into a grid — so the lightbox and aspect-ratio fitting come for
-// free and there is no marked quirk.
+// The trip's own photos, declared on the content JSON (or, as a fallback, the index.json
+// entry): a `photos` array, each item a filename served from the root of that trip's photo
+// repo (or an object with `file` and optional `alt`, or a full http(s) URL to override the
+// repo). They render as one stacked stream under a "Gallery" heading by building a
+// `<div class="photo-strip is-stream">`, then letting buildGalleries turn it into a grid —
+// so the lightbox and aspect-ratio fitting come for free and there is no marked quirk.
 function photoUrl(file, meta) {
   if (/^https?:\/\//.test(file)) return file; // A full URL is used as written.
   // `photoRepo` overrides the id-named default, and may pin a branch with "…@branch".

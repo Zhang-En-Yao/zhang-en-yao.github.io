@@ -32,10 +32,13 @@ No build step. Every page is plain HTML that loads its own CSS and JS from `asse
 
 3. `git push`; it is live a minute or two later.
 
-Optional keys: `flights` (see below), `photos` / `photoRepo` (a filmstrip at the foot of the
-travelogue, served from a per-trip photo repo through jsDelivr), `areas` (a small labelled
-map under a named section heading — the `heading` must match a heading in the Markdown),
-`newYear` / `pilgrimage` (card tags).
+Optional keys: `flights` (see below), `areas` (a small labelled map under a named section
+heading — the `heading` must match a heading in the Markdown), `newYear` / `pilgrimage`
+(card tags).
+
+`photos` / `photoRepo` (a "Gallery" section at the foot of the travelogue, stacked full-width
+and served from a per-trip photo repo through jsDelivr) go on the trip's own content JSON;
+they are still read from the `index.json` entry as a fallback for a Markdown trip.
 
 ## Adding flights to a trip
 

@@ -88,45 +88,7 @@
         ]
       }
     ],
-    "file": "202606191345.json",
-    "photoRepo": "Zhang-En-Yao/zhangenyao.202606191345",
-    "photos": [
-      "DSCF0683.jpeg",
-      "DSCF0692.jpeg",
-      "DSCF0708.jpeg",
-      "DSCF0724.jpeg",
-      "DSCF0735.jpeg",
-      "DSCF0799.jpeg",
-      "DSCF0815.jpeg",
-      "DSCF0829.jpeg",
-      "DSCF0830.jpeg",
-      "DSCF0837.jpeg",
-      "DSCF0842.jpeg",
-      "DSCF0876.jpeg",
-      "DSCF0926.jpeg",
-      "DSCF0989.jpeg",
-      "DSCF1026.jpeg",
-      "DSCF1029.jpeg",
-      "DSCF1032.jpeg",
-      "DSCF1103.jpeg",
-      "DSCF1172.jpeg",
-      "DSCF1188.jpeg",
-      "DSCF1311.jpeg",
-      "DSCF1326.jpeg",
-      "DSCF1345.jpeg",
-      "DSCF1367.jpeg",
-      "DSCF1368.jpeg",
-      "DSCF1370.jpeg",
-      "DSCF1441.jpeg",
-      "DSCF1452.jpeg",
-      "DSCF1468.jpeg",
-      "DSCF1478.jpeg",
-      "DSCF1480.jpeg",
-      "DSCF1509.jpeg",
-      "DSCF1519.jpeg",
-      "DSCF1587.jpeg",
-      "DSCF1590.jpeg"
-    ]
+    "file": "202606191345.json"
   },
   {
     "id": "202604301805",
@@ -160,7 +122,8 @@
           }
         ]
       }
-    ]
+    ],
+    "file": "202604301805.json"
   },
   {
     "id": "2026022711400",
