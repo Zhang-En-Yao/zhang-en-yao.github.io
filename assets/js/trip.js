@@ -665,8 +665,8 @@ function renderTripContent(data, meta, streets) {
   bodyEl.innerHTML = (data.sections || []).map((s) => sectionHtml(s, streets)).join('')
     + dailyItineraryHtml(data.dailyItinerary, pointNameSet(data))
     + (data.note ? `<h2>Coordinate note</h2><p>${esc(data.note)}</p>` : '');
+  appendPhotoStrip(bodyEl, meta); // Before decorateBody, so its "Gallery" h2 is anchored and listed.
   decorateBody(bodyEl, tocEl);
-  appendPhotoStrip(bodyEl, meta);
   tripPhotos = buildGalleries(bodyEl);
   return bodyEl;
 }
@@ -926,6 +926,12 @@ function appendPhotoStrip(bodyEl, meta) {
   const names = meta.photos || [];
   if (!names.length) return;
 
+  // Its own section, so the strip reads as part of the page and earns a Contents entry —
+  // this runs before decorateBody, which is what anchors the heading and lists it.
+  const heading = document.createElement('h2');
+  heading.textContent = 'Gallery';
+  bodyEl.appendChild(heading);
+
   const strip = document.createElement('div');
   strip.className = 'photo-strip';
   strip.innerHTML = names
@@ -1046,9 +1052,9 @@ let tripPhotos = [];
 function renderProse(markdown, meta) {
   const bodyEl = tripEl.querySelector('.prose');
   bodyEl.innerHTML = renderMarkdown(markdown);
-  decorateBody(bodyEl, tocEl);
   insertAreaMaps(bodyEl, meta, tripStreets);
-  appendPhotoStrip(bodyEl, meta);
+  appendPhotoStrip(bodyEl, meta); // Before decorateBody, so its "Gallery" h2 is anchored and listed.
+  decorateBody(bodyEl, tocEl);
   tripPhotos = buildGalleries(bodyEl);
   return bodyEl;
 }
