@@ -398,6 +398,22 @@
   width: calc(var(--ar) * var(--row));
 }
 
+/* The Gallery: the same cells stacked down the page at full column width instead of a
+   scrolling row. `aspect-ratio: var(--ar)` reserves each cell's height from its own ratio,
+   so nothing is cropped once the image has loaded and the page does not jump as it does. */
+.photo-grid.is-stream {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1.75rem;
+  overflow: visible;
+}
+
+.photo-grid.is-stream .photo {
+  width: 100%;
+  height: auto;
+  aspect-ratio: var(--ar);
+}
+
 .photo-figure { margin: 1.6rem 0; }
 
 /* The photo is a button, so it must not look like one. */

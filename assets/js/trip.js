@@ -857,7 +857,9 @@ function buildGalleries(bodyEl) {
       // row height — the markdown only gave a src, so the ratio is read off the image once
       // it has loaded and written back as `--ar`; until then the CSS fallback (1.5) holds.
       const box = document.createElement('div');
-      box.className = 'photo-grid';
+      // `is-stream` carries over from the strip — appendPhotoStrip sets it so the Gallery
+      // stacks down the page instead of scrolling sideways as an inline `.photo-strip` does.
+      box.className = el.classList.contains('is-stream') ? 'photo-grid is-stream' : 'photo-grid';
       box.innerHTML = imgs.map(cellFor).join('');
       el.replaceWith(box);
 
@@ -932,8 +934,10 @@ function appendPhotoStrip(bodyEl, meta) {
   heading.textContent = 'Gallery';
   bodyEl.appendChild(heading);
 
+  // `is-stream`: the Gallery stacks its photos down the page at full width (see buildGalleries
+  // and trip.css), rather than the sideways-scrolling filmstrip an inline `.photo-strip` gets.
   const strip = document.createElement('div');
-  strip.className = 'photo-strip';
+  strip.className = 'photo-strip is-stream';
   strip.innerHTML = names
     .map((p) => {
       const file = typeof p === 'string' ? p : p.file;
