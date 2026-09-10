@@ -859,10 +859,11 @@ function buildGalleries(bodyEl) {
       const imgs = [...el.querySelectorAll('img')];
       if (!imgs.length) return;
 
-      // The filmstrip: captions would outweigh the pictures here, so they live in the
-      // lightbox instead. Each photo's real aspect ratio sets its width against the shared
-      // row height — the markdown only gave a src, so the ratio is read off the image once
-      // it has loaded and written back as `--ar`; until then the CSS fallback (1.5) holds.
+      // The filmstrip: captions would outweigh the pictures here, and the lightbox shows the
+      // photo bare too, so the alt text is where they live. Each photo's real aspect ratio
+      // sets its width against the shared row height — the markdown only gave a src, so the
+      // ratio is read off the image once it has loaded and written back as `--ar`; until
+      // then the CSS fallback (1.5) holds.
       const box = document.createElement('div');
       // `is-stream` carries over from the strip — appendPhotoStrip sets it so the Gallery
       // stacks down the page instead of scrolling sideways as an inline `.photo-strip` does.
@@ -1011,19 +1012,24 @@ function initLightbox(bodyEl) {
     </button>
     <figure class="lightbox-figure">
       <img class="lightbox-img" alt="">
-      <figcaption class="lightbox-caption"></figcaption>
-    </figure>`;
+    </figure>
+    <div class="lightbox-spinner" aria-hidden="true"></div>`;
   document.body.appendChild(box);
 
   const imgEl = box.querySelector('.lightbox-img');
-  const capEl = box.querySelector('.lightbox-caption');
   const closeEl = box.querySelector('[data-close]');
 
+  // `is-loading` puts the spinner up and holds the photo hidden until it has actually
+  // arrived, so stepping between photos never flashes the previous one at the new one's size.
+  imgEl.addEventListener('load', () => box.classList.remove('is-loading'));
+
   // The same fallback chain the thumbnails walk. One <img> serves every photo here, so the
-  // listener is wired once and reads whichever src is loaded at the time it fires.
+  // listener is wired once and reads whichever src is loaded at the time it fires. The
+  // spinner stays up across a retry and clears only when the chain runs out.
   imgEl.addEventListener('error', () => {
     const next = retryPhotoSrc(imgEl.src);
     if (next) imgEl.src = next;
+    else box.classList.remove('is-loading');
   });
 
   let at = 0;
@@ -1032,10 +1038,12 @@ function initLightbox(bodyEl) {
   function show(i) {
     const photos = tripPhotos;
     at = (i + photos.length) % photos.length; // Wraps, so the arrows never dead-end.
-    capEl.textContent = photos[at].alt || '';
-    capEl.hidden = !photos[at].alt;
     imgEl.alt = photos[at].alt;
+    box.classList.add('is-loading');
     imgEl.src = photos[at].src;
+    // A cached photo — or the same one re-shown, where assigning the identical src fires no
+    // load event at all — is already complete here, so the spinner never blinks into view.
+    if (imgEl.complete) box.classList.remove('is-loading');
   }
 
   function open(i, from) {

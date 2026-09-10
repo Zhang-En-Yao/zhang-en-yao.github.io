@@ -506,35 +506,52 @@
 /* The page behind must not scroll under the overlay. */
 body.is-locked { overflow: hidden; }
 
+/* Shrink-wrapped to the photo. Nothing here may force the figure or the <img> past the
+   picture's own aspect ratio: a minimum size plus object-fit: contain would letterbox a
+   landscape shot inside a taller box, and the rounded corners would then be cut into the
+   transparent padding instead of the picture. Natural size, capped, is what rounds. */
 .lightbox-figure {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.7rem;
   margin: 0;
   min-width: 0;
+  max-width: 100%;
 }
 
 .lightbox-img {
-  max-width: 100%;
+  display: block;
+  width: auto;
+  /* The viewport cap is spelled out rather than left to a percentage of a figure that is
+     itself sized by this image — a wide photo has to fit the screen either way. */
+  max-width: min(100%, calc(100vw - 3rem));
   max-height: calc(100vh - 8rem);
-  min-width: min(70vw, 44rem);
-  min-height: min(50vh, 26rem);
-  object-fit: contain;
   border-radius: var(--radius);
+  opacity: 1;
+  transition: opacity 0.2s ease;
 }
 
-.lightbox-caption {
-  margin: 0;
-  font-family: var(--sans);
-  font-size: 0.82rem;
-  line-height: 1.5;
-  color: rgb(255 255 255 / 72%);
-  text-align: center;
-  max-width: 40rem;
+/* Held back until the photo has loaded, so what fades in is the finished picture at its
+   own size rather than the last one stretched to it. */
+.lightbox.is-loading .lightbox-img { opacity: 0; }
+
+/* The full-size photo is a fresh fetch even when its thumbnail is already on screen, and
+   the lightbox is empty for that whole wait — the spinner is the only sign of progress. */
+.lightbox-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2.2rem;
+  height: 2.2rem;
+  margin: -1.1rem 0 0 -1.1rem;
+  border: 2px solid rgb(255 255 255 / 25%);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: lightbox-spin 0.8s linear infinite;
+  pointer-events: none; /* A click here is a click on the backdrop, and closes like one. */
 }
 
-.lightbox-caption[hidden] { display: none; }
+.lightbox:not(.is-loading) .lightbox-spinner { display: none; }
+
+@keyframes lightbox-spin { to { transform: rotate(360deg); } }
 
 /* White regardless of theme: these sit on the dimmed backdrop, not on the page. */
 .lightbox-btn {
