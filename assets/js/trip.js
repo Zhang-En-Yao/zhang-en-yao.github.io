@@ -884,7 +884,14 @@ function buildGalleries(bodyEl) {
         if (im.complete) done();
         else {
           im.addEventListener('load', done, { once: true });
-          im.addEventListener('error', () => btn.classList.remove('is-loading'), { once: true });
+          // Not `once`: a failure is worth a second and a third source (see retryPhotoSrc),
+          // and each of those can fail in turn. The skeleton clears only when the chain runs
+          // out, which is the point at which there really is no picture to show.
+          im.addEventListener('error', () => {
+            const next = retryPhotoSrc(im.src);
+            if (next) im.src = next;
+            else btn.classList.remove('is-loading');
+          });
         }
       });
       return;
@@ -930,6 +937,24 @@ function sizedUrl(url, width, quality) {
   return `${PHOTO_PROXY}?${params.toString()}`;
 }
 
+// What to try when a photo fails to load, or '' when there is nothing left to try.
+//
+// The proxy fetches the original from jsDelivr, and jsDelivr answers a burst of requests for
+// full-resolution originals by throttling some of them — a 403 the proxy then caches as a
+// 404 of its own. That cache is keyed on the whole query string, so the same photo asked for
+// with one extra parameter is a different key and comes back fine; nothing about the picture
+// was ever wrong. Hence step one: the same URL again, with `retry`.
+//
+// Step two is the original straight off jsDelivr — a few megabytes where the proxy would
+// have sent tens of kilobytes, but a photo the reader can see beats an empty frame. That URL
+// is not a proxy URL, so it ends the chain rather than looping.
+function retryPhotoSrc(src) {
+  if (!src.startsWith(PHOTO_PROXY)) return '';
+  const params = new URL(src).searchParams;
+  if (!params.has('retry')) return `${src}&retry=1`;
+  return params.get('url') || '';
+}
+
 function appendPhotoStrip(bodyEl, meta) {
   const names = meta.photos || [];
   if (!names.length) return;
@@ -952,10 +977,16 @@ function appendPhotoStrip(bodyEl, meta) {
       const raw = photoUrl(file, meta);
       // A one-off full URL is left as written; a repo photo is loaded small for the strip,
       // with the larger lightbox size carried on `data-full` for buildGalleries to pick up.
-      if (/^https?:\/\//.test(file)) return `<img src="${esc(raw)}" alt="${esc(alt)}">`;
+      //
+      // `loading="lazy"` matters more here than it looks: buildGalleries discards every one
+      // of these <img> elements and builds its own cells from their attributes, so any byte
+      // they fetch is wasted — and a seventy-photo gallery fetching all seventy at once is
+      // the burst that gets the proxy throttled in the first place (see retryPhotoSrc). Lazy
+      // images that are never connected to the document never start.
+      if (/^https?:\/\//.test(file)) return `<img src="${esc(raw)}" alt="${esc(alt)}" loading="lazy">`;
       const thumb = sizedUrl(raw, PHOTO_THUMB_W, 75);
       const full = sizedUrl(raw, PHOTO_FULL_W, 80);
-      return `<img src="${esc(thumb)}" data-full="${esc(full)}" alt="${esc(alt)}">`;
+      return `<img src="${esc(thumb)}" data-full="${esc(full)}" alt="${esc(alt)}" loading="lazy">`;
     })
     .join('');
   bodyEl.appendChild(strip);
@@ -987,6 +1018,13 @@ function initLightbox(bodyEl) {
   const imgEl = box.querySelector('.lightbox-img');
   const capEl = box.querySelector('.lightbox-caption');
   const closeEl = box.querySelector('[data-close]');
+
+  // The same fallback chain the thumbnails walk. One <img> serves every photo here, so the
+  // listener is wired once and reads whichever src is loaded at the time it fires.
+  imgEl.addEventListener('error', () => {
+    const next = retryPhotoSrc(imgEl.src);
+    if (next) imgEl.src = next;
+  });
 
   let at = 0;
   let opener = null; // Where focus came from, and where it has to go back to.
