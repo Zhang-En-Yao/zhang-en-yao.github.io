@@ -1,53 +1,15 @@
 #!/usr/bin/env python3
-"""Regenerate travel/streets/<trip-id>.json — real street geometry for a trip's cluster maps.
+"""Regenerate travel/streets/<trip-id>.json: OpenStreetMap street geometry for a trip's
+cluster maps, fetched once from Overpass so pages never query it live.
 
-Each cluster map on a trip page (assets/js/trip.js) draws a section's spots over a background
-of real streets, fetched from OpenStreetMap's Overpass API. Querying Overpass live on every
-page view is both slow (a few seconds per cluster, and their public instance asks callers not
-to burst it with concurrent requests) and needless — the streets around a fixed set of
-coordinates do not change from one visitor to the next. So this script does that fetching
-once, offline, and the page just loads the resulting static file.
+Map framing and grouping must match assets/js/trip/maps.js (AREA) and
+assets/js/trip/clusters.js (CLUSTER_CAP_M, SAME_SITE_M); keys match assets/js/trip/content.js.
 
-The bounding box for each cluster must match trip.js's own math exactly (AREA_SIZE,
-AREA_MARGIN, AREA_MIN_SPAN_LON, CLUSTER_CAP_M) — a wider box here would fetch streets that run
-off the edge of the rendered map; a narrower one would miss streets inside it that the map
-actually shows. If those constants change in trip.js, mirror the change here too.
-
-A trip's maps come from one of two places, depending on its `index.json` entry's `file`:
-
-  - `<id>.json` (current): `maps_for_json_trip()` walks the trip's own content file's
-    `sections`/`subsections` — the same structure assets/js/trip.js's `renderTripContent`
-    renders — and `cluster_points()` splits a subsection's points into however many maps that
-    actually takes (mirrors trip.js's own `clusterPoints`). Points and prose live in the one
-    file here, so there is nothing for a heading in one place to drift out of sync with a
-    heading in another; the older `check-areas.py` lint has nothing left to check for a trip
-    in this format.
-
-  - `<id>.md` (legacy): `maps_for_legacy_trip()` reads `index.json`'s own `areas` array, the
-    original design — a heading has to name-match a rendered Markdown heading exactly, and a
-    heading whose points span too far apart for one map has to be hand-split into several
-    `area` entries sharing that heading. No trip currently uses this path, but it stays
-    supported for one that hasn't been migrated to a JSON content file yet.
-
-Every map, from either path, funnels through the same `PROFILES` lookup and the same
-`fetch_streets()` call — the only thing that varies is which profile a map's `route`-ness
-picks, never a separate code path.
-
-Run from the repo root whenever a trip's content changes — already-fetched maps are skipped,
-so a plain re-run only fills in what's new:
+Run from the repo root after a trip's content changes. Maps already cached are skipped.
 
     python3 assets/data/build-streets.py
-
-Force a re-fetch of one map, or every map under a heading, instead of hand-editing the cached
-JSON (match a map's key as printed while fetching — a section heading alone for a route, or
-"Section / Subsection" for a city map):
-
-    python3 assets/data/build-streets.py --refetch "Camino Francés" "Madrid / Mayrit → Madrid of the Golden Age"
-
-Force a full re-fetch of everything, or of one trip's maps only:
-
-    python3 assets/data/build-streets.py --all
-    python3 assets/data/build-streets.py --all --trip 202610222105
+    python3 assets/data/build-streets.py --refetch "Camino Francés" "Madrid / Mayrit to Madrid of the Golden Age"
+    python3 assets/data/build-streets.py --all [--trip 202610222105]
 """
 
 import argparse
@@ -64,54 +26,23 @@ TRAVEL_DIR = HERE.parent.parent / "travel"
 INDEX = TRAVEL_DIR / "index.json"
 OUT_DIR = TRAVEL_DIR / "streets"
 
-# The primary instance is the one usually reached for; the mirror is a fallback for when
-# it's unreachable (its firewall appears to temporarily block IPs that send it a burst of
-# requests, which is easy to trigger by hand while developing against it).
+# Tried in order; the public instance sometimes firewalls bursts of requests.
 OVERPASS_URLS = [
     "https://overpass-api.de/api/interpreter",
     "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
 ]
 REQUEST_GAP_S = 4  # Politeness gap between requests to the shared public instance.
 
-# Mirrors AREA_SIZE / AREA_PAD / AREA_MARGIN / AREA_MIN_SPAN_LON in assets/js/trip.js. Every
-# area map — a city cluster or the Camino route alike — is fetched and rendered on the same
-# square canvas; trip.js no longer fits each cluster's own aspect ratio, on purpose, so
-# there's nothing to mirror here beyond the one fixed size.
+# Mirror assets/js/trip/maps.js (AREA) and assets/js/trip/clusters.js.
 AREA_SIZE = 700
 AREA_MIN_SPAN_LON = 0.004
-
-# Mirrors trip.js's own CLUSTER_CAP_M — the two must stay equal, or a subsection splits into a
-# different number of maps here than trip.js renders, and a map's key stops matching between
-# fetch time and page-load time.
 CLUSTER_CAP_M = 3500
-
-# Mirrors trip.js's own SAME_SITE_M — see its comment. A route section pools every subsection's
-# points before fetching, same as trip.js pools them before rendering; without the identical
-# dedup here, this script would ask Overpass for a box built from points trip.js never actually
-# plots (harmless for the box's size in practice, since duplicates sit meters apart, but the two
-# should agree on what a "point" is on principle, not by coincidence of scale).
 SAME_SITE_M = 300
 
-# Every map resolves to one of these by name — a lookup instead of a scattered
-# `ROUTE_X if is_route else X` at every call site. Adding a new kind of map later (say, a day
-# hike that wants its own balance) means adding an entry here, not a new parameter threaded
-# through fetch calls.
+# Which OSM highway types to fetch, and the query box margin, per kind of map.
 PROFILES = {
-    # A city cluster: a neighbourhood's worth of spots close enough together that the margin
-    # only needs to buy breathing room around them, and the full local street grid is exactly
-    # what a reader wants to see underneath.
-    #
-    # Real streets, not every mapped path — steps/track/service account for most of the rest
-    # of a dense old town's way count (footway/path/cycleway used to be lumped in with them
-    # here too, at roughly 60% of Toledo's ways measured) while adding little a reader can
-    # use at this map's scale: a few thousand individual staircases, driveways, and unpaved
-    # tracks turn that into visual noise, not detail. `footway`/`path`/`cycleway` are kept
-    # despite a similar cost (footway/path alone ~3.4x more ways, measured on Eixample's
-    # grid; cycleway added another 919 ways just in the Waterfront's box) because without
-    # them a plaza, a park path, or a seafront promenade — often not tagged any other way —
-    # reads as a blank patch on the map with no street under it at all, which reads as broken
-    # rather than as a quiet park or a bike path. `_link` variants (a highway's own on/off
-    # ramps) are kept alongside their parent type.
+    # A neighbourhood: the full street grid, minus steps/tracks/service roads, which are
+    # mostly noise at this scale. Footways/paths stay so plazas and promenades aren't blank.
     "city": {
         "margin": 1.6,
         "highway_types": (
@@ -120,30 +51,8 @@ PROFILES = {
             "primary_link|secondary_link|tertiary_link"
         ),
     },
-    # A route (the Camino) covers a whole region, not a few blocks — its own town-scale
-    # streets (residential, pedestrian, living_street…) would mean querying every lane in
-    # every village along ~115km of Galicia, a huge answer for what's meant to be background
-    # context for a line connecting eight dots. Even "motorway and up through primary" turned
-    # out to still mean 40,000+ points across a box this size — long rural roads carry a lot
-    # of vertices — so this stays well short of full local detail.
-    #
-    # primary|secondary alone reads as "just the trunk roads" — Galicia's actual N-547/N-540
-    # rather than the country lanes and waymarked trail the Camino itself mostly follows
-    # between villages, so the map ended up sparse to the point of looking broken. `tertiary`
-    # closes most of that gap at a manageable cost (~3,150 ways / ~46k points over the
-    # route's box, measured); `path` — the tag that actually carries long rural stretches of
-    # the pilgrim trail itself, separate from the road network — adds roughly another 3,400.
-    # One more step down, `unclassified` and `track` — Spain's tags for its smallest rural
-    # connector roads and farm tracks — time out the public Overpass instance outright even
-    # on a bare `out count`, so those stay excluded rather than chased.
-    #
-    # The margin is also its own, smaller number: a route's own points already span the
-    # whole region, so the same 60%-of-span margin a compact cluster needs for breathing room
-    # instead multiplies an already-huge query area. This only shrinks the *query* box, not
-    # the map's rendered frame (still the "city" profile's margin, in trip.js's own
-    # AREA_MARGIN) — streets stop appearing a bit before the frame's outer edge, which is a
-    # fair trade against querying half of Galicia for a road that's a similar distance beyond
-    # it.
+    # A ~115 km route: main roads plus `path` (which carries the trail itself). Anything finer
+    # times out the public instance. The smaller margin shrinks only the query box, not the map.
     "route": {
         "margin": 1.15,
         "highway_types": "primary|secondary|tertiary|path|primary_link|secondary_link|tertiary_link",
@@ -152,7 +61,7 @@ PROFILES = {
 
 
 def cluster_bounds(points, margin, min_span_lon, w, h):
-    """Mirrors trip.js's clusterBounds()."""
+    """Mirrors framingBox() in assets/js/trip/maps.js."""
     lons = [p["lon"] for p in points]
     lats = [p["lat"] for p in points]
     west, east = min(lons), max(lons)
@@ -177,9 +86,7 @@ def haversine_m(a, b):
 
 
 def cluster_points(points, cap_m):
-    """Mirrors trip.js's clusterPoints(): union-find over the distance cap, so two points end
-    up in the same group the moment anything chains them together within it, not only when
-    they are themselves within the cap of each other."""
+    """Mirrors clusterPoints() in assets/js/trip/clusters.js (single-linkage union-find)."""
     n = len(points)
     parent = list(range(n))
 
@@ -216,13 +123,10 @@ def fetch_streets(bounds, highway_types):
         "out geom;"
     )
     data = urllib.parse.urlencode({"data": query}).encode()
-    # Overpass's Apache front end 406s Python's default `Python-urllib/…` User-Agent
-    # specifically — a browser's fetch() never carries that header and is unaffected, this
-    # only matters because this script itself is the one talking to Overpass here.
+    # Overpass rejects Python's default User-Agent with a 406.
     headers = {"Content-Type": "application/x-www-form-urlencoded", "User-Agent": "curl/8.4.0"}
 
-    # Each instance gets a couple of tries (a 504 or a burst-triggered 429 is usually
-    # transient) before falling through to the next one in OVERPASS_URLS.
+    # Two tries per instance (504s and 429s are usually transient), then the next instance.
     last_err = None
     for url in OVERPASS_URLS:
         for attempt in range(2):
@@ -233,21 +137,13 @@ def fetch_streets(bounds, highway_types):
                 with urllib.request.urlopen(req, timeout=60) as r:
                     result = json.load(r)
                 ways = [e for e in result.get("elements", []) if e.get("type") == "way" and e.get("geometry")]
-                # Only the coordinates are kept — Overpass's tags, ids, and bounds are of no
-                # use to a page that just draws lines. Rounded to 5 decimal places (~1m) —
-                # Overpass's own 7 (~1cm) is far finer than a single pixel at this map's
-                # scale, and JSON stores a float as its full decimal text, so the extra
-                # digits are dead weight (a modest cut on their own; most of the file's size
-                # is simply how many ways and points a dense old town has).
+                # Coordinates only, rounded to ~1 m.
                 return [
                     [[round(n["lon"], 5), round(n["lat"], 5)] for n in w["geometry"]]
                     for w in ways
                 ]
             except (urllib.error.URLError, OSError, json.JSONDecodeError) as e:
-                # OSError catches a reset/dropped connection, which is not a URLError even
-                # though it is exactly the kind of transient failure worth retrying —
-                # `ConnectionResetError` (a plain OSError subclass) took the whole script
-                # down the first time this ran without it.
+                # OSError covers dropped connections, which aren't URLErrors.
                 last_err = e
     raise last_err
 
@@ -259,10 +155,7 @@ def fetch_for_profile(points, profile_name):
 
 
 def maps_for_json_trip(content):
-    """Yields (key, points, profile_name) for every map assets/js/trip.js's
-    `renderTripContent` will draw from this trip's JSON content file — mirroring
-    `sectionHtml`/`subsectionMapsHtml` there exactly, so a map's key here is the key trip.js
-    looks `streetWays` up under."""
+    """Yields (key, points, profile_name) for every map assets/js/trip/content.js draws."""
     for section in content.get("sections", []):
         subs = section.get("subsections", [])
         if section.get("route"):
@@ -282,26 +175,11 @@ def maps_for_json_trip(content):
                 yield key, group, "city"
 
 
-def maps_for_legacy_trip(areas):
-    """Yields (key, points, profile_name) for the older Markdown-plus-`index.json`-`areas`
-    format — see the module docstring's legacy note. A heading covering more than one `area`
-    entry (hand-split, in this format, rather than computed by `cluster_points`) is
-    disambiguated the same way assets/js/trip.js's legacy `streetsKey()` does."""
-    for area in areas:
-        same_heading = [a for a in areas if a["heading"] == area["heading"]]
-        key = area["heading"] if len(same_heading) == 1 else f"{area['heading']} #{same_heading.index(area) + 1}"
-        yield key, area["points"], "route" if area.get("route") else "city"
-
-
 def maps_for_trip(trip):
-    file = trip.get("file", "")
-    if file.endswith(".json"):
-        path = TRAVEL_DIR / file
-        if not path.exists():
-            return []
-        return list(maps_for_json_trip(json.loads(path.read_text())))
-    areas = [a for a in trip.get("areas", []) if a.get("points")]
-    return list(maps_for_legacy_trip(areas)) if areas else []
+    path = TRAVEL_DIR / trip.get("file", "")
+    if not path.name.endswith(".json") or not path.exists():
+        return []
+    return list(maps_for_json_trip(json.loads(path.read_text())))
 
 
 def parse_args():
@@ -339,11 +217,7 @@ def main():
             continue
 
         out_path = OUT_DIR / f"{trip['id']}.json"
-        # Resumable: a map already present in a previous run's output is not re-fetched.
-        # Handy in general, and specifically because Overpass's public instances have, in
-        # practice, temporarily firewalled this script mid-run more than once. --refetch/--all
-        # opt specific maps (or everything) back into `pending` below instead of requiring the
-        # cached file to be hand-edited first.
+        # Resumable: cached maps are kept unless --refetch/--all drops them.
         out = json.loads(out_path.read_text()) if out_path.exists() else {}
         if args.all:
             out = {}
