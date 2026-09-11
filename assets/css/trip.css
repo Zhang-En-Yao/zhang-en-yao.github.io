@@ -699,8 +699,8 @@ body.is-locked { overflow: hidden; }
 
 /* ---------- jump-back pill ---------- */
 
-/* Shown by jumpback.js after a Contents link or an itinerary stop throws you across
-   the page — one tap back to where you were reading, plus a × to send it away. */
+/* Shown by jumpback.js after a Contents link throws you across the page — one tap back
+   to where you were reading, plus a × to send it away. */
 .jumpback {
   position: fixed;
   z-index: 25;

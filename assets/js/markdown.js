@@ -24,15 +24,14 @@ function slug(text, used) {
 // contents from them, and let wide tables scroll instead of blowing out the column.
 //
 // `h4` gets an id too, but no Contents entry — the table of contents is a map of sections, and
-// a point-by-point trip page can carry dozens of h4s, one per attraction. Giving each an id
-// anyway is what lets a trip page link a day's itinerary stop straight to that attraction's
-// own write-up higher on the page (assets/js/trip.js's `dailyItineraryHtml`), without the
-// Contents list itself growing to match.
+// a point-by-point trip page can carry dozens of h4s, one per attraction. The id is still worth
+// having: it makes every attraction its own linkable address, for anything on or off the page
+// that wants to point at one, without the Contents list itself growing to match.
 function decorateBody(bodyEl, tocEl) {
   const used = new Set();
   // One entry per `h2`, each carrying whichever `h3`s came after it and before the next
-  // `h2` — a trip with a couple of dozen attractions and a full day-by-day table behind them
-  // can carry a Contents list past what fits one screen (this one now runs to over 40 `h3`s),
+  // `h2` — a trip with a couple of dozen attractions can carry a Contents list past what
+  // fits one screen (this one now runs to over 40 `h3`s),
   // and a flat list has no unit smaller than "the whole page" to collapse. Grouped by section
   // instead, each `h2` folds its own `h3`s away independently — collapsed by default, since a
   // reader opens the Contents to jump into one section, not to see all of them expanded at

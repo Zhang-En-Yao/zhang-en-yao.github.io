@@ -1,6 +1,6 @@
-// A "jump back" pill. Clicking an in-page anchor — the Contents list, or an itinerary
-// stop that links up to its own write-up — throws you somewhere else on the page. This
-// remembers where you were reading and offers one tap back.
+// A "jump back" pill. Clicking an in-page anchor — the Contents list, or any other link
+// into a heading further down — throws you somewhere else on the page. This remembers
+// where you were reading and offers one tap back.
 //
 // It gets out of the way on its own: tap it, scroll back near where you started, press
 // Escape, hit the × , or just leave it — it fades after a few seconds unused.
