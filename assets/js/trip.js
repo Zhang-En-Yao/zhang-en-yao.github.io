@@ -1029,11 +1029,11 @@ function initLightbox(bodyEl) {
 
   // Autoplay holds each photo this long, timed from the moment it is actually on screen
   // rather than from when it was asked for — a slow fetch should not eat its own turn.
-  const SLIDE_MS = 3000;
+  const SLIDE_MS = 13000;
   // And every swap crosses through the blur for at least this long. Without a floor, the
   // photo autoplay just prefetched is already in cache and would cut in hard — the blur is
   // the transition, not a loading state, so it has to run whether or not there was a wait.
-  const SWAP_MS = 100;
+  const SWAP_MS = 1000;
   const many = tripPhotos.length > 1;
   if (!many) playEl.hidden = true; // One photo: nothing to step to, nothing to play through.
 
