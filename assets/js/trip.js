@@ -1005,11 +1005,17 @@ function initLightbox(bodyEl) {
   box.setAttribute('aria-modal', 'true');
   box.setAttribute('aria-label', 'Photo');
   // No on-screen prev/next: stepping between photos is the arrow keys and a horizontal
-  // swipe (see below), nothing to click. The only button is Close.
+  // swipe (see below), nothing to click. The two buttons are Close and the slideshow toggle.
+  // `.lightbox-prev` is the photo being replaced, kept underneath while the next one loads.
   box.innerHTML = `
+    <button class="lightbox-btn lightbox-play" type="button" data-play aria-pressed="false" aria-label="Play slideshow">
+      <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>
+      <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="7" y="5" width="3.5" height="14" rx="1"/><rect x="13.5" y="5" width="3.5" height="14" rx="1"/></svg>
+    </button>
     <button class="lightbox-btn lightbox-close" type="button" data-close aria-label="Close">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
     </button>
+    <img class="lightbox-prev" alt="" aria-hidden="true">
     <figure class="lightbox-figure">
       <img class="lightbox-img" alt="">
     </figure>
@@ -1017,11 +1023,60 @@ function initLightbox(bodyEl) {
   document.body.appendChild(box);
 
   const imgEl = box.querySelector('.lightbox-img');
+  const prevEl = box.querySelector('.lightbox-prev');
   const closeEl = box.querySelector('[data-close]');
+  const playEl = box.querySelector('[data-play]');
 
-  // `is-loading` puts the spinner up and holds the photo hidden until it has actually
-  // arrived, so stepping between photos never flashes the previous one at the new one's size.
-  imgEl.addEventListener('load', () => box.classList.remove('is-loading'));
+  // Autoplay holds each photo this long, timed from the moment it is actually on screen
+  // rather than from when it was asked for — a slow fetch should not eat its own turn.
+  const SLIDE_MS = 3000;
+  // And every swap crosses through the blur for at least this long. Without a floor, the
+  // photo autoplay just prefetched is already in cache and would cut in hard — the blur is
+  // the transition, not a loading state, so it has to run whether or not there was a wait.
+  const SWAP_MS = 100;
+  const many = tripPhotos.length > 1;
+  if (!many) playEl.hidden = true; // One photo: nothing to step to, nothing to play through.
+
+  let at = 0;
+  let opener = null; // Where focus came from, and where it has to go back to.
+  let playing = false;
+  let timer = 0;
+  let hold = 0;
+  let shown = ''; // The src actually on screen, i.e. what the next swap blurs behind it.
+  let arrived = false; // This photo has loaded, or run out of fallbacks to try.
+  let holding = false; // The blurred stand-in is still serving its minimum turn.
+  let revealed = false; // Guards the handover, which both of the above can be last to reach.
+
+  // The photo comes up when it has arrived *and* the blur has had its turn — the two run
+  // independently, so whichever finishes last is the one that hands over. The dwell starts
+  // here, not in show(), so an autoplaying slideshow gives every photo its full SLIDE_MS
+  // however slow the fetch.
+  function reveal() {
+    if (revealed || !arrived || holding) return;
+    revealed = true;
+    box.classList.remove('is-swapping', 'is-loading');
+    if (playing) queueNext();
+  }
+
+  // Either outcome of a load ends the wait: the photo arrived, or the fallback chain below
+  // ran out and there is nothing more to wait for.
+  function settled() {
+    arrived = true;
+    reveal();
+  }
+
+  function queueNext() {
+    clearTimeout(timer);
+    timer = setTimeout(() => show(at + 1), SLIDE_MS);
+    // While one photo is dwelling, fetch the next: the slideshow moves on its own, so a
+    // stall there is dead time nobody asked for. One image ahead, never a burst.
+    if (many) new Image().src = tripPhotos[(at + 1) % tripPhotos.length].src;
+  }
+
+  imgEl.addEventListener('load', () => {
+    shown = imgEl.currentSrc || imgEl.src;
+    settled();
+  });
 
   // The same fallback chain the thumbnails walk. One <img> serves every photo here, so the
   // listener is wired once and reads whichever src is loaded at the time it fires. The
@@ -1029,32 +1084,84 @@ function initLightbox(bodyEl) {
   imgEl.addEventListener('error', () => {
     const next = retryPhotoSrc(imgEl.src);
     if (next) imgEl.src = next;
-    else box.classList.remove('is-loading');
+    else settled();
   });
 
-  let at = 0;
-  let opener = null; // Where focus came from, and where it has to go back to.
-
-  function show(i) {
+  // `carry` is false only on a fresh open, where the last photo of the previous visit is no
+  // longer what the reader was looking at and has no business blurring behind this one.
+  function show(i, carry = true) {
     const photos = tripPhotos;
     at = (i + photos.length) % photos.length; // Wraps, so the arrows never dead-end.
+    clearTimeout(timer); // Whatever lands next starts its own dwell when it lands.
+    clearTimeout(hold);
+
+    // The photo being replaced stays underneath, blurred: cutting to an empty backdrop reads
+    // as a fault, while a soft version of where you just were reads as the picture turning
+    // over. It is the transition on a fast swap and the waiting room on a slow one.
+    const swap = carry && !!shown;
+    if (swap) prevEl.src = shown;
+    box.classList.toggle('has-prev', swap);
+    box.classList.toggle('is-swapping', swap);
+    box.classList.remove('is-loading');
+    shown = '';
+    arrived = false;
+    revealed = false;
+    holding = swap;
+
     imgEl.alt = photos[at].alt;
-    box.classList.add('is-loading');
     imgEl.src = photos[at].src;
     // A cached photo — or the same one re-shown, where assigning the identical src fires no
-    // load event at all — is already complete here, so the spinner never blinks into view.
-    if (imgEl.complete) box.classList.remove('is-loading');
+    // load event at all — is already complete here and never reaches the load handler.
+    if (imgEl.complete && imgEl.naturalWidth) {
+      shown = imgEl.currentSrc || imgEl.src;
+      arrived = true;
+    }
+
+    if (!swap) {
+      // Nothing to cross from: the photo is either here already or the spinner goes up now.
+      if (!arrived) box.classList.add('is-loading');
+      reveal();
+      return;
+    }
+
+    // The end of the blur's turn is also the moment a photo counts as late — a swap that
+    // resolves inside SWAP_MS is a transition and never flashes a spinner at all.
+    hold = setTimeout(() => {
+      holding = false;
+      if (!arrived) box.classList.add('is-loading');
+      reveal();
+    }, SWAP_MS);
   }
+
+  // The slideshow only ever runs while the lightbox is open: open() never starts it, close()
+  // always stops it, and a backgrounded tab parks it rather than burning through the trip
+  // while nobody is looking.
+  function setPlaying(on) {
+    playing = on && many;
+    box.classList.toggle('is-playing', playing);
+    playEl.setAttribute('aria-pressed', String(playing));
+    playEl.setAttribute('aria-label', playing ? 'Pause slideshow' : 'Play slideshow');
+    clearTimeout(timer);
+    // Pressing play mid-photo: what is on screen has already been revealed, so nothing
+    // else will call reveal() for it and its dwell has to start here.
+    if (playing && revealed) queueNext();
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) clearTimeout(timer);
+    else if (playing && !box.hidden && revealed) queueNext();
+  });
 
   function open(i, from) {
     opener = from;
-    show(i);
+    show(i, false);
     box.hidden = false;
     document.body.classList.add('is-locked');
     closeEl.focus();
   }
 
   function close() {
+    setPlaying(false);
     box.hidden = true;
     document.body.classList.remove('is-locked');
     opener?.focus();
@@ -1067,6 +1174,10 @@ function initLightbox(bodyEl) {
   });
 
   box.addEventListener('click', (e) => {
+    if (e.target.closest('[data-play]')) {
+      setPlaying(!playing);
+      return;
+    }
     // The backdrop is the dialog itself; a click that lands on the photo is not a miss.
     if (e.target.closest('[data-close]') || !e.target.closest('.lightbox-figure')) close();
   });
@@ -1074,14 +1185,20 @@ function initLightbox(bodyEl) {
   document.addEventListener('keydown', (e) => {
     if (box.hidden) return;
     if (e.key === 'Escape') close();
-    else if (e.key === 'ArrowLeft' && tripPhotos.length > 1) show(at - 1);
-    else if (e.key === 'ArrowRight' && tripPhotos.length > 1) show(at + 1);
+    // Space is the slideshow toggle everywhere in the lightbox, including while the Close
+    // button holds focus — preventDefault is what keeps it from activating that button
+    // instead. Enter still closes from there, so the button loses nothing.
+    else if (e.key === ' ' && many) {
+      e.preventDefault();
+      setPlaying(!playing);
+    } else if (e.key === 'ArrowLeft' && many) show(at - 1);
+    else if (e.key === 'ArrowRight' && many) show(at + 1);
   });
 
   // A horizontal swipe steps photos: drag left (finger moves toward −x) for the next one,
   // right for the previous, the same direction the arrow keys read. Only a gesture that is
   // more sideways than vertical and clears SWIPE_MIN counts — a vertical drag or a tap is
-  // left alone so the caption stays scrollable and a tap on the backdrop still closes.
+  // left alone, so a tap on the backdrop still closes and one on the toggle still plays.
   const SWIPE_MIN = 45;
   let startX = 0;
   let startY = 0;
@@ -1090,7 +1207,7 @@ function initLightbox(bodyEl) {
     startY = e.changedTouches[0].clientY;
   }, { passive: true });
   box.addEventListener('touchend', (e) => {
-    if (tripPhotos.length < 2) return;
+    if (!many) return;
     const dx = e.changedTouches[0].clientX - startX;
     const dy = e.changedTouches[0].clientY - startY;
     if (Math.abs(dx) < SWIPE_MIN || Math.abs(dx) < Math.abs(dy)) return;

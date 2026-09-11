@@ -512,6 +512,8 @@ body.is-locked { overflow: hidden; }
    transparent padding instead of the picture. Natural size, capped, is what rounds. */
 .lightbox-figure {
   display: flex;
+  position: relative; /* With z-index below: the sharp photo sits over the blurred stand-in. */
+  z-index: 1;
   margin: 0;
   min-width: 0;
   max-width: 100%;
@@ -526,17 +528,55 @@ body.is-locked { overflow: hidden; }
   max-height: calc(100vh - 8rem);
   border-radius: var(--radius);
   opacity: 1;
-  transition: opacity 0.2s ease;
+  filter: blur(0);
+  transition: opacity 0.35s ease, filter 0.35s ease;
 }
 
-/* Held back until the photo has loaded, so what fades in is the finished picture at its
-   own size rather than the last one stretched to it. */
-.lightbox.is-loading .lightbox-img { opacity: 0; }
+/* Held back until the photo has both arrived and served its turn behind the blur, so what
+   comes up is the finished picture at its own size rather than the last one stretched to
+   it — and it comes up by pulling into focus, which is the same gesture as the stand-in
+   dissolving out. `is-swapping` is every photo change; `is-loading` only a slow one. */
+.lightbox.is-swapping .lightbox-img,
+.lightbox.is-loading .lightbox-img {
+  opacity: 0;
+  filter: blur(14px);
+  /* Instant on the way in, like the stand-in: a cached photo can paint into this <img>
+     before the class lands, and an animated exit would flash it out and straight back in. */
+  transition: none;
+}
+
+/* The photo being replaced, held for the length of the swap — SWAP_MS, or longer if the
+   next one is still in flight: blurred and dimmed so it reads as the picture turning over
+   rather than as the picture on show. Absolute, so the figure above it still shrink-wraps
+   the new photo, and inert, so a click here closes like any other backdrop click. */
+.lightbox-prev {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: auto;
+  max-width: min(100%, calc(100vw - 3rem));
+  max-height: calc(100vh - 8rem);
+  transform: translate(-50%, -50%) scale(1.03);
+  border-radius: var(--radius);
+  filter: blur(18px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s ease;
+}
+
+/* It arrives instantly — `transition: none` on the state being entered — because it stands
+   in for pixels that were already on screen, and a fade-in there would dip through black.
+   Leaving, it takes the base rule's 0.3s and crosses with the new photo pulling up. */
+.lightbox.is-swapping.has-prev .lightbox-prev {
+  opacity: 0.5;
+  transition: none;
+}
 
 /* The full-size photo is a fresh fetch even when its thumbnail is already on screen, and
    the lightbox is empty for that whole wait — the spinner is the only sign of progress. */
 .lightbox-spinner {
   position: absolute;
+  z-index: 2;
   top: 50%;
   left: 50%;
   width: 2.2rem;
@@ -558,6 +598,7 @@ body.is-locked { overflow: hidden; }
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 3; /* Over the photo, which a tall one can otherwise reach up into. */
   flex-shrink: 0;
   width: 2.5rem;
   height: 2.5rem;
@@ -580,6 +621,19 @@ body.is-locked { overflow: hidden; }
   top: 1.5rem;
   right: 1.5rem;
 }
+
+/* Beside Close, a button's width plus a gap in from it. */
+.lightbox-play {
+  position: absolute;
+  top: 1.5rem;
+  right: 4.5rem;
+}
+
+/* One button, two faces: whichever icon names what pressing it will do next. */
+.lightbox-play .icon-pause,
+.lightbox.is-playing .lightbox-play .icon-play { display: none; }
+
+.lightbox.is-playing .lightbox-play .icon-pause { display: block; }
 
 /* ---------- table of contents ---------- */
 
