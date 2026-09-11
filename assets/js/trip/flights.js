@@ -1,7 +1,7 @@
 // Flight cards. Every time is local to its own airport, as printed on the boarding pass, so
 // nothing converts between zones and no leg shows a duration. A layover can: both of its
 // clocks belong to the same airport.
-import { esc } from '../shared/dom.js';
+import { esc, plural } from '../shared/dom.js';
 import { fmtPart } from '../shared/format.js';
 
 const PLANE_ICON =
@@ -25,8 +25,8 @@ function stampMinutes(stamp) {
 function fmtGap(mins) {
   if (!Number.isFinite(mins) || mins < 0) return '';
   const [h, m] = [Math.floor(mins / 60), mins % 60];
-  if (!h) return `${m}m`;
-  return m ? `${h}h ${m}m` : `${h}h`;
+  if (!h) return plural(m, 'minute');
+  return m ? `${plural(h, 'hour')} ${plural(m, 'minute')}` : plural(h, 'hour');
 }
 
 function endHtml(place, stamp, cls) {
@@ -35,7 +35,7 @@ function endHtml(place, stamp, cls) {
     <div class="leg-end ${cls}">
       <span class="leg-code">${esc(place.code || place.city || '')}</span>
       <span class="leg-time">${esc(time)}</span>
-      ${date ? `<span class="leg-day">${esc(fmtPart(date, { short: true }))}</span>` : ''}
+      ${date ? `<span class="leg-day">${esc(fmtPart(date))}</span>` : ''}
     </div>`;
 }
 

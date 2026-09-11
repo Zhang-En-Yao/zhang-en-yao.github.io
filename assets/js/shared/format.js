@@ -8,20 +8,20 @@ export function splitDuration(duration) {
 }
 
 // Keeps the precision it was given: "2025/12" → "December 2025", never an invented day.
-export function fmtPart(part, { short = false } = {}) {
+export function fmtPart(part) {
   if (!part) return '';
   const [datePart, timePart] = String(part).split(' ');
   const [y, m, d] = datePart.split('/');
   if (!y) return '';
   if (!m) return y;
-  const month = (MONTHS[Number(m) - 1] || '').slice(0, short ? 3 : undefined);
+  const month = MONTHS[Number(m) - 1] || '';
   const date = d ? `${month} ${Number(d)}, ${y}` : `${month} ${y}`;
   return timePart ? `${date} ${timePart}` : date;
 }
 
 // A date range without times, sharing what the two ends have in common:
-// "Jun 19–23, 2026", "Oct 22 – Nov 9, 2026", "Dec 31, 2025 – Jan 3, 2026", "June 2019".
-export function fmtRange(duration, { short = false } = {}) {
+// "June 19–23, 2026", "October 22 – November 9, 2026", "December 31, 2025 – January 3, 2026".
+export function fmtRange(duration) {
   const { start, end } = splitDuration(duration);
   if (!start) return '';
   const parse = (part) => {
@@ -30,7 +30,7 @@ export function fmtRange(duration, { short = false } = {}) {
   };
   const a = parse(start);
   const b = end ? parse(end) : a;
-  const mon = ({ m }) => (MONTHS[m - 1] || '').slice(0, short ? 3 : undefined);
+  const mon = ({ m }) => MONTHS[m - 1] || '';
   const full = (p) => (p.d ? `${mon(p)} ${p.d}, ${p.y}` : p.m ? `${mon(p)} ${p.y}` : p.y);
 
   if (a.y === b.y && a.m === b.m && a.d === b.d) return full(a);

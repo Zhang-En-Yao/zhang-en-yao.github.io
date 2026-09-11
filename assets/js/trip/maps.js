@@ -1,6 +1,6 @@
 // The trip page's maps: the region band under the title and the per-section cluster maps.
 // Uses the global `d3` (d3-geo). Sizes and margins are mirrored in build-streets.py.
-import { esc } from '../shared/dom.js';
+import { esc, plural } from '../shared/dom.js';
 import { hasCoords, fmtPoint } from '../shared/atlas.js';
 
 const REGION = { w: 800, h: 380, pad: 16, margin: 2.1, minSpanLon: 13 };
@@ -101,7 +101,7 @@ function scaleBarHtml(pts, projection, h) {
   if (!px) return '';
 
   const x = px.toFixed(1);
-  const label = meters >= 1000 ? `${meters / 1000} km` : `${meters} m`;
+  const label = meters >= 1000 ? plural(meters / 1000, 'kilometre') : plural(meters, 'metre');
   return `
     <g class="region-scale" transform="translate(14, ${h - 16})">
       <line x1="0" y1="0" x2="${x}" y2="0"/>

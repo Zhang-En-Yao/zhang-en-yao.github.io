@@ -73,7 +73,7 @@ function renderList(trips, byName) {
             ${t.pilgrimage ? '<span class="tag">Pilgrimage</span>' : ''}
           </div>
           <h2 class="trip-card-title">${esc(tripTitle(t))}</h2>
-          <p class="trip-card-duration">${esc(fmtRange(tripDuration(t), { short: true }))}</p>
+          <p class="trip-card-duration">${esc(fmtRange(tripDuration(t)))}</p>
         </div>
       </a>`)
     .join('');

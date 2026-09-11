@@ -174,7 +174,7 @@ function wireTooltip(mapEl, stops) {
     if (!stop) return;
     tip.innerHTML = `
       <span class="map-tip-title">${esc(stop.city.name)}</span>
-      <span class="map-tip-meta">${esc(fmtRange(tripDuration(stop.trip), { short: true }))}</span>`;
+      <span class="map-tip-meta">${esc(fmtRange(tripDuration(stop.trip)))}</span>`;
 
     // The SVG scales with its column, so position from live geometry.
     const dot = marker.querySelector('.map-marker-dot').getBoundingClientRect();
