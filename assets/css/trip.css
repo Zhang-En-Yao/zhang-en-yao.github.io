@@ -271,6 +271,16 @@
 
 .prose p { margin: 0 0 1.1rem; }
 
+/* Justified body text, hyphenated so the word spaces stay even instead of opening into
+   rivers. Only the prose paragraphs: labels and captions all carry a class of their own.
+   `hyphens: auto` needs the page's lang attribute to pick a dictionary; trip.html is en. */
+.prose p:not([class]) {
+  text-align: justify;
+  -webkit-hyphens: auto;
+  hyphens: auto;
+  hyphenate-limit-chars: 6 3 3; /* only words of 6+, keeping 3 either side of the break */
+}
+
 .prose .point-kind {
   margin: 0 0 0.6rem;
   font-size: 0.8125rem;

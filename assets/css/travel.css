@@ -50,7 +50,7 @@
 .map-viewport {
   position: relative;
   overflow: hidden;
-  aspect-ratio: var(--map-aspect, 2 / 1);
+  aspect-ratio: var(--map-aspect, 1 / 1);
   border-radius: inherit;
   cursor: grab;
   touch-action: none;
@@ -67,7 +67,6 @@
 
 @media (max-width: 640px) {
   .map { border-radius: var(--radius); }
-  .map-viewport { aspect-ratio: 4 / 3; }
 }
 
 .map-svg {

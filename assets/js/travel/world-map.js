@@ -61,13 +61,14 @@ function placesOf(trips, projection) {
 export function renderWorldMap(mapEl, countries, trips, continentOf) {
   const land = { type: 'FeatureCollection', features: countries.filter((f) => !OMIT.has(f.properties.name)) };
 
-  // Fit the land to WIDTH, then shift it to the top edge so its measured height is the content height.
+  // Fit the land to WIDTH, then centre it vertically in a square content box, so the map card
+  // is square however tall the projected world turns out to be.
   const projection = d3.geoNaturalEarth1().fitWidth(WIDTH - PAD * 2, land);
   const path = d3.geoPath(projection).digits(1);
   const [[, y0], [, y1]] = path.bounds(land);
-  const height = Math.ceil(y1 - y0) + PAD * 2;
+  const height = WIDTH;
   const [tx, ty] = projection.translate();
-  projection.translate([tx + PAD, ty - y0 + PAD]);
+  projection.translate([tx + PAD, ty - y0 + (height - (y1 - y0)) / 2]);
 
   const visited = new Set(trips.map((t) => t.country).filter(Boolean));
   const byName = new Map(land.features.map((f) => [f.properties.name, f]));
