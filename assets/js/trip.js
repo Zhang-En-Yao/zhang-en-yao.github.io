@@ -889,6 +889,7 @@ function initLightbox(bodyEl) {
   // swipe (see below), nothing to click. The two buttons are Close and the slideshow toggle.
   // `.lightbox-prev` is the photo being replaced, kept underneath while the next one loads.
   box.innerHTML = `
+    <img class="lightbox-glow" alt="" aria-hidden="true">
     <button class="lightbox-btn lightbox-play" type="button" data-play aria-pressed="false" aria-label="Play slideshow">
       <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>
       <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="7" y="5" width="3.5" height="14" rx="1"/><rect x="13.5" y="5" width="3.5" height="14" rx="1"/></svg>
@@ -905,6 +906,7 @@ function initLightbox(bodyEl) {
 
   const imgEl = box.querySelector('.lightbox-img');
   const prevEl = box.querySelector('.lightbox-prev');
+  const glowEl = box.querySelector('.lightbox-glow');
   const closeEl = box.querySelector('[data-close]');
   const playEl = box.querySelector('[data-play]');
 
@@ -914,7 +916,7 @@ function initLightbox(bodyEl) {
   // And every swap crosses through the blur for at least this long. Without a floor, the
   // photo autoplay just prefetched is already in cache and would cut in hard — the blur is
   // the transition, not a loading state, so it has to run whether or not there was a wait.
-  const SWAP_MS = 1000;
+  const SWAP_MS = 300;
   const many = tripPhotos.length > 1;
   if (!many) playEl.hidden = true; // One photo: nothing to step to, nothing to play through.
 
@@ -936,6 +938,14 @@ function initLightbox(bodyEl) {
     if (revealed || !arrived || holding) return;
     revealed = true;
     box.classList.remove('is-swapping', 'is-loading');
+    // The backdrop takes its colour from the photo now on it — the same src blown up and
+    // blurred away behind it (see `.lightbox-glow`). Dropped at the start of every swap, so
+    // the colour dissolves with the outgoing photo and blooms back with the incoming one
+    // rather than cutting between two palettes.
+    if (shown) {
+      glowEl.src = shown;
+      box.classList.add('has-glow');
+    }
     if (playing) queueNext();
   }
 
@@ -983,7 +993,7 @@ function initLightbox(bodyEl) {
     if (swap) prevEl.src = shown;
     box.classList.toggle('has-prev', swap);
     box.classList.toggle('is-swapping', swap);
-    box.classList.remove('is-loading');
+    box.classList.remove('is-loading', 'has-glow');
     shown = '';
     arrived = false;
     revealed = false;
@@ -1096,6 +1106,80 @@ function initLightbox(bodyEl) {
   }, { passive: true });
 }
 
+// ---------- the ambient wash ----------
+//
+// The page takes its colour from whichever photo you are beside: a heavily blurred copy of
+// it, fixed behind the whole page at low opacity, so scrolling a trip drifts the background
+// from one place's palette to the next. It re-uses the thumbnail the gallery has already
+// loaded, so the whole effect costs no bytes at all — the blur is a paint, not a download.
+// Two panes take turns, which is what lets one colour cross into the next instead of cutting.
+function initAmbient(bodyEl) {
+  const imgs = [...bodyEl.querySelectorAll('.photo img')];
+  if (!imgs.length) return;
+
+  const layer = document.createElement('div');
+  layer.className = 'ambient';
+  layer.setAttribute('aria-hidden', 'true');
+  layer.innerHTML = '<img class="ambient-img" alt=""><img class="ambient-img" alt="">';
+  document.body.appendChild(layer);
+
+  const panes = [...layer.querySelectorAll('.ambient-img')];
+  let front = 0;
+  let current = '';
+
+  function tint(src) {
+    if (!src || src === current) return;
+    current = src;
+    const next = panes[1 - front];
+    // Only swapped once the new pane actually holds the picture: fading up an <img> that is
+    // still decoding would dip the page to flat and then pop the colour in.
+    const cross = () => {
+      // A fast scroll can pick another photo while this one is still decoding. Whatever was
+      // asked for last is what should land, so a stale arrival drops itself here.
+      if (current !== src) return;
+      next.classList.add('is-on');
+      panes[front].classList.remove('is-on');
+      front = 1 - front;
+    };
+    next.src = src;
+    if (next.complete && next.naturalWidth) cross();
+    else next.addEventListener('load', cross, { once: true });
+  }
+
+  // Back to the page's own colour, for scrolling up past the first photo or down past the
+  // last: the wash belongs to the photos, so where there are none there is none.
+  function clear() {
+    if (!current) return;
+    current = '';
+    panes.forEach((pane) => pane.classList.remove('is-on'));
+  }
+
+  // How much of each photo is on screen, kept per photo, with the most-visible one setting
+  // the colour. Taking the page over and holding it are deliberately different bars: a photo
+  // needs a real share of the screen to become the colour, but any sliver of any photo is
+  // enough to keep the colour that is up. Without that gap, the handover between two photos
+  // in a stacked gallery — the old one below the bar before the new one clears it — would
+  // blink the page back to flat on the way past.
+  const seen = new Map();
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e) => seen.set(e.target, e.isIntersecting ? e.intersectionRatio : 0));
+    let best = null;
+    let top = 0.15; // Under this a photo is barely on screen and has no business taking over.
+    let onScreen = false;
+    seen.forEach((ratio, img) => {
+      if (ratio > 0) onScreen = true;
+      if (ratio > top) {
+        top = ratio;
+        best = img;
+      }
+    });
+    if (best) tint(best.currentSrc || best.src);
+    else if (!onScreen) clear();
+  }, { threshold: [0, 0.15, 0.35, 0.6, 0.85] });
+
+  imgs.forEach((im) => io.observe(im));
+}
+
 // ---------- render ----------
 //
 // The section maps and the photo strip are driven by `meta`, not by the Markdown, so they
@@ -1175,6 +1259,7 @@ if (!id) {
           if (isJson) renderTripContent(content, meta, streets);
           else renderProse(content, meta);
           initLightbox(tripEl.querySelector('.prose'));
+          initAmbient(tripEl.querySelector('.prose'));
         });
     })
     .catch(() => {
