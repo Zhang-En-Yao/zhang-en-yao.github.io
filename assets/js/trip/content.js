@@ -1,7 +1,7 @@
 // Renders a trip's header and its JSON travelogue (sections → subsections → points).
 // Uses the global `marked` for inline Markdown in prose strings.
 import { esc } from '../shared/dom.js';
-import { fmtDuration } from '../shared/format.js';
+import { fmtRange } from '../shared/format.js';
 import { tripTitle, tripDuration } from '../shared/trips.js';
 import { regionMapHtml, areaMapHtml } from './maps.js';
 import { flightsHtml } from './flights.js';
@@ -9,13 +9,13 @@ import { clusterPoints, dedupeSameSite, CLUSTER_CAP_M } from './clusters.js';
 
 export function headerHtml(trip, countries) {
   const where = [trip.country, trip.continent].filter(Boolean).join(' · ');
-  const when = fmtDuration(tripDuration(trip));
+  const when = fmtRange(tripDuration(trip));
   const map = regionMapHtml(trip, countries);
   return `
     <div class="trip-header">
+      ${where ? `<p class="trip-eyebrow">${esc(where)}</p>` : ''}
       <h1>${esc(tripTitle(trip))}</h1>
-      ${where ? `<p class="venue">${esc(where)}</p>` : ''}
-      ${when ? `<p class="publish-date">${esc(when)}</p>` : ''}
+      ${when ? `<p class="trip-dates">${esc(when)}</p>` : ''}
     </div>
     ${map ? `<div class="trip-map">${map}</div>` : ''}
     ${flightsHtml(trip)}`;
@@ -23,11 +23,13 @@ export function headerHtml(trip, countries) {
 
 const paragraphs = (list) => (list || []).map((p) => `<p>${marked.parseInline(p)}</p>`).join('');
 
-const lodgingHtml = (item) => (item.lodging ? `<p>Lodging: ${esc(item.lodging)}</p>` : '');
+const BED_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Lodging"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>';
+
+const lodgingHtml = (item) => (item.lodging ? `<p class="lodging">${BED_ICON}<span>${esc(item.lodging)}</span></p>` : '');
 
 const pointHtml = (point) => `
     <h4>${esc(point.name)}</h4>
-    ${point.kind ? `<p><em>${esc(point.kind)}</em></p>` : ''}
+    ${point.kind ? `<p class="point-kind">${esc(point.kind)}</p>` : ''}
     ${paragraphs(point.body)}`;
 
 // Street keys match build-streets.py: "Section / Subsection", plus " #N" when split.

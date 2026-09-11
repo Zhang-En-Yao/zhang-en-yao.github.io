@@ -39,3 +39,7 @@ export const SERVE_HINT =
 export const RETRY_BUTTON = '<button type="button" class="btn" onclick="location.reload()">Retry</button>';
 
 export const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+// [[count, 'trip'], [count, 'country', 'countries']] → "<b>3</b> trips · <b>1</b> country"
+export const statsHtml = (items) =>
+  items.map(([n, one, many = `${one}s`]) => `<span><b>${n}</b> ${n === 1 ? one : many}</span>`).join(' · ');

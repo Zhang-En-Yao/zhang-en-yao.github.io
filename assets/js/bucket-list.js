@@ -1,4 +1,4 @@
-import { esc, fetchJson, emptyState, plural, SERVE_HINT, RETRY_BUTTON } from './shared/dom.js';
+import { esc, fetchJson, emptyState, statsHtml, SERVE_HINT, RETRY_BUTTON } from './shared/dom.js';
 import { TRIPS_SRC } from './shared/trips.js';
 import { loadCountries, byCountryName } from './shared/atlas.js';
 import { thumbHtml } from './shared/thumb.js';
@@ -25,24 +25,20 @@ function nextOccurrence(item, now) {
 function renderStats(items) {
   const done = items.filter((i) => i.done).length;
   const countries = new Set(items.map((i) => i.country).filter(Boolean)).size;
-  statsEl.textContent = [
-    plural(items.length, 'festival'),
-    plural(countries, 'country', 'countries'),
-    `${done} done`,
-  ].join(' · ');
+  statsEl.innerHTML = statsHtml([[items.length, 'festival'], [countries, 'country', 'countries'], [done, 'done', 'done']]);
 }
 
 function cardHtml(item, byName, visited) {
   const city = item.cities?.[0]?.name;
   return `
-    <article class="bucket-card${item.done ? ' is-done' : ''}" data-id="${esc(item.id)}">
+    <article class="trip-card bucket-card${item.done ? ' is-done' : ''}" data-id="${esc(item.id)}">
       ${thumbHtml(item, byName)}
       <div class="trip-card-body">
         <div class="trip-card-meta">
           ${item.country ? `<span>${esc(item.country)}</span>` : ''}
           ${city && city !== item.country ? `<span>${esc(city)}</span>` : ''}
-          ${item.done ? '<span class="trip-card-tag">Done</span>' : ''}
-          ${visited.has(item.country) ? '<span class="trip-card-tag">Been</span>' : ''}
+          ${item.done ? '<span class="tag">Done</span>' : ''}
+          ${visited.has(item.country) ? '<span class="tag">Been</span>' : ''}
         </div>
         <h3 class="trip-card-title">${esc(item.name)}</h3>
         <p class="bucket-card-when">${esc(item.when || '')}</p>
@@ -65,7 +61,7 @@ function render(items, byName, visited) {
           <h2 class="bucket-section-title">${esc(section.label)}</h2>
           <p class="bucket-section-lede">${esc(section.lede)}</p>
         </header>
-        <div class="bucket-grid">
+        <div class="card-list">
           ${entries.map((i) => cardHtml(i, byName, visited)).join('')}
         </div>
       </section>`;

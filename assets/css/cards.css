@@ -1,91 +1,119 @@
-/* The shared vocabulary of the two list pages — travel and the bucket list. Both
-   draw the same stats line and the same country-thumbnail card (see thumb.js), so
-   the rules live here once and both pages link this file. */
+/* Grouped lists of country-thumbnail rows, shared by the travel and bucket-list pages. */
 
-.travel-stats {
-  margin: 0 0 0.9rem;
-  font-size: 0.8rem;
-  color: var(--faint);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
+.card-list {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
 }
-
-/* ---------- country-thumbnail card ---------- */
 
 .trip-card {
+  position: relative;
   display: flex;
-  gap: 1.1rem;
   align-items: center;
-  padding: 1.2rem 0;
-  border-bottom: 1px solid var(--line);
-  text-decoration: none;
+  gap: 1rem;
+  padding: 0.9rem 2.75rem 0.9rem 0.9rem;
   color: inherit;
+  text-decoration: none;
+  transition: background-color 0.2s var(--ease);
 }
 
-/* The country itself, scaled to fill the frame — so a card is legible at a glance as
-   "Japan" rather than as a photo that could have been taken anywhere. */
+/* Separator inset past the thumbnail, as in a grouped system list. */
+.trip-card + .trip-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: calc(0.9rem + var(--thumb) + 1rem);
+  height: 1px;
+  background: var(--hairline);
+}
+
+a.trip-card::after {
+  content: "";
+  position: absolute;
+  right: 1.1rem;
+  top: 50%;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-top: 2px solid var(--faint);
+  border-right: 2px solid var(--faint);
+  border-radius: 1px;
+  opacity: 0.7;
+  transform: translate(-25%, -50%) rotate(45deg);
+  transition: transform 0.35s var(--ease), border-color 0.2s var(--ease);
+}
+
+a.trip-card:hover { background: color-mix(in srgb, var(--surface) 55%, transparent); }
+
+a.trip-card:hover::after {
+  border-color: var(--accent);
+  transform: translate(10%, -50%) rotate(45deg);
+}
+
+a.trip-card:active { background: var(--surface); }
+
+.card-list { --thumb: 5.25rem; }
+
 .trip-card-map {
   flex-shrink: 0;
-  width: 7rem;
-  height: 7rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  width: var(--thumb);
+  height: var(--thumb);
   background: var(--surface);
-  transition: border-color 0.2s ease;
+  border-radius: var(--radius-sm);
 }
 
 .trip-card-map-shape {
-  fill: color-mix(in srgb, var(--accent) 28%, var(--line));
-  transition: fill 0.28s cubic-bezier(0.33, 1, 0.68, 1);
+  fill: color-mix(in srgb, var(--accent) 30%, var(--line));
+  transition: fill 0.3s var(--ease);
 }
 
 .trip-card-map-dot { fill: var(--accent); }
 
-.trip-card:hover .trip-card-map { border-color: var(--accent); }
+.trip-card:hover .trip-card-map-shape { fill: color-mix(in srgb, var(--accent) 60%, var(--line)); }
 
-.trip-card:hover .trip-card-map-shape {
-  fill: color-mix(in srgb, var(--accent) 62%, var(--line));
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .trip-card-map-shape { transition: none; }
-}
-
-.trip-card-body { min-width: 0; }
+.trip-card-body { flex: 1; min-width: 0; }
 
 .trip-card-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  font-size: 0.78rem;
+  align-items: center;
+  gap: 0.2rem 0.5rem;
+  font-size: 0.8125rem;
   color: var(--faint);
-  font-variant-numeric: tabular-nums;
 }
 
-/* A quiet accent-tinted pill — "New Year", "Pilgrimage", "Done" — so it reads as a
-   marker, not another line of meta text. */
-.trip-card-tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.05rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+.trip-card-meta > span:not(.tag) + span:not(.tag)::before {
+  content: "·";
+  margin-right: 0.5rem;
 }
 
 .trip-card-title {
-  font-family: var(--serif);
-  font-size: 1.3rem;
+  margin: 0.1rem 0 0.15rem;
+  font-size: 1.125rem;
   font-weight: 600;
-  letter-spacing: -0.02em;
   line-height: 1.3;
-  margin: 0.2rem 0 0.3rem;
+  letter-spacing: -0.02em;
 }
 
-.trip-card:hover .trip-card-title { color: var(--accent); }
+.trip-card-duration {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
 
-.trip-card-duration { font-size: 0.92rem; color: var(--muted); margin: 0; }
+@media (max-width: 640px) {
+  .card-list { --thumb: 4rem; }
+  .trip-card { gap: 0.85rem; padding: 0.8rem 2.25rem 0.8rem 0.8rem; }
+  .trip-card + .trip-card::before { left: calc(0.8rem + var(--thumb) + 0.85rem); }
+  a.trip-card::after { right: 0.9rem; }
+  .trip-card-title { font-size: 1.0625rem; }
+  .trip-card-duration { font-size: 0.875rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trip-card-map-shape, a.trip-card::after { transition: none; }
+}

@@ -54,7 +54,7 @@ export function galleryHtml(content, tripId) {
           <img src="${esc(p.thumb)}" alt="${esc(p.alt)}" loading="lazy">
         </button>`)
     .join('');
-  return [`<h2>Gallery</h2><div class="photo-grid is-stream">${cells}</div>`, photos];
+  return [`<h2>Gallery</h2><div class="photo-grid">${cells}</div>`, photos];
 }
 
 // Clears each cell's skeleton once its image loads (recording the real aspect ratio) or

@@ -142,6 +142,7 @@ export function initTranslate() {
       || !prose.contains(sel.anchorNode) || !prose.contains(sel.focusNode)) {
       return hideButton();
     }
+    if (sheet.classList.contains('is-open') && text === sourceText) return hideButton(); // Already shown.
     range = sel.getRangeAt(0).cloneRange();
     sourceText = text;
     placeButton();

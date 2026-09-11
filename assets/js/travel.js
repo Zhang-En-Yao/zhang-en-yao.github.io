@@ -1,5 +1,5 @@
-import { esc, fetchJson, emptyState, plural, SERVE_HINT, RETRY_BUTTON } from './shared/dom.js';
-import { fmtDuration, splitDuration, currentMonth } from './shared/format.js';
+import { esc, fetchJson, emptyState, plural, statsHtml, SERVE_HINT, RETRY_BUTTON } from './shared/dom.js';
+import { fmtRange, splitDuration, currentMonth } from './shared/format.js';
 import { TRIPS_SRC, tripTitle, tripHref, tripDuration, newestFirst } from './shared/trips.js';
 import { loadCountries, byCountryName } from './shared/atlas.js';
 import { thumbHtml } from './shared/thumb.js';
@@ -15,11 +15,7 @@ const nextEl = document.getElementById('next');
 function renderStats(trips) {
   const places = new Set(trips.flatMap((t) => (t.cities || []).map((c) => c.name))).size;
   const countries = new Set(trips.map((t) => t.country).filter(Boolean)).size;
-  statsEl.textContent = [
-    plural(trips.length, 'trip'),
-    plural(places, 'place'),
-    plural(countries, 'country', 'countries'),
-  ].join(' · ');
+  statsEl.innerHTML = statsHtml([[trips.length, 'trip'], [places, 'place'], [countries, 'country', 'countries']]);
 }
 
 // The soonest trip that hasn't ended. `trips` is newest-first, so that's the last match.
@@ -73,11 +69,11 @@ function renderList(trips, byName) {
           <div class="trip-card-meta">
             ${t.country ? `<span>${esc(t.country)}</span>` : ''}
             ${t.continent ? `<span>${esc(t.continent)}</span>` : ''}
-            ${t.newYear ? '<span class="trip-card-tag">New Year</span>' : ''}
-            ${t.pilgrimage ? '<span class="trip-card-tag">Pilgrimage</span>' : ''}
+            ${t.newYear ? '<span class="tag">New Year</span>' : ''}
+            ${t.pilgrimage ? '<span class="tag">Pilgrimage</span>' : ''}
           </div>
           <h2 class="trip-card-title">${esc(tripTitle(t))}</h2>
-          <p class="trip-card-duration">${esc(fmtDuration(tripDuration(t)))}</p>
+          <p class="trip-card-duration">${esc(fmtRange(tripDuration(t), { short: true }))}</p>
         </div>
       </a>`)
     .join('');

@@ -35,7 +35,7 @@ function endHtml(place, stamp, cls) {
     <div class="leg-end ${cls}">
       <span class="leg-code">${esc(place.code || place.city || '')}</span>
       <span class="leg-time">${esc(time)}</span>
-      ${date ? `<span class="leg-day">${esc(fmtPart(date))}</span>` : ''}
+      ${date ? `<span class="leg-day">${esc(fmtPart(date, { short: true }))}</span>` : ''}
     </div>`;
 }
 
@@ -68,7 +68,7 @@ function flightHtml(flight) {
   const rows = legs.map((leg, i) => legHtml(leg) + (legs[i + 1] ? layoverHtml(leg, legs[i + 1]) : ''));
   const ends = [legs[0].from, legs.at(-1).to].map((p) => p.city || p.code || '');
   const head = ends.every(Boolean)
-    ? `<p class="flight-head"><span class="flight-route">${esc(`${ends[0]} - ${ends[1]}`)}</span></p>`
+    ? `<p class="flight-head">${esc(`${ends[0]} → ${ends[1]}`)}</p>`
     : '';
 
   return `

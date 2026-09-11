@@ -1,7 +1,7 @@
 // The world map on the travel page: tinted countries, a dot per city, click-to-zoom.
 // Uses the global `d3` (d3-geo).
 import { esc } from '../shared/dom.js';
-import { fmtDuration } from '../shared/format.js';
+import { fmtRange } from '../shared/format.js';
 import { tripDuration, tripHref } from '../shared/trips.js';
 import { polygonsOf } from '../shared/atlas.js';
 
@@ -94,7 +94,7 @@ export function renderWorldMap(mapEl, countries, trips, continentOf) {
       const [cx, cy] = [p[0].toFixed(1), p[1].toFixed(1)];
       return `
         <a class="map-marker" href="${tripHref(trip)}" data-stop="${i}"
-           aria-label="${esc(city.name)}, ${esc(fmtDuration(tripDuration(trip)))}">
+           aria-label="${esc(city.name)}, ${esc(fmtRange(tripDuration(trip)))}">
           <circle class="map-marker-halo" cx="${cx}" cy="${cy}" r="9"/>
           <circle class="map-marker-dot" cx="${cx}" cy="${cy}" r="4"/>
         </a>`;
@@ -174,7 +174,7 @@ function wireTooltip(mapEl, stops) {
     if (!stop) return;
     tip.innerHTML = `
       <span class="map-tip-title">${esc(stop.city.name)}</span>
-      <span class="map-tip-meta">${esc(fmtDuration(tripDuration(stop.trip)))}</span>`;
+      <span class="map-tip-meta">${esc(fmtRange(tripDuration(stop.trip), { short: true }))}</span>`;
 
     // The SVG scales with its column, so position from live geometry.
     const dot = marker.querySelector('.map-marker-dot').getBoundingClientRect();

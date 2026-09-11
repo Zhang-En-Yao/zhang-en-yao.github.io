@@ -1,101 +1,41 @@
-/* The bucket list: festivals grouped by the reason you'd go. Each entry reuses the
-   country thumbnail and the .trip-card-* body from cards.css, so an entry reads like
-   a trip that simply hasn't happened yet. */
+/* The bucket list: festival sections, each a grouped list of rows from cards.css. */
 
 .bucket-list { padding-bottom: 4rem; }
 
-.bucket-section { padding-top: 2.5rem; }
+.bucket-section { padding-top: 2.25rem; }
 
-.bucket-section-head { margin-bottom: 1.1rem; }
+.bucket-section-head { margin: 0 0 1rem; }
 
 .bucket-section-title {
-  font-family: var(--serif);
-  font-size: 1.6rem;
-  font-weight: 600;
-  margin: 0 0 0.3rem;
-  letter-spacing: -0.025em;
+  margin: 0 0 0.2rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
 }
 
-.bucket-section-lede { font-size: 0.9rem; color: var(--muted); margin: 0; }
-
-.bucket-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.bucket-card {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  padding: 1.1rem;
-  background: var(--surface);
-  border-radius: var(--radius);
-  transition: transform 0.28s cubic-bezier(0.33, 1, 0.68, 1), box-shadow 0.28s ease;
-}
-
-.bucket-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-lift);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .bucket-card { transition: box-shadow 0.28s ease; }
-  .bucket-card:hover { transform: none; }
-}
-
-.bucket-card:hover .trip-card-map-shape {
-  fill: color-mix(in srgb, var(--accent) 62%, var(--line));
-}
-
-/* The country map is the trip card's, dropped a size to sit inside a bordered cell. */
-.bucket-card .trip-card-map { width: 5.5rem; height: 5.5rem; }
-
-/* Takes the slack so the tick is pushed to the card's right edge. */
-.bucket-card .trip-card-body { flex: 1; }
+.bucket-section-lede { margin: 0; font-size: 0.9375rem; color: var(--muted); }
 
 .bucket-card-when {
-  margin: 0.2rem 0 0.35rem;
-  font-size: 0.82rem;
-  color: var(--faint);
+  margin: 0 0 0.3rem;
+  font-size: 0.875rem;
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
-.bucket-card-note { margin: 0; font-size: 0.86rem; line-height: 1.55; color: var(--muted); }
-
-/* Empty until it is hovered or ticked: an unchecked box that already showed its check
-   would not read as unchecked. On done it fills with the accent and stays. */
-.bucket-tick {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  align-self: flex-start;
-  width: 1.9rem;
-  height: 1.9rem;
-  padding: 0;
-  color: transparent;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  cursor: pointer;
-  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+.bucket-card-note {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--muted);
 }
 
-.bucket-tick svg { width: 1rem; height: 1rem; }
+.bucket-card { align-items: flex-start; padding-right: 1.25rem; }
 
-.bucket-tick:hover { color: var(--accent); border-color: var(--accent); }
-
-.bucket-card.is-done .bucket-tick {
-  color: var(--bg);
-  background: var(--accent);
-  border-color: var(--accent);
-}
-
-/* A done entry fades back and strikes its name — still on the list, plainly behind you. */
-.bucket-card.is-done { opacity: 0.6; }
+.bucket-card.is-done > :not(.trip-card-body),
+.bucket-card.is-done .trip-card-body > :not(.trip-card-meta) { opacity: 0.55; }
 
 .bucket-card.is-done .trip-card-title {
   text-decoration: line-through;
   text-decoration-color: var(--faint);
+  text-decoration-thickness: 1.5px;
 }
