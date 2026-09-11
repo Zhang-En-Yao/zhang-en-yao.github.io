@@ -46,7 +46,7 @@ async function render() {
   const prose = tripEl.querySelector('.prose');
   buildToc(prose, tocEl);
   wireGallery(prose);
-  initLightbox(prose, photos);
+  initLightbox(prose, photos, { title: tripTitle(trip) });
   initAmbient(prose);
 }
 

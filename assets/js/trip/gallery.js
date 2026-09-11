@@ -8,6 +8,7 @@ const PHOTO_REPO_BRANCH = 'main';
 const PHOTO_PROXY = 'https://wsrv.nl/';
 const THUMB = { w: 900, q: 75 };
 const FULL = { w: 2000, q: 80 };
+const HIRES = { w: 4000, q: 85 }; // Loaded only when zooming in.
 
 const isUrl = (s) => /^https?:\/\//.test(s);
 
@@ -33,17 +34,19 @@ export function retryPhotoSrc(src) {
   return params.get('url') || '';
 }
 
-// Returns [html, photos] where `photos` is the lightbox list in page order.
+// Returns [html, photos] where `photos` is the lightbox list in page order. `caption` is set
+// only for a photo given an explicit `alt`, not one named after its file.
 export function galleryHtml(content, tripId) {
   const photos = (content.photos || [])
     .map((p) => {
       const file = typeof p === 'string' ? p : p.file;
       if (!file) return null;
       const alt = typeof p === 'string' ? file.replace(/\.[^.]+$/, '') : (p.alt || '');
+      const caption = typeof p === 'string' ? '' : (p.alt || '');
       const raw = photoUrl(file, content, tripId);
       return isUrl(file)
-        ? { thumb: raw, src: raw, alt }
-        : { thumb: sizedUrl(raw, THUMB), src: sizedUrl(raw, FULL), alt };
+        ? { thumb: raw, src: raw, hires: raw, alt, caption }
+        : { thumb: sizedUrl(raw, THUMB), src: sizedUrl(raw, FULL), hires: sizedUrl(raw, HIRES), alt, caption };
     })
     .filter(Boolean);
   if (!photos.length) return ['', []];

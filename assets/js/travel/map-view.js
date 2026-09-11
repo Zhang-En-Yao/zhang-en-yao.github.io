@@ -1,6 +1,10 @@
-// Pan and zoom for a map: drag with inertia, pinch, ⌘/Ctrl + wheel and trackpad pinch,
-// arrow and +/− keys, and "fly to" animations along van Wijk & Nuij's optimal zoom path.
+// Pan and zoom for a map or a photo: drag with inertia, pinch, ⌘/Ctrl + wheel and trackpad
+// pinch, arrow and +/− keys, and "fly to" animations along van Wijk & Nuij's optimal zoom path.
 // The view maps content units to screen pixels: screen = content × s + (x, y).
+//
+// Optional hooks for a photo viewer: `padding` keeps the content clear of overlaid bars,
+// `onSwipe` receives one-finger drags made while fully zoomed out (to page between photos),
+// `onDoubleTap` delays single taps to tell the two apart, and `wheelPan` pans on plain scroll.
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -46,10 +50,18 @@ const DECELERATION_MS = 325;
 const WHEEL_SMOOTHING_MS = 70;
 const SETTLE_SMOOTHING_MS = 80;
 const TAP_SLOP_PX = 6;
+const DOUBLE_TAP_MS = 260;
 
 export class MapView {
-  constructor(el, { width, height, maxZoom = 40, home, onChange, onTap, onHover, onGesture, onScrollHint }) {
-    Object.assign(this, { el, width, height, maxZoom, home, onChange, onTap, onHover, onGesture, onScrollHint });
+  constructor(el, {
+    width, height, maxZoom = 40, padding = {}, keys = true, wheelPan = false,
+    home, onChange, onTap, onDoubleTap, onHover, onGesture, onScrollHint, onSwipe,
+  }) {
+    Object.assign(this, {
+      el, width, height, maxZoom, wheelPan,
+      home, onChange, onTap, onDoubleTap, onHover, onGesture, onScrollHint, onSwipe,
+    });
+    this.padding = { top: 0, right: 0, bottom: 0, left: 0, ...padding };
     this.w = 0;
     this.h = 0;
     this.view = { s: 1, x: 0, y: 0 };
@@ -60,27 +72,45 @@ export class MapView {
     new ResizeObserver(() => this.resize()).observe(el);
     this.attachPointers();
     this.attachWheel();
-    this.attachKeys();
+    if (keys) this.attachKeys();
   }
 
-  get minScale() { return Math.min(this.w / this.width, this.h / this.height); }
+  get minScale() {
+    const { top, right, bottom, left } = this.padding;
+    return Math.min((this.w - left - right) / this.width, (this.h - top - bottom) / this.height);
+  }
+
+  get atMinScale() { return this.view.s <= this.minScale * 1.001; }
 
   get maxScale() { return this.minScale * this.maxZoom; }
 
   clampScale(s) { return Math.min(this.maxScale, Math.max(this.minScale, s)); }
 
-  // Keeps the content covering the viewport (or centred where it is smaller than it).
+  // Keeps the content covering the padded viewport (or centred where it is smaller than it).
   clamp({ s, x, y }, rubber = false) {
     s = this.clampScale(s);
-    const axis = (t, size, content) => {
+    const { top, right, bottom, left } = this.padding;
+    const axis = (t, start, size, content) => {
       const span = content * s;
-      if (span <= size) return (size - span) / 2;
-      const lo = size - span;
-      if (t > 0) return rubber ? rubberBand(t, size) : 0;
+      if (span <= size) return start + (size - span) / 2;
+      const hi = start;
+      const lo = start + size - span;
+      if (t > hi) return rubber ? hi + rubberBand(t - hi, size) : hi;
       if (t < lo) return rubber ? lo - rubberBand(lo - t, size) : lo;
       return t;
     };
-    return { s, x: axis(x, this.w, this.width), y: axis(y, this.h, this.height) };
+    return {
+      s,
+      x: axis(x, left, this.w - left - right, this.width),
+      y: axis(y, top, this.h - top - bottom, this.height),
+    };
+  }
+
+  // New content (another photo): its size changes, and the view goes back to fitting it.
+  setContent(width, height) {
+    this.width = width;
+    this.height = height;
+    if (this.w) this.set(this.homeView());
   }
 
   // The view that frames content bounds [[x0, y0], [x1, y1]] inside the viewport minus
@@ -264,8 +294,9 @@ export class MapView {
       const pts = [...pointers.values()];
       samples = [];
       if (pts.length === 1) {
-        gesture = { type: 'pan', raw: { ...this.view } };
+        gesture = { type: 'pan', raw: { ...this.view }, origin: pts[0], swipe: !!this.onSwipe && this.atMinScale };
       } else {
+        if (gesture?.swiping) this.onSwipe('cancel', { dx: 0, dy: 0, vx: 0, vy: 0 });
         const [a, b] = pts;
         const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
         gesture = { type: 'pinch', d0: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, s0: this.view.s, anchor: this.toContent(mid) };
@@ -299,7 +330,14 @@ export class MapView {
         this.onGesture?.();
       }
 
-      if (gesture.type === 'pan') {
+      if (gesture.swipe) {
+        gesture.swiping = true;
+        const dx = p[0] - gesture.origin[0];
+        const dy = p[1] - gesture.origin[1];
+        samples.push([e.timeStamp, dx, dy]);
+        while (samples.length > 2 && e.timeStamp - samples[0][0] > 100) samples.shift();
+        this.onSwipe('move', { dx, dy });
+      } else if (gesture.type === 'pan') {
         gesture.raw.x += p[0] - prev[0];
         gesture.raw.y += p[1] - prev[1];
         this.apply(this.clamp(gesture.raw, true));
@@ -322,17 +360,26 @@ export class MapView {
       const wasTap = tap && !tap.moved && e.type === 'pointerup';
       const tapped = tap;
       tap = null;
-      if (wasTap) return this.onTap?.(tapped.target, tapped.at);
+      if (wasTap) return this.tapped(tapped, e);
+
+      const first = samples[0];
+      const last = samples.at(-1);
+      const velocity = () => {
+        if (!first || first === last || e.timeStamp - last[0] > 60) return [0, 0];
+        const dt = Math.max(16, last[0] - first[0]);
+        return [(last[1] - first[1]) / dt, (last[2] - first[2]) / dt];
+      };
+
+      if (gesture?.swiping) {
+        const [vx, vy] = velocity();
+        return this.onSwipe('end', { dx: last?.[1] ?? 0, dy: last?.[2] ?? 0, vx, vy });
+      }
 
       const clamped = this.clamp(this.view);
       const outOfBounds = Math.abs(clamped.x - this.view.x) > 0.5 || Math.abs(clamped.y - this.view.y) > 0.5;
-      const first = samples[0];
-      const last = samples.at(-1);
-      if (gesture?.type !== 'pan' || outOfBounds || !first || first === last || e.timeStamp - last[0] > 60) {
-        return this.settle();
-      }
-      const dt = Math.max(16, last[0] - first[0]);
-      this.glide((last[1] - first[1]) / dt, (last[2] - first[2]) / dt);
+      const [vx, vy] = velocity();
+      if (gesture?.type !== 'pan' || outOfBounds || (!vx && !vy)) return this.settle();
+      this.glide(vx, vy);
     };
     el.addEventListener('pointerup', end);
     el.addEventListener('pointercancel', end);
@@ -351,9 +398,36 @@ export class MapView {
     el.addEventListener('gestureend', (e) => e.preventDefault());
   }
 
+  // A tap, or — when `onDoubleTap` is set — the first tap of a possible double tap.
+  tapped({ target, at }, e) {
+    if (!this.onDoubleTap) return this.onTap?.(target, at, e.pointerType);
+    const last = this.lastTap;
+    if (last && e.timeStamp - last.time < DOUBLE_TAP_MS && Math.hypot(at[0] - last.at[0], at[1] - last.at[1]) < 30) {
+      clearTimeout(this.tapTimer);
+      this.lastTap = null;
+      return this.onDoubleTap(at, e.pointerType);
+    }
+    this.lastTap = { time: e.timeStamp, at };
+    const { pointerType } = e;
+    clearTimeout(this.tapTimer);
+    this.tapTimer = setTimeout(() => {
+      this.lastTap = null;
+      this.onTap?.(target, at, pointerType);
+    }, DOUBLE_TAP_MS);
+  }
+
   attachWheel() {
     this.el.addEventListener('wheel', (e) => {
-      if (!e.ctrlKey && !e.metaKey) return this.onScrollHint?.(); // Plain scrolling scrolls the page.
+      if (!e.ctrlKey && !e.metaKey) {
+        if (!this.wheelPan) return this.onScrollHint?.(); // Plain scrolling scrolls the page.
+        e.preventDefault();
+        if (this.atMinScale) return this.onScrollHint?.(e);
+        const unit = e.deltaMode === 1 ? 16 : e.deltaMode ? this.h : 1;
+        this.stop();
+        this.onGesture?.();
+        this.apply(this.clamp({ ...this.view, x: this.view.x - e.deltaX * unit, y: this.view.y - e.deltaY * unit }));
+        return;
+      }
       e.preventDefault();
       const unit = e.deltaMode === 1 ? 0.05 : e.deltaMode ? 1 : 0.002;
       // Trackpad pinches arrive as small ctrl + wheel deltas; mouse wheels as large steps.

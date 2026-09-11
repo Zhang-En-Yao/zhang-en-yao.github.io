@@ -1,4 +1,4 @@
-/* The trip page: header, maps, flights, prose, gallery, lightbox, contents, jump-back pill. */
+/* The trip page: header, maps, flights, prose, gallery, photo viewer, contents, jump-back pill. */
 
 .trip-layout {
   display: grid;
@@ -401,142 +401,358 @@
 
 .ambient-img.is-on { opacity: var(--ambient); }
 
-/* ---------- lightbox ---------- */
+/* ---------- photo viewer ---------- */
 
-.lightbox {
+/* Always dark, whatever the page theme. --dismiss runs 0 → 1 while swiping down to close. */
+.lb {
+  --dismiss: 0;
   position: fixed;
   inset: 0;
   z-index: 30;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-  background: rgb(0 0 0 / 86%);
-  backdrop-filter: blur(24px) saturate(1.2);
-  -webkit-backdrop-filter: blur(24px) saturate(1.2);
-  animation: fade-in 0.25s var(--ease);
+  overflow: hidden;
+  color: #f5f5f7;
+  background: rgb(0 0 0 / calc(1 - var(--dismiss) * 0.85));
+  outline: none;
+  overscroll-behavior: contain;
+  animation: lb-fade-in 0.3s var(--ease);
+  transition: opacity 0.26s var(--ease);
 }
 
-@keyframes fade-in { from { opacity: 0; } }
+.lb.is-closing { opacity: 0; pointer-events: none; }
+
+@keyframes lb-fade-in { from { opacity: 0; } }
 
 body.is-locked { overflow: hidden; }
 
-/* The same photo, blurred behind itself, so its colour bleeds into the backdrop. */
-.lightbox-glow {
+.lb-glow {
+  position: absolute;
+  inset: -10%;
+  width: 120%;
+  height: 120%;
+  object-fit: cover;
+  filter: blur(80px) saturate(1.5);
+  opacity: calc(0.42 * (1 - var(--dismiss)));
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
+  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
+}
+
+.lb-stage {
   position: absolute;
   inset: 0;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lb.is-zoomed .lb-stage { cursor: grab; }
+
+.lb .lb-stage.is-dragging { cursor: grabbing; }
+
+.lb.is-idle:not(.is-zoomed) .lb-stage { cursor: none; }
+
+.lb-track { position: absolute; inset: 0; will-change: transform; }
+
+.lb-side,
+.lb-outgoing {
+  position: absolute;
+  overflow: hidden;
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+.lb-side { object-fit: cover; }
+
+.lb.is-opening .lb-side { visibility: hidden; }
+
+.lb-outgoing { opacity: 0; }
+
+.lb-outgoing img { display: block; width: 100%; height: 100%; object-fit: cover; transform-origin: 50% 50%; }
+
+/* Positioned and scaled by the zoom view; --r keeps the corners 10px on screen at any zoom. */
+.lb-zoom {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  border-radius: var(--r, 10px);
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.lb-kb { position: absolute; inset: 0; transform-origin: 50% 50%; }
+
+.lb-layer {
+  position: absolute;
+  inset: 0;
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transform: scale(1.15);
-  filter: blur(70px) saturate(1.7);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.6s ease;
-  -webkit-mask-image: radial-gradient(ellipse at center, #000 25%, transparent 72%);
-  mask-image: radial-gradient(ellipse at center, #000 25%, transparent 72%);
+  -webkit-user-drag: none;
 }
 
-.lightbox.has-glow .lightbox-glow { opacity: 0.55; }
+.lb-full,
+.lb-hires { opacity: 0; transition: opacity 0.35s ease; }
 
-/* Shrink-wrapped to the image so the rounded corners land on the picture itself. */
-.lightbox-figure {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  min-width: 0;
-  max-width: 100%;
-  margin: 0;
-}
+.lb-full.is-loaded,
+.lb-hires.is-loaded { opacity: 1; }
 
-.lightbox-img {
-  display: block;
-  width: auto;
-  max-width: min(100%, calc(100vw - 3rem));
-  max-height: calc(100dvh - 8rem);
-  border-radius: var(--radius);
-  box-shadow: 0 30px 80px rgb(0 0 0 / 45%);
-  transition: opacity 0.35s ease, filter 0.35s ease;
-}
+/* The slideshow's slow drift: four framings in turn, each ending a little tighter or looser. */
+@keyframes lb-ken-burns-0 { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.1) translate(-2%, -1.5%); } }
+@keyframes lb-ken-burns-1 { from { transform: scale(1.1) translate(2%, 1%); } to { transform: scale(1.02) translate(0, 0); } }
+@keyframes lb-ken-burns-2 { from { transform: scale(1.02) translate(-1.5%, 1.5%); } to { transform: scale(1.1) translate(1.5%, -1%); } }
+@keyframes lb-ken-burns-3 { from { transform: scale(1.1) translate(-1%, -2%); } to { transform: scale(1) translate(1%, 1%); } }
 
-/* Hidden instantly on the way in: a cached photo could otherwise flash. */
-.lightbox.is-swapping .lightbox-img,
-.lightbox.is-loading .lightbox-img {
-  opacity: 0;
-  filter: blur(14px);
-  transition: none;
-}
-
-/* The outgoing photo, blurred underneath while the next one arrives. */
-.lightbox-prev {
+.lb-spinner {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: auto;
-  max-width: min(100%, calc(100vw - 3rem));
-  max-height: calc(100dvh - 8rem);
-  border-radius: var(--radius);
-  filter: blur(18px);
-  opacity: 0;
-  pointer-events: none;
-  transform: translate(-50%, -50%) scale(1.03);
-  transition: opacity 0.1s ease;
-}
-
-.lightbox.is-swapping.has-prev .lightbox-prev { opacity: 0.5; transition: none; }
-
-.lightbox-spinner {
-  position: absolute;
-  z-index: 2;
   top: 50%;
   left: 50%;
   width: 2.2rem;
   height: 2.2rem;
   margin: -1.1rem 0 0 -1.1rem;
-  border: 2px solid rgb(255 255 255 / 25%);
+  border: 2px solid rgb(255 255 255 / 22%);
   border-top-color: #fff;
   border-radius: 50%;
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
   animation: spin 0.8s linear infinite;
 }
 
-.lightbox:not(.is-loading) .lightbox-spinner { display: none; }
+.lb.is-loading .lb-spinner { opacity: 1; }
 
-.lightbox-btn {
+/* ---------- viewer controls ---------- */
+
+.lb-bar {
   position: absolute;
-  z-index: 3;
-  top: max(1.25rem, env(safe-area-inset-top));
+  left: 0;
+  right: 0;
+  opacity: calc(1 - var(--dismiss) * 3);
+  transition: opacity 0.4s var(--ease), transform 0.4s var(--ease);
+}
+
+.lb.is-idle .lb-bar { opacity: 0; pointer-events: none; }
+
+.lb.is-idle .lb-top { transform: translateY(-0.5rem); }
+
+.lb.is-idle .lb-bottom { transform: translateY(0.5rem); }
+
+.lb-top {
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: max(0.7rem, env(safe-area-inset-top)) max(0.9rem, env(safe-area-inset-right)) 1.6rem max(1.25rem, env(safe-area-inset-left));
+  background: linear-gradient(rgb(0 0 0 / 55%), rgb(0 0 0 / 25%) 60%, transparent);
+}
+
+.lb-heading { min-width: 0; }
+
+.lb-title,
+.lb-counter {
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lb-title { font-size: 0.9375rem; font-weight: 600; letter-spacing: -0.01em; }
+
+.lb-counter {
+  font-size: 0.8125rem;
+  color: rgb(255 255 255 / 62%);
+  font-variant-numeric: tabular-nums;
+}
+
+.lb-actions { display: flex; flex: none; gap: 0.25rem; }
+
+.lb-btn {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 2.5rem;
   height: 2.5rem;
   padding: 0;
-  color: #fff;
-  background: rgb(255 255 255 / 12%);
+  color: inherit;
+  background: none;
   border: none;
-  border-radius: var(--radius-pill);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 14%);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  border-radius: 50%;
   cursor: pointer;
   transition: background-color 0.2s var(--ease), transform 0.35s var(--spring);
 }
 
-.lightbox-btn:hover { background: rgb(255 255 255 / 22%); }
+.lb-btn:hover { background: rgb(255 255 255 / 14%); }
 
-.lightbox-btn:active { transform: scale(0.9); }
+.lb-btn:active { transform: scale(0.9); }
 
-.lightbox-btn svg { width: 1.15rem; height: 1.15rem; }
+.lb-btn:focus-visible { outline: 2px solid rgb(255 255 255 / 80%); outline-offset: -2px; }
 
-.lightbox-close { right: 1.25rem; }
+.lb-btn svg { width: 1.2rem; height: 1.2rem; }
 
-.lightbox-play { right: 4.25rem; }
+.lb-btn .icon-pause,
+.lb.is-playing .lb-btn .icon-play,
+.lb-btn .icon-exit,
+.lb.is-fullscreen .lb-btn .icon-enter { display: none; }
 
-.lightbox-play .icon-pause,
-.lightbox.is-playing .lightbox-play .icon-play { display: none; }
+.lb.is-playing .lb-btn .icon-pause,
+.lb.is-fullscreen .lb-btn .icon-exit { display: block; }
 
-.lightbox.is-playing .lightbox-play .icon-pause { display: block; }
+.lb-btn[aria-expanded="true"] { background: rgb(255 255 255 / 18%); }
+
+@media (hover: none) {
+  .lb-help-btn { display: none; }
+}
+
+.lb-bottom {
+  bottom: 0;
+  padding: 1.75rem 0 max(0.75rem, env(safe-area-inset-bottom));
+  background: linear-gradient(transparent, rgb(0 0 0 / 30%) 40%, rgb(0 0 0 / 60%));
+}
+
+.lb-progress {
+  height: 2px;
+  margin: 0 max(1.25rem, env(safe-area-inset-left)) 0.7rem;
+  overflow: hidden;
+  background: rgb(255 255 255 / 18%);
+  border-radius: 1px;
+  opacity: 0;
+  transition: opacity 0.3s var(--ease);
+}
+
+.lb.is-playing .lb-progress { opacity: 1; }
+
+.lb-progress span {
+  display: block;
+  height: 100%;
+  background: #fff;
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+}
+
+.lb-progress span.is-running { animation: lb-progress var(--slide-ms) linear forwards; }
+
+.lb:not(.is-playing) .lb-progress span { animation-play-state: paused; }
+
+@keyframes lb-progress { to { transform: scaleX(1); } }
+
+/* The current photo widens to its own shape, as in a photo library's scrubber. */
+.lb-strip {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px calc(50% - 1.5rem);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.lb-strip::-webkit-scrollbar { display: none; }
+
+.lb-thumbnail {
+  flex: none;
+  width: 2rem;
+  height: 3rem;
+  padding: 0;
+  overflow: hidden;
+  background: rgb(255 255 255 / 10%);
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: width 0.35s var(--ease), margin 0.35s var(--ease), opacity 0.2s var(--ease);
+}
+
+.lb-thumbnail:hover { opacity: 0.85; }
+
+.lb-thumbnail[aria-current] {
+  width: 4.5rem;
+  margin-inline: 0.35rem;
+  opacity: 1;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.lb-thumbnail img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+.lb-thumbnail:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+@media (max-width: 640px) {
+  .lb-side, .lb-outgoing { border-radius: 0; }
+  .lb-thumbnail { width: 1.6rem; height: 2.4rem; }
+  .lb-thumbnail[aria-current] { width: 3.6rem; }
+  .lb-bottom { padding-top: 1.25rem; }
+}
+
+.lb-help {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(24rem, calc(100% - 2rem));
+  padding: 1.25rem 1.4rem 1.1rem;
+  background: rgb(30 30 32 / 86%);
+  border-radius: 18px;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 10%), 0 24px 60px rgb(0 0 0 / 50%);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  transform: translate(-50%, -50%);
+  animation: lb-pop 0.3s var(--spring);
+}
+
+@keyframes lb-pop { from { opacity: 0; scale: 0.94; } }
+
+.lb-help-title { margin: 0 0 0.8rem; font-size: 1rem; font-weight: 650; }
+
+.lb-help dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.55rem 1rem;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.lb-help dt { display: flex; gap: 0.25rem; justify-content: flex-end; }
+
+.lb-help dd { margin: 0; color: rgb(255 255 255 / 75%); }
+
+.lb-help kbd {
+  min-width: 1.6rem;
+  padding: 0.1rem 0.45rem;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  text-align: center;
+  background: rgb(255 255 255 / 12%);
+  border-radius: 6px;
+  box-shadow: inset 0 -1px 0 rgb(255 255 255 / 12%);
+}
+
+.lb-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 7.5rem;
+  margin: 0;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: rgb(30 30 32 / 88%);
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 10%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 0.5rem);
+  transition: opacity 0.3s var(--ease), transform 0.4s var(--spring);
+}
+
+.lb-toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+@media (prefers-reduced-motion: reduce) {
+  .lb, .lb-help { animation: none; }
+  .lb-bar, .lb-thumbnail, .lb-full, .lb-hires, .lb-toast { transition: none; }
+}
 
 /* ---------- contents ---------- */
 
@@ -655,7 +871,7 @@ body.is-locked { overflow: hidden; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .photo img, .ambient-img, .toc-chevron, .lightbox { transition: none; animation: none; }
+  .photo img, .ambient-img, .toc-chevron { transition: none; animation: none; }
   .photo:hover img { transform: none; }
   .photo.is-loading::after { animation: none; }
   .jumpback { transition: opacity 0.2s ease; }
