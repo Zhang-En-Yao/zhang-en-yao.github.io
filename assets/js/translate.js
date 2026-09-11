@@ -17,7 +17,7 @@ const ENDPOINTS = [`${GATEWAY}/api/cloudflare-gpt-oss`, `${GATEWAY}/api/mistral`
 // `code` is the stored value and the <option> value; `native` is the menu label;
 // `name` is what the model is told to translate into.
 const LANGS = [
-  { code: 'zh-Hant', native: '繁體中文', name: 'Taditional Chinese' },
+  { code: 'zh-Hant', native: '繁體中文', name: 'Traditional Chinese' },
   { code: 'ja', native: '日本語', name: 'Japanese' },
   { code: 'ko', native: '한국어', name: 'Korean' },
   { code: 'es', native: 'Español', name: 'Spanish' },

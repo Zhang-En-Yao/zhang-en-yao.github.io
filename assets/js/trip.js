@@ -704,7 +704,7 @@ function flightsHtml(meta) {
   if (!flights.length) return '';
   return `
     <section class="flights" aria-label="Flights">
-      ${flights.join('<br />')}
+      ${flights.join('')}
     </section>`;
 }
 
@@ -1262,7 +1262,8 @@ if (!id) {
           initAmbient(tripEl.querySelector('.prose'));
         });
     })
-    .catch(() => {
+    .catch((err) => {
+      console.error(err);
       tripEl.innerHTML = emptyState({
         icon: 'search',
         title: 'Trip not found',

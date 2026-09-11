@@ -44,10 +44,10 @@ function renderStats(items, done) {
 
 function cardHtml(item, byName, done, visited, now) {
   const city = item.cities?.[0]?.name;
-  const wasVisited = item.wasVisited ?? false;
+  const wasVisited = visited.has(item.country);
   const isDone = done.has(item.id);
   return `
-    <article class="bucket-card" data-id="${esc(item.id)}">
+    <article class="bucket-card${isDone ? ' is-done' : ''}" data-id="${esc(item.id)}">
       ${thumbHtml(item, byName)}
       <div class="trip-card-body">
         <div class="trip-card-meta">

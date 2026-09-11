@@ -1,5 +1,6 @@
 (function () {
-  const stored = localStorage.getItem('theme');
+  let stored = null;
+  try { stored = localStorage.getItem('theme'); } catch (e) { /* storage blocked */ }
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   const initial = stored || (prefersDark ? 'dark' : 'light');
   document.documentElement.setAttribute('data-theme', initial);
@@ -11,7 +12,7 @@
       const next =
         document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('theme', next);
+      try { localStorage.setItem('theme', next); } catch (e) { /* storage blocked */ }
     });
   });
 })();
