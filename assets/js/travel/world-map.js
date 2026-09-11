@@ -1,201 +1,315 @@
-// The world map on the travel page: tinted countries, a dot per city, click-to-zoom.
-// Uses the global `d3` (d3-geo).
-import { esc } from '../shared/dom.js';
+// The world map on the travel page: tinted countries and a dot per place visited. Drag,
+// pinch or ⌘/Ctrl + scroll to explore; click a country to fly to it; click a dot for the
+// trips that went there. Uses the global `d3` (d3-geo).
+import { esc, plural } from '../shared/dom.js';
 import { fmtRange } from '../shared/format.js';
-import { tripDuration, tripHref } from '../shared/trips.js';
-import { polygonsOf } from '../shared/atlas.js';
+import { tripDuration, tripHref, tripTitle } from '../shared/trips.js';
+import { polygonsOf, hasCoords } from '../shared/atlas.js';
+import { MapView } from './map-view.js';
 
 const WIDTH = 960;
 const PAD = 6;
 const OMIT = new Set(['Antarctica']);
-const MAX_K = 40;
-const FILL = 0.88;
+const MAX_ZOOM = 40;
+const HIT_RADIUS = 20; // px around a dot that still counts as clicking it
+const EDGE_MARGIN = 48; // px a selected dot is kept away from the map's edges
 
-// [[west, south], [east, north]] — a continent as a reader means it, not the extent of the
-// countries filed under it (the atlas puts all of Russia in Europe).
-const CONTINENT_BOX = {
-  Africa: [[-19, -36], [52, 38]],
-  Asia: [[26, -11], [147, 56]],
-  Europe: [[-25, 34], [45, 71]],
-  'North America': [[-168, 7], [-52, 72]],
-  'South America': [[-82, -56], [-34, 13]],
-  Oceania: [[112, -48], [179, -6]],
+const isApple = /Mac|iPhone|iPad/.test(navigator.userAgentData?.platform ?? navigator.platform);
+
+const icon = (paths, extra = '') =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${paths}</svg>`;
+const ICONS = {
+  plus: icon('<path d="M12 5v14M5 12h14"/>'),
+  minus: icon('<path d="M5 12h14"/>'),
+  home: icon('<path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/><circle cx="12" cy="12" r="2.5"/>'),
+  close: icon('<path d="M18 6 6 18M6 6l12 12"/>'),
+  chevron: icon('<path d="m9 6 6 6-6 6"/>', 'class="map-callout-chevron"'),
 };
 
-const BACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>';
-
-// Walked one degree at a time: naturalEarth1 curves the edges, so four corners would
-// measure the chords.
-function boxFeature([[w, s], [e, n]]) {
-  const ring = [];
-  const step = (a, b) => Math.sign(b - a);
-  for (let x = w; x !== e; x += step(w, e)) ring.push([x, s]);
-  for (let y = s; y !== n; y += step(s, n)) ring.push([e, y]);
-  for (let x = e; x !== w; x += step(e, w)) ring.push([x, n]);
-  for (let y = n; y !== s; y += step(n, s)) ring.push([w, y]);
-  ring.push(ring[0]);
-  return { geometry: { type: 'Polygon', coordinates: [ring] } };
-}
-
-// The zoom transform that fits `features`. Measured from projected vertices rather than
-// path.bounds(), and anchored on the median x so pieces cut across the antimeridian
-// (Chukotka, the Aleutians) don't stretch the frame across the whole map.
-function frameOf(features, projection, height) {
-  const pts = features
-    .flatMap((f) => polygonsOf(f.geometry).flatMap((poly) => poly.flat()))
+// Content-space bounds of a country, ignoring pieces cut across the antimeridian (Chukotka,
+// the far Aleutians) by keeping vertices within half a map of the median.
+function boundsOf(feature, projection) {
+  const pts = polygonsOf(feature.geometry)
+    .flatMap((poly) => poly.flat())
     .map((c) => projection(c))
     .filter((p) => p && Number.isFinite(p[0]) && Number.isFinite(p[1]));
   if (!pts.length) return null;
-
   const median = pts.map((p) => p[0]).sort((a, b) => a - b)[pts.length >> 1];
   const near = pts.filter((p) => Math.abs(p[0] - median) < WIDTH / 2);
   const xs = near.map((p) => p[0]);
   const ys = near.map((p) => p[1]);
-  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  return [[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]];
+}
 
-  const k = Math.min(MAX_K, FILL * Math.min(WIDTH / Math.max(x1 - x0, 1), height / Math.max(y1 - y0, 1)));
-  return { k, x: WIDTH / 2 - (k * (x0 + x1)) / 2, y: height / 2 - (k * (y0 + y1)) / 2 };
+// One place per city, however many trips went there (newest trip first).
+function placesOf(trips, projection) {
+  const places = [];
+  trips.forEach((trip) => (trip.cities || []).filter(hasCoords).forEach((city) => {
+    let place = places.find((p) => p.name === city.name
+      && Math.abs(p.lon - city.lon) < 0.5 && Math.abs(p.lat - city.lat) < 0.5);
+    if (!place) {
+      const xy = projection([city.lon, city.lat]);
+      if (!xy) return;
+      place = { name: city.name, lon: city.lon, lat: city.lat, xy, country: trip.country, trips: [] };
+      places.push(place);
+    }
+    if (!place.trips.includes(trip)) place.trips.push(trip);
+  }));
+  return places.sort((a, b) => a.xy[1] - b.xy[1]); // Lower dots paint over higher ones.
 }
 
 export function renderWorldMap(mapEl, countries, trips, continentOf) {
   const land = { type: 'FeatureCollection', features: countries.filter((f) => !OMIT.has(f.properties.name)) };
 
-  // fitWidth centres vertically in a height of its own choosing; shift the land to the top
-  // edge and use its measured height as the viewBox.
+  // Fit the land to WIDTH, then shift it to the top edge so its measured height is the content height.
   const projection = d3.geoNaturalEarth1().fitWidth(WIDTH - PAD * 2, land);
-  const path = d3.geoPath(projection);
+  const path = d3.geoPath(projection).digits(1);
   const [[, y0], [, y1]] = path.bounds(land);
   const height = Math.ceil(y1 - y0) + PAD * 2;
   const [tx, ty] = projection.translate();
   projection.translate([tx + PAD, ty - y0 + PAD]);
 
   const visited = new Set(trips.map((t) => t.country).filter(Boolean));
-  const known = new Set(countries.map((f) => f.properties.name));
+  const byName = new Map(land.features.map((f) => [f.properties.name, f]));
   visited.forEach((c) => {
-    if (!known.has(c)) console.warn(`travel: "${c}" is not a country name in the atlas, so it will not be tinted.`);
+    if (!byName.has(c)) console.warn(`travel: "${c}" is not a country name in the atlas, so it will not be tinted.`);
   });
 
   const shapes = land.features
     .map((f) => {
       const d = path(f);
-      if (!d) return '';
       const name = f.properties.name;
-      const cls = visited.has(name) ? 'map-country is-visited' : 'map-country';
-      return `<path class="${cls}" d="${d}" data-country="${esc(name)}"
-                    data-continent="${esc(continentOf.get(name) || '')}"><title>${esc(name)}</title></path>`;
+      return d ? `<path class="map-country${visited.has(name) ? ' is-visited' : ''}" d="${d}" data-country="${esc(name)}"/>` : '';
     })
     .join('');
 
-  const stops = trips.flatMap((trip) => (trip.cities || []).map((city) => ({ trip, city })));
-  const markers = stops
-    .map(({ trip, city }, i) => {
-      const p = projection([city.lon, city.lat]);
-      if (!p) return '';
-      const [cx, cy] = [p[0].toFixed(1), p[1].toFixed(1)];
-      return `
-        <a class="map-marker" href="${tripHref(trip)}" data-stop="${i}"
-           aria-label="${esc(city.name)}, ${esc(fmtRange(tripDuration(trip)))}">
-          <circle class="map-marker-halo" cx="${cx}" cy="${cy}" r="9"/>
-          <circle class="map-marker-dot" cx="${cx}" cy="${cy}" r="4"/>
-        </a>`;
-    })
+  const places = placesOf(trips, projection);
+  const markers = places
+    .map((p, i) => `
+      <button class="map-marker" type="button" data-place="${i}"
+              aria-label="${esc(p.name)}, ${plural(p.trips.length, 'trip')}"><span class="map-marker-dot"></span></button>`)
     .join('');
 
+  mapEl.style.setProperty('--map-aspect', `${WIDTH} / ${height}`);
   mapEl.innerHTML = `
-    <svg class="map-svg" viewBox="0 0 ${WIDTH} ${height}" role="img"
-         aria-label="World map of the places listed below">
-      <g class="map-scene">
-        <g class="map-land">${shapes}</g>
-        <g class="map-markers">${markers}</g>
-      </g>
-    </svg>
-    <div class="map-tip glass"></div>
-    <div class="map-nav" hidden>
-      <button class="map-back icon-btn glass" type="button" aria-label="Zoom back out">${BACK_ICON}</button>
-      <span class="map-crumb glass" aria-live="polite"></span>
-    </div>`;
+    <div class="map-viewport" tabindex="0" role="application"
+         aria-label="World map of the places listed below. Arrow keys move the map; plus and minus zoom.">
+      <svg class="map-svg" aria-hidden="true"><g class="map-scene">${shapes}</g></svg>
+      <div class="map-markers">${markers}</div>
+    </div>
+    <p class="map-crumb glass" hidden></p>
+    <div class="map-controls">
+      <div class="map-zoom glass">
+        <button type="button" data-action="in" aria-label="Zoom in">${ICONS.plus}</button>
+        <button type="button" data-action="out" aria-label="Zoom out">${ICONS.minus}</button>
+      </div>
+      <button class="map-home glass" type="button" data-action="home" aria-label="Show every place">${ICONS.home}</button>
+    </div>
+    <p class="map-tip glass" hidden></p>
+    <div class="map-callout glass" role="dialog" hidden></div>
+    <p class="map-hint glass" aria-hidden="true">Hold ${isApple ? '⌘' : 'Ctrl'} and scroll to zoom</p>`;
 
-  wireTooltip(mapEl, stops);
-  wireZoom(mapEl, land.features, projection, height, continentOf);
-}
-
-// Click a country to zoom to its continent, again for the country; the sea, Back or Escape
-// step out. Pointer-only by design: the list below is the keyboard path.
-function wireZoom(mapEl, features, projection, height, continentOf) {
-  const svg = mapEl.querySelector('.map-svg');
+  const viewport = mapEl.querySelector('.map-viewport');
   const scene = mapEl.querySelector('.map-scene');
-  const nav = mapEl.querySelector('.map-nav');
+  const markerEls = [...mapEl.querySelectorAll('.map-marker')];
   const crumb = mapEl.querySelector('.map-crumb');
-
-  let view = { level: 0, continent: null }; // 0 world, 1 continent, 2 country
-
-  function apply(frame, label) {
-    const { k, x, y } = frame || { k: 1, x: 0, y: 0 };
-    scene.setAttribute('transform', `translate(${x.toFixed(2)},${y.toFixed(2)}) scale(${k.toFixed(4)})`);
-    mapEl.style.setProperty('--map-k', k.toFixed(4)); // CSS divides strokes and dots by it.
-    nav.hidden = view.level === 0;
-    crumb.textContent = label || '';
-  }
-
-  function show(level, continent, country) {
-    view = { level, continent };
-    if (!level) return apply(null, '');
-    let target;
-    if (level === 2) target = features.filter((f) => f.properties.name === country);
-    else if (CONTINENT_BOX[continent]) target = [boxFeature(CONTINENT_BOX[continent])];
-    else target = features.filter((f) => continentOf.get(f.properties.name) === continent);
-    apply(frameOf(target, projection, height), level === 2 ? `${continent} · ${country}` : continent);
-  }
-
-  const out = () => show(Math.max(0, view.level - 1), view.continent, null);
-
-  svg.addEventListener('click', (e) => {
-    if (e.target.closest('.map-marker')) return;
-    const shape = e.target.closest('.map-country');
-    if (!shape) return out();
-    const { country, continent } = shape.dataset;
-    if (!continent) return;
-    if (view.level === 0 || continent !== view.continent) show(1, continent, null);
-    else show(2, continent, country);
-  });
-
-  mapEl.querySelector('.map-back').addEventListener('click', out);
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && view.level) out();
-  });
-}
-
-function wireTooltip(mapEl, stops) {
-  const svg = mapEl.querySelector('.map-svg');
   const tip = mapEl.querySelector('.map-tip');
+  const callout = mapEl.querySelector('.map-callout');
+  const hint = mapEl.querySelector('.map-hint');
+  const buttons = Object.fromEntries([...mapEl.querySelectorAll('[data-action]')].map((b) => [b.dataset.action, b]));
 
-  function show(marker) {
-    const stop = stops[Number(marker.dataset.stop)];
-    if (!stop) return;
-    tip.innerHTML = `
-      <span class="map-tip-title">${esc(stop.city.name)}</span>
-      <span class="map-tip-meta">${esc(fmtRange(tripDuration(stop.trip)))}</span>`;
+  let selected = -1;
+  let hovered = -1;
+  let focusedCountry = null;
 
-    // The SVG scales with its column, so position from live geometry.
-    const dot = marker.querySelector('.map-marker-dot').getBoundingClientRect();
-    const host = mapEl.getBoundingClientRect();
-    tip.style.left = `${dot.left - host.left + dot.width / 2}px`;
-    tip.style.top = `${dot.top - host.top}px`;
-    tip.classList.add('is-on');
-    marker.classList.add('is-active');
-  }
-
-  function hide() {
-    tip.classList.remove('is-on');
-    svg.querySelectorAll('.map-marker.is-active').forEach((m) => m.classList.remove('is-active'));
-  }
-
-  const onMarker = (e) => {
-    const marker = e.target.closest('.map-marker');
-    if (marker) show(marker);
+  // Breathing room around a framed area, clear of the zoom controls on the right.
+  const insets = (v) => {
+    const pad = Math.min(40, v.w * 0.06);
+    return { top: pad, bottom: pad, left: pad, right: pad + 44 };
   };
-  svg.addEventListener('pointerover', onMarker);
-  svg.addEventListener('focusin', onMarker);
-  svg.addEventListener('pointerout', (e) => { if (e.target.closest('.map-marker')) hide(); });
-  svg.addEventListener('focusout', hide);
+
+  const placeBounds = () => {
+    const xs = places.map((p) => p.xy[0]);
+    const ys = places.map((p) => p.xy[1]);
+    return [[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]];
+  };
+
+  const view = new MapView(viewport, {
+    width: WIDTH,
+    height,
+    maxZoom: MAX_ZOOM,
+    home: (v) => (places.length ? v.fitView(placeBounds(), { inset: insets(v), maxZoom: 8 }) : v.fitView([[0, 0], [WIDTH, height]])),
+    onChange: update,
+    onTap: tapAt,
+    onHover: hoverAt,
+    onGesture: () => { setCrumb(null); hideHint(); },
+    onScrollHint: showHint,
+  });
+
+  // Called for every frame the view changes (and once while `view` is still being constructed).
+  function update({ s, x, y }, v = view) {
+    scene.setAttribute('transform', `translate(${x.toFixed(2)},${y.toFixed(2)}) scale(${s.toFixed(5)})`);
+    places.forEach((p, i) => {
+      markerEls[i].style.transform = `translate3d(${(p.xy[0] * s + x).toFixed(1)}px, ${(p.xy[1] * s + y).toFixed(1)}px, 0)`;
+    });
+    if (selected >= 0) positionPopover(callout, selected, 18);
+    if (hovered >= 0) positionPopover(tip, hovered, 14);
+    buttons.in.disabled = s >= v.maxScale * 0.999;
+    buttons.out.disabled = s <= v.minScale * 1.001;
+    buttons.home.disabled = v.isHome();
+  }
+
+  function nearestPlace(at) {
+    let best = -1;
+    let bestDistance = HIT_RADIUS;
+    places.forEach((p, i) => {
+      const [px, py] = view.toScreen(p.xy);
+      const d = Math.hypot(px - at[0], py - at[1]);
+      if (d < bestDistance) { bestDistance = d; best = i; }
+    });
+    return best;
+  }
+
+  // Above the dot when there is room, below it otherwise; kept inside the card horizontally.
+  function positionPopover(el, index, gap) {
+    const [px, py] = view.toScreen(places[index].xy);
+    const inside = px >= 0 && px <= view.w && py >= 0 && py <= view.h;
+    el.classList.toggle('is-offscreen', !inside);
+    const { offsetWidth: w, offsetHeight: h } = el;
+    const below = py - gap - h < -24; // May overhang the card's top a little, not more.
+    const left = Math.max(8, Math.min(px - w / 2, view.w - w - 8));
+    el.classList.toggle('is-below', below);
+    el.style.setProperty('--arrow-x', `${Math.max(16, Math.min(w - 16, px - left))}px`);
+    el.style.translate = `${left.toFixed(1)}px ${(below ? py + gap : py - gap - h).toFixed(1)}px`;
+  }
+
+  function openCallout(index) {
+    if (selected === index) return closeCallout();
+    closeCallout();
+    void callout.offsetWidth; // Restart the pop-in animation.
+    selected = index;
+    const place = places[index];
+    markerEls[index].classList.add('is-selected');
+    callout.setAttribute('aria-label', place.name);
+    callout.innerHTML = `
+      <div class="map-callout-head">
+        <div>
+          <p class="map-callout-title">${esc(place.name)}</p>
+          <p class="map-callout-meta">${esc(place.country || '')} · ${plural(place.trips.length, 'trip')}</p>
+        </div>
+        <button class="map-callout-close" type="button" aria-label="Close">${ICONS.close}</button>
+      </div>
+      <ul class="map-callout-trips">
+        ${place.trips.map((t) => `
+          <li><a href="${tripHref(t)}">
+            <span class="map-callout-trip">${esc(tripTitle(t))}</span>
+            <span class="map-callout-date">${esc(fmtRange(tripDuration(t)))}</span>
+            ${ICONS.chevron}
+          </a></li>`).join('')}
+      </ul>`;
+    callout.hidden = false;
+    hideTip();
+    positionPopover(callout, index, 18);
+
+    // Bring a dot near the edge into view so its card has room.
+    const [px, py] = view.toScreen(place.xy);
+    const dx = Math.max(0, EDGE_MARGIN - px) - Math.max(0, px - (view.w - EDGE_MARGIN));
+    const dy = Math.max(0, EDGE_MARGIN - py) - Math.max(0, py - (view.h - EDGE_MARGIN));
+    if (dx || dy) view.panBy(dx, dy);
+  }
+
+  function closeCallout() {
+    if (selected < 0) return;
+    markerEls[selected].classList.remove('is-selected');
+    selected = -1;
+    callout.hidden = true;
+  }
+
+  function hoverAt(at) {
+    const index = at ? nearestPlace(at) : -1;
+    viewport.classList.toggle('is-over-marker', index >= 0);
+    if (index === hovered) return;
+    if (hovered >= 0) markerEls[hovered].classList.remove('is-hovered');
+    hovered = index;
+    if (index < 0 || index === selected) return hideTip();
+    markerEls[index].classList.add('is-hovered');
+    tip.textContent = places[index].name;
+    tip.hidden = false;
+    positionPopover(tip, index, 14);
+  }
+
+  function hideTip() {
+    tip.hidden = true;
+    if (hovered >= 0) markerEls[hovered].classList.remove('is-hovered');
+    hovered = -1;
+  }
+
+  function tapAt(target, at) {
+    const index = nearestPlace(at);
+    if (index >= 0) return openCallout(index);
+    if (selected >= 0) return closeCallout();
+    const shape = target.closest?.('.map-country');
+    if (shape) focusCountry(shape.dataset.country);
+  }
+
+  function focusCountry(name) {
+    const bounds = byName.has(name) && boundsOf(byName.get(name), projection);
+    if (!bounds || name === focusedCountry) return;
+    view.flyTo(view.fitView(bounds, { inset: insets(view), maxZoom: 24 }));
+    setCrumb(name);
+  }
+
+  function setCrumb(name) {
+    focusedCountry = name;
+    crumb.hidden = !name;
+    if (name) crumb.textContent = [continentOf.get(name), name].filter(Boolean).join(' · ');
+  }
+
+  let hintTimer = 0;
+  function showHint() {
+    hint.classList.add('is-on');
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(hideHint, 1400);
+  }
+  function hideHint() {
+    clearTimeout(hintTimer);
+    hint.classList.remove('is-on');
+  }
+
+  // Keyboard activation of a dot (pointer taps are handled by the view).
+  mapEl.querySelector('.map-markers').addEventListener('click', (e) => {
+    const marker = e.target.closest('.map-marker');
+    if (marker && e.detail === 0) openCallout(Number(marker.dataset.place));
+  });
+
+  callout.addEventListener('click', (e) => {
+    if (e.target.closest('.map-callout-close')) {
+      const index = selected;
+      closeCallout();
+      markerEls[index]?.focus({ preventScroll: true });
+    }
+  });
+
+  mapEl.querySelector('.map-controls').addEventListener('click', (e) => {
+    const action = e.target.closest('[data-action]')?.dataset.action;
+    if (!action) return;
+    setCrumb(null);
+    if (action === 'in') view.zoomBy(2);
+    else if (action === 'out') view.zoomBy(0.5);
+    else view.flyTo(view.homeView());
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (selected >= 0) closeCallout();
+    else if (mapEl.contains(document.activeElement) && !view.isHome()) {
+      setCrumb(null);
+      view.flyTo(view.homeView());
+    }
+  });
+
+  document.addEventListener('pointerdown', (e) => {
+    if (selected >= 0 && !mapEl.contains(e.target)) closeCallout();
+  });
+
 }

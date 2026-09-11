@@ -36,121 +36,362 @@
 
 /* ---------- world map ---------- */
 
+/* The card. Not clipped, so a callout near its edge can overhang; the viewport clips the map. */
 .map {
-  --map-k: 1; /* Current zoom, set by world-map.js; strokes and dots divide by it. */
-  --map-bg: var(--card);
   position: relative;
-  overflow: hidden;
-  padding: 0.75rem;
-  background: var(--map-bg);
+  z-index: 2;
+  background: var(--card);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
 }
 
 .map > .empty { margin: 0; box-shadow: none; }
 
-.map-svg { display: block; width: 100%; height: auto; overflow: hidden; }
+.map-viewport {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: var(--map-aspect, 2 / 1);
+  border-radius: inherit;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
 
-.map-scene { transition: transform 0.8s var(--ease); }
+.map-viewport:focus-visible { outline-offset: -2px; }
+
+.map-viewport.is-dragging { cursor: grabbing; }
+
+.map-viewport.is-over-marker { cursor: pointer; }
+
+@media (max-width: 640px) {
+  .map { border-radius: var(--radius); }
+  .map-viewport { aspect-ratio: 4 / 3; }
+}
+
+.map-svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
 
 .map-country {
   fill: var(--line);
-  stroke: var(--map-bg);
-  stroke-width: calc(0.5px / var(--map-k));
-  cursor: pointer;
-  transition: fill 0.3s var(--ease);
+  stroke: var(--card);
+  stroke-width: 0.6px;
+  vector-effect: non-scaling-stroke;
+  transition: fill 0.25s var(--ease);
 }
 
-/* Before the hover rules, which share its specificity. */
 .map-country.is-visited { fill: color-mix(in srgb, var(--accent) 32%, var(--line)); }
 
-.map-country:hover { fill: color-mix(in srgb, var(--accent) 18%, var(--line)); }
+@media (hover: hover) {
+  .map-viewport:not(.is-dragging, .is-over-marker) .map-country:hover {
+    fill: color-mix(in srgb, var(--accent) 16%, var(--line));
+  }
 
-.map-country.is-visited:hover { fill: color-mix(in srgb, var(--accent) 68%, var(--line)); }
+  .map-viewport:not(.is-dragging, .is-over-marker) .map-country.is-visited:hover {
+    fill: color-mix(in srgb, var(--accent) 55%, var(--line));
+  }
+}
 
-.map-marker { cursor: pointer; }
+/* ---------- dots ---------- */
+
+/* Positioned by world-map.js in screen pixels, so they keep their size at every zoom. */
+.map-markers { position: absolute; inset: 0; pointer-events: none; }
+
+.map-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: -0.75rem 0 0 -0.75rem;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  pointer-events: auto;
+  cursor: pointer;
+  will-change: transform;
+}
 
 .map-marker-dot {
-  fill: var(--accent);
-  stroke: var(--map-bg);
-  stroke-width: calc(1.5px / var(--map-k));
-  r: calc(4px / var(--map-k));
-  transition: r 0.35s var(--spring);
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--card), 0 1px 4px rgb(0 0 0 / 25%);
+  transition: transform 0.35s var(--spring), box-shadow 0.25s var(--ease);
 }
 
-/* Invisible, larger hit target. */
-.map-marker-halo {
-  fill: transparent;
-  r: calc(10px / var(--map-k));
-}
+.map-marker.is-hovered .map-marker-dot { transform: scale(1.4); }
 
-.map-marker:hover .map-marker-dot,
-.map-marker.is-active .map-marker-dot { r: calc(6.5px / var(--map-k)); }
+.map-marker.is-selected .map-marker-dot {
+  transform: scale(1.55);
+  box-shadow: 0 0 0 2px var(--card), 0 0 0 6px color-mix(in srgb, var(--accent) 28%, transparent), 0 2px 8px rgb(0 0 0 / 25%);
+}
 
 .map-marker:focus-visible { outline: none; }
 
-.map-marker:focus-visible .map-marker-halo {
-  fill: color-mix(in srgb, var(--accent) 22%, transparent);
-  stroke: var(--accent);
-  stroke-width: calc(1px / var(--map-k));
+.map-marker:focus-visible .map-marker-dot {
+  box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--accent);
 }
 
-.map-nav {
+/* ---------- overlays ---------- */
+
+.map-controls {
   position: absolute;
-  z-index: 5;
+  z-index: 3;
   top: 0.75rem;
-  left: 0.75rem;
+  right: 0.75rem;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 0.5rem;
 }
 
-.map-crumb {
-  padding: 0.3rem 0.75rem;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--text);
-  border-radius: var(--radius-pill);
+.map-zoom {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 12px;
 }
 
-.map-crumb:empty { display: none; }
+.map-zoom button + button { box-shadow: 0 -1px 0 var(--hairline); }
+
+.map-controls button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  color: var(--text);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s var(--ease), color 0.2s var(--ease), opacity 0.2s var(--ease);
+}
+
+.map-controls button svg { width: 1rem; height: 1rem; }
+
+.map-controls .map-home {
+  background: color-mix(in srgb, var(--card) 62%, transparent);
+  border-radius: 12px;
+}
+
+.map-controls button:hover:not(:disabled) { background: color-mix(in srgb, var(--text) 8%, transparent); }
+
+.map-controls button:active:not(:disabled) { background: color-mix(in srgb, var(--text) 14%, transparent); }
+
+.map-controls button:disabled { color: var(--faint); opacity: 0.55; cursor: default; }
+
+.map-crumb {
+  position: absolute;
+  z-index: 3;
+  top: 0.75rem;
+  left: 0.75rem;
+  margin: 0;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  pointer-events: none;
+  animation: map-pop-in 0.3s var(--ease);
+}
+
+/* Tooltip and callout share placement: world-map.js sets `translate` and --arrow-x. */
+.map-tip,
+.map-callout {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  left: 0;
+  margin: 0;
+}
+
+.map-tip,
+.map-callout {
+  transform-origin: var(--arrow-x, 50%) 100%;
+  animation: map-pop 0.32s var(--spring);
+}
+
+.map-tip.is-below,
+.map-callout.is-below { transform-origin: var(--arrow-x, 50%) 0; }
+
+.map-tip.is-offscreen,
+.map-callout.is-offscreen { visibility: hidden; }
 
 .map-tip {
-  position: absolute;
-  z-index: 5;
-  padding: 0.4rem 0.75rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
   white-space: nowrap;
+  border-radius: 10px;
   pointer-events: none;
-  border-radius: 12px;
-  visibility: hidden;
-  opacity: 0;
-  transform: translate(-50%, calc(-100% - 0.1rem)) scale(0.96);
-  transition: opacity 0.2s var(--ease), transform 0.3s var(--ease), visibility 0s linear 0.2s;
 }
 
-.map-tip.is-on {
-  visibility: visible;
-  opacity: 1;
-  transform: translate(-50%, calc(-100% - 0.65rem));
-  transition: opacity 0.2s var(--ease), transform 0.3s var(--spring), visibility 0s;
+.map-callout {
+  width: min(19rem, calc(100% - 1rem));
+  padding: 0.35rem;
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-float);
 }
 
-.map-tip-title { display: block; font-size: 0.875rem; font-weight: 600; }
+.map-callout::after {
+  content: "";
+  position: absolute;
+  left: var(--arrow-x, 50%);
+  bottom: -6px;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  background: inherit;
+  border-radius: 0 0 3px 0;
+  box-shadow: 1px 1px 0 var(--hairline);
+  transform: rotate(45deg);
+  backdrop-filter: inherit;
+  -webkit-backdrop-filter: inherit;
+}
 
-.map-tip-meta {
-  display: block;
-  font-size: 0.75rem;
+.map-callout.is-below::after {
+  top: -6px;
+  bottom: auto;
+  border-radius: 3px 0 0 0;
+  box-shadow: -1px -1px 0 var(--hairline);
+}
+
+
+.map-callout-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.4rem 0.45rem 0.65rem;
+}
+
+.map-callout-title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.map-callout-meta { margin: 0.1rem 0 0; font-size: 0.8125rem; color: var(--muted); }
+
+.map-callout-close {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
   color: var(--muted);
-  font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.map-callout-close:hover { color: var(--text); background: color-mix(in srgb, var(--text) 12%, transparent); }
+
+.map-callout-close svg { width: 0.8rem; height: 0.8rem; }
+
+.map-callout-trips {
+  display: grid;
+  gap: 1px;
+  max-height: 14rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.map-callout-trips a {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 0.5rem;
+  align-items: center;
+  padding: 0.55rem 0.6rem 0.55rem 0.65rem;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 10px;
+  transition: background-color 0.15s var(--ease);
+}
+
+.map-callout-trips a:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+
+.map-callout-trips a:active { background: color-mix(in srgb, var(--text) 11%, transparent); }
+
+.map-callout-trip {
+  display: -webkit-box;
+  grid-column: 1;
+  overflow: hidden;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.3;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.map-callout-date { grid-column: 1; font-size: 0.8125rem; color: var(--muted); }
+
+.map-callout-chevron {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  width: 1rem;
+  height: 1rem;
+  color: var(--faint);
+  transition: transform 0.3s var(--ease), color 0.2s var(--ease);
+}
+
+.map-callout-trips a:hover .map-callout-chevron { color: var(--accent); transform: translateX(2px); }
+
+.map-hint {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: 0.9rem;
+  margin: 0;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+  border-radius: var(--radius-pill);
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 0.4rem);
+  transition: opacity 0.3s var(--ease), transform 0.4s var(--ease);
+}
+
+.map-hint.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+@keyframes map-pop-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+}
+
+@keyframes map-pop {
+  from { opacity: 0; scale: 0.9; }
 }
 
 @media (max-width: 640px) {
-  .map { padding: 0.75rem 0.25rem; border-radius: var(--radius); }
-  .map-nav { top: 0.5rem; left: 0.5rem; }
+  .map-controls { top: 0.5rem; right: 0.5rem; }
+  .map-crumb { top: 0.5rem; left: 0.5rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .map-country, .map-marker-dot, .map-scene, .map-tip, .travel-next { transition: none; }
+  .map-country, .map-marker-dot, .map-hint, .travel-next { transition: none; }
+  .map-crumb, .map-tip, .map-callout { animation: none; }
 }
 
 /* ---------- trip list ---------- */
