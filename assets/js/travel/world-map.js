@@ -129,7 +129,11 @@ function skyHtml(w, h, bandH, sky) {
     </g>`;
 }
 
-export function renderWorldMap(mapEl, countries, trips, continentOf, marine, sky) {
+// `data` carries the atlas (countries), the trips, the continent lookup, the named waters
+// and the star charts. `loadDetail` is optional: called once, the first time someone zooms
+// past DETAIL_AT, to swap the 1:50m coastlines for 1:10m.
+export function renderWorldMap(mapEl, data) {
+  const { countries, trips, continentOf, marine, sky, loadDetail } = data;
   const land = { type: 'FeatureCollection', features: countries };
 
   // Fit the land to WIDTH, then centre it vertically in a square content box, so the map card
@@ -148,23 +152,30 @@ export function renderWorldMap(mapEl, countries, trips, continentOf, marine, sky
     if (!byName.has(c)) console.warn(`travel: "${c}" is not a country name in the atlas, so it will not be tinted.`);
   });
 
-  const shapes = land.features
+  const countryShapes = (features) => features
     .map((f) => {
       const d = path(f);
       const name = f.properties.name;
       return d ? `<path class="map-country${visited.has(name) ? ' is-visited' : ''}" d="${d}" data-country="${esc(name)}"/>` : '';
     })
     .join('');
+  const shapes = countryShapes(land.features);
 
-  const waters = marine?.features ?? [];
   // Ocean polygons reach the map's outer edge, which would draw a globe-shaped outline.
   // The smaller named waters supply the internal boundaries we want instead.
-  const waterShapes = waters
+  const waterShapes = (marine?.areas ?? [])
     .filter((f) => f.properties.type !== 'ocean')
     .map((f) => {
       const d = path(f);
       return d ? `<path class="map-marine map-marine-${esc(f.properties.type)}" d="${d}"/>` : '';
     })
+    .join('');
+
+  // Where two countries' waters meet. Natural Earth draws these as indicators, not claims.
+  const borderShapes = (marine?.borders ?? [])
+    .map((f) => path(f))
+    .filter(Boolean)
+    .map((d) => `<path class="map-marine-border" d="${d}"/>`)
     .join('');
 
   const places = placesOf(trips, projection);
@@ -178,7 +189,7 @@ export function renderWorldMap(mapEl, countries, trips, continentOf, marine, sky
   mapEl.innerHTML = `
     <div class="map-viewport" tabindex="0" role="application"
          aria-label="World map of the places listed below. Arrow keys move the map; plus and minus zoom.">
-      <svg class="map-svg" aria-hidden="true"><g class="map-scene">${skyHtml(WIDTH, height, bandH, sky)}<g class="map-marine-areas">${waterShapes}</g>${shapes}</g></svg>
+      <svg class="map-svg" aria-hidden="true"><g class="map-scene">${skyHtml(WIDTH, height, bandH, sky)}<g class="map-marine-areas">${waterShapes}${borderShapes}</g><g class="map-land">${shapes}</g></g></svg>
       <div class="map-markers">${markers}</div>
     </div>
     <p class="map-crumb glass" hidden></p>
@@ -218,6 +229,23 @@ export function renderWorldMap(mapEl, countries, trips, continentOf, marine, sky
     return [[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]];
   };
 
+  // 1:50m is indistinguishable from 1:10m at world zoom, so the finer atlas is fetched
+  // only when the coastline starts to matter — and never for a visitor who does not zoom.
+  const DETAIL_AT = 3;
+  let detail = false;
+  async function upgradeDetail() {
+    if (detail || !loadDetail) return;
+    detail = true;
+    try {
+      const features = await loadDetail();
+      const box = mapEl.querySelector('.map-land');
+      if (box) box.innerHTML = countryShapes(features);
+    } catch (err) {
+      detail = false;
+      console.warn('travel: could not load the detailed atlas', err);
+    }
+  }
+
   const view = new MapView(viewport, {
     width: WIDTH,
     height,
@@ -241,6 +269,7 @@ export function renderWorldMap(mapEl, countries, trips, continentOf, marine, sky
     buttons.in.disabled = s >= v.maxScale * 0.999;
     buttons.out.disabled = s <= v.minScale * 1.001;
     buttons.home.disabled = v.isHome();
+    if (s >= v.minScale * DETAIL_AT) upgradeDetail();
   }
 
   function nearestPlace(at) {

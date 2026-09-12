@@ -105,6 +105,14 @@
   vector-effect: non-scaling-stroke;
 }
 
+/* Where one country's waters meet another's — a border, so it is dashed like one. */
+.map-marine-border {
+  fill: none;
+  stroke: color-mix(in srgb, var(--faint) 45%, transparent);
+  stroke-width: 0.5px;
+  stroke-dasharray: 3 2.5;
+  vector-effect: non-scaling-stroke;
+}
 
 .map-country {
   fill: var(--line);
