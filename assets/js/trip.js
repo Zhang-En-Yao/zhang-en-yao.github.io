@@ -39,7 +39,7 @@ async function render() {
 
   const [content, streets, places] = await Promise.all([
     fetchJson(`travel/${trip.file}`),
-    fetchJson(`travel/streets/${trip.id}.json`).catch(() => ({})), // Optional; see build-streets.py.
+    fetchJson(`assets/data/streets/${trip.id}.json`).catch(() => ({})), // Optional; see build-streets.py.
     fetchJson(PLACES_SRC).catch(() => null), // Optional; see build-places.py.
   ]);
   const [gallery, photos] = galleryHtml(content, trip.id);

@@ -110,7 +110,7 @@ python3 -m http.server 8000
 index.html  travel.html  trip.html  bucket-list.html
 travel/index.json            trip metadata
 travel/<id>.json             travelogue content
-travel/streets/<id>.json     cached street geometry (build-streets.py)
+assets/data/streets/<id>.json cached street geometry (build-streets.py)
 bucket-list/index.json
 assets/css/                  core · home · cards · travel · bucket · trip · translate
 assets/js/theme.js           classic script in <head>, sets the theme before first paint

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regenerate travel/streets/<trip-id>.json: OpenStreetMap street geometry for a trip's
+"""Regenerate assets/data/streets/<trip-id>.json: OpenStreetMap street geometry for a trip's
 cluster maps, fetched once from Overpass so pages never query it live.
 
 Map framing and grouping must match assets/js/trip/maps.js (AREA) and
@@ -24,7 +24,7 @@ import urllib.request
 HERE = pathlib.Path(__file__).parent
 TRAVEL_DIR = HERE.parent.parent / "travel"
 INDEX = TRAVEL_DIR / "index.json"
-OUT_DIR = TRAVEL_DIR / "streets"
+OUT_DIR = HERE / "streets"
 
 # Tried in order; the public instance sometimes firewalls bursts of requests.
 OVERPASS_URLS = [
