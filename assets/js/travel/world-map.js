@@ -129,7 +129,7 @@ function skyHtml(w, h, bandH, sky) {
     </g>`;
 }
 
-export function renderWorldMap(mapEl, countries, trips, continentOf, sky) {
+export function renderWorldMap(mapEl, countries, trips, continentOf, marine, sky) {
   const land = { type: 'FeatureCollection', features: countries };
 
   // Fit the land to WIDTH, then centre it vertically in a square content box, so the map card
@@ -156,6 +156,17 @@ export function renderWorldMap(mapEl, countries, trips, continentOf, sky) {
     })
     .join('');
 
+  const waters = marine?.features ?? [];
+  // Ocean polygons reach the map's outer edge, which would draw a globe-shaped outline.
+  // The smaller named waters supply the internal boundaries we want instead.
+  const waterShapes = waters
+    .filter((f) => f.properties.type !== 'ocean')
+    .map((f) => {
+      const d = path(f);
+      return d ? `<path class="map-marine map-marine-${esc(f.properties.type)}" d="${d}"/>` : '';
+    })
+    .join('');
+
   const places = placesOf(trips, projection);
   const markers = places
     .map((p, i) => `
@@ -167,7 +178,7 @@ export function renderWorldMap(mapEl, countries, trips, continentOf, sky) {
   mapEl.innerHTML = `
     <div class="map-viewport" tabindex="0" role="application"
          aria-label="World map of the places listed below. Arrow keys move the map; plus and minus zoom.">
-      <svg class="map-svg" aria-hidden="true"><g class="map-scene">${skyHtml(WIDTH, height, bandH, sky)}${shapes}</g></svg>
+      <svg class="map-svg" aria-hidden="true"><g class="map-scene">${skyHtml(WIDTH, height, bandH, sky)}<g class="map-marine-areas">${waterShapes}</g>${shapes}</g></svg>
       <div class="map-markers">${markers}</div>
     </div>
     <p class="map-crumb glass" hidden></p>

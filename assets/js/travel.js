@@ -6,6 +6,7 @@ import { thumbHtml } from './shared/thumb.js';
 import { renderWorldMap } from './travel/world-map.js';
 
 const CONTINENTS_SRC = 'assets/data/continents.json';
+const MARINE_AREAS_SRC = 'assets/data/marine-areas.json';
 const STARS_SRC = 'assets/data/stars.json';
 
 const mapEl = document.getElementById('map');
@@ -84,9 +85,10 @@ Promise.all([
   loadCountries(),
   fetchJson(TRIPS_SRC),
   fetchJson(CONTINENTS_SRC),
+  fetchJson(MARINE_AREAS_SRC).catch(() => null), // Named waters enhance the map but are not required for it.
   fetchJson(STARS_SRC).catch(() => null), // The polar star charts are decoration; the map works without them.
 ])
-  .then(([countries, trips, continents, sky]) => {
+  .then(([countries, trips, continents, marine, sky]) => {
     const sorted = newestFirst(trips);
     if (!sorted.length) {
       mapEl.innerHTML = emptyState({
@@ -98,7 +100,7 @@ Promise.all([
     }
     renderStats(sorted);
     renderNext(sorted);
-    renderWorldMap(mapEl, countries, sorted, new Map(Object.entries(continents)), sky);
+    renderWorldMap(mapEl, countries, sorted, new Map(Object.entries(continents)), marine, sky);
     renderList(sorted, byCountryName(countries));
   })
   .catch((err) => {

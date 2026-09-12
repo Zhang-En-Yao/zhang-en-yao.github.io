@@ -97,6 +97,15 @@
   opacity: 0.18;
 }
 
+/* Natural Earth marine polygons supply only the internal boundaries of named waters. */
+.map-marine {
+  fill: none;
+  stroke: color-mix(in srgb, var(--faint) 25%, transparent);
+  stroke-width: 0.45px;
+  vector-effect: non-scaling-stroke;
+}
+
+
 .map-country {
   fill: var(--line);
   stroke: var(--card);
