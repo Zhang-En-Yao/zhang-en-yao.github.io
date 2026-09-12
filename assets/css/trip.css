@@ -482,7 +482,17 @@ body.is-locked { overflow: hidden; }
   will-change: transform;
 }
 
-.lb-kb { position: absolute; inset: 0; transform-origin: 50% 50%; }
+.lb-kb {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 50%;
+  transition: opacity 0.25s ease;
+}
+
+/* The photo's shape is not known yet: hold the frame blank rather than guess and resize. */
+.lb.is-measuring .lb-kb { opacity: 0; transition: none; }
+
+.lb.is-measuring .lb-spinner { opacity: 1; }
 
 .lb-layer {
   position: absolute;

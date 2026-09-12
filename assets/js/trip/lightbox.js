@@ -134,6 +134,8 @@ export function initLightbox(root, photos, { title = '' } = {}) {
     return img && img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 0;
   };
   const ratioOf = (i) => ratios[i] || cellRatio(i) || 1.5;
+  // Until a photo's shape is known, its frame is held blank rather than guessed and resized.
+  const known = (i) => ratios[i] > 0 || cellRatio(i) > 0;
 
   let at = 0;
   let isOpen = false;
@@ -205,7 +207,7 @@ export function initLightbox(root, photos, { title = '' } = {}) {
         el.dataset.index = String(i);
         el.src = photos[i].thumb;
       }
-      el.hidden = count < 2;
+      el.hidden = count < 2 || !known(i);
     });
   }
 
@@ -220,20 +222,23 @@ export function initLightbox(root, photos, { title = '' } = {}) {
     };
   }
 
-  function updateRatio(i, img) {
-    if (!img.naturalWidth || !img.naturalHeight) return;
-    const ar = img.naturalWidth / img.naturalHeight;
-    if (Math.abs(ar / ratioOf(i) - 1) < 0.01) return;
+  function noteRatio(i, width, height) {
+    if (!width || !height) return;
+    const ar = width / height;
+    if (Math.abs(ar / ratioOf(i) - 1) < 0.01 && known(i)) return;
     ratios[i] = ar;
     if (i === at) setContentFor(i);
-    else layoutSides();
+    layoutSides();
   }
+
+  const updateRatio = (i, img) => noteRatio(i, img.naturalWidth, img.naturalHeight);
 
   function setContentFor(i) {
     const height = CONTENT_WIDTH / ratioOf(i);
     zoomEl.style.width = `${CONTENT_WIDTH}px`;
     zoomEl.style.height = `${height}px`;
     view.setContent(CONTENT_WIDTH, height);
+    lb.classList.toggle('is-measuring', !known(i));
   }
 
   function loadHires() {
@@ -251,9 +256,25 @@ export function initLightbox(root, photos, { title = '' } = {}) {
     if (playing) startDwell();
   }
 
+  // Loading a neighbour early also settles its shape, so paging to it never resizes the frame.
   function preloadNeighbours() {
-    [1, -1].forEach((d) => { new Image().src = photos[wrap(at + d)].src; });
+    [1, -1].forEach((d) => {
+      const i = wrap(at + d);
+      const img = new Image();
+      img.onload = () => noteRatio(i, img.naturalWidth, img.naturalHeight);
+      img.src = photos[i].src;
+      if (known(i)) return;
+      const thumb = new Image(); // The smaller file answers the shape question sooner.
+      thumb.onload = () => noteRatio(i, thumb.naturalWidth, thumb.naturalHeight);
+      thumb.src = photos[i].thumb;
+    });
   }
+
+  // Every filmstrip thumbnail reports its shape as it loads.
+  strip.addEventListener('load', (e) => {
+    const i = Number(e.target.closest('.lb-thumbnail')?.dataset.index);
+    if (Number.isInteger(i)) noteRatio(i, e.target.naturalWidth, e.target.naturalHeight);
+  }, true);
 
   // ---------- showing a photo ----------
 
@@ -277,6 +298,7 @@ export function initLightbox(root, photos, { title = '' } = {}) {
     thumbImg.alt = photo.alt;
     watch(thumbImg, (ok) => { if (ok) updateRatio(at, thumbImg); });
     thumbImg.src = photo.thumb;
+    if (thumbImg.complete) updateRatio(at, thumbImg);
     watch(fullImg, (ok) => {
       if (ok) {
         fullImg.classList.add('is-loaded');
@@ -531,8 +553,9 @@ export function initLightbox(root, photos, { title = '' } = {}) {
 
   // The photo grows out of its gallery cell (and shrinks back into it on close).
   function flipFrom(rect, reverse = false) {
-    if (!rect || reduceMotion.matches) return null;
+    if (!rect || !rect.width || reduceMotion.matches) return null;
     const r = fitRect(ratioOf(at));
+    if (!r.w || !r.h) return null; // The viewer has not been laid out yet.
     const k = rect.width / r.w;
     const from = `translate3d(${rect.left - r.x * k}px, ${rect.top - r.y * k}px, 0) scale(${k})`;
     track.style.transformOrigin = '0 0';
