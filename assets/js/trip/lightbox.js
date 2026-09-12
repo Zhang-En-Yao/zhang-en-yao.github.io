@@ -123,9 +123,17 @@ export function initLightbox(root, photos, { title = '' } = {}) {
   const toast = $('.lb-toast');
   const buttons = Object.fromEntries([...lb.querySelectorAll('[data-action]')].map((b) => [b.dataset.action, b]));
 
-  // Aspect ratios, seeded from the gallery cells that have already loaded.
+  // Aspect ratios. The viewer's own images are authoritative once they load; until then ask
+  // the gallery cell, whose thumbnail has normally loaded by the time a visitor clicks it.
+  // Read lazily on purpose: at init the gallery markup is one tick old and nothing has loaded,
+  // so snapshotting here would freeze every photo at the 1.5 fallback.
   const cells = [...root.querySelectorAll('.photo')];
-  const ratios = photos.map((_, i) => Number(cells[i]?.style.getPropertyValue('--ar')) || 1.5);
+  const ratios = photos.map(() => 0);
+  const cellRatio = (i) => {
+    const img = cells[i]?.querySelector('img');
+    return img && img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 0;
+  };
+  const ratioOf = (i) => ratios[i] || cellRatio(i) || 1.5;
 
   let at = 0;
   let isOpen = false;
@@ -191,7 +199,7 @@ export function initLightbox(root, photos, { title = '' } = {}) {
     sides.forEach((el) => {
       const offset = Number(el.dataset.side);
       const i = wrap(at + offset);
-      const r = fitRect(ratios[i]);
+      const r = fitRect(ratioOf(i));
       placeRect(el, { ...r, x: r.x + offset * (view.w + GAP) });
       if (el.dataset.index !== String(i)) {
         el.dataset.index = String(i);
@@ -215,14 +223,14 @@ export function initLightbox(root, photos, { title = '' } = {}) {
   function updateRatio(i, img) {
     if (!img.naturalWidth || !img.naturalHeight) return;
     const ar = img.naturalWidth / img.naturalHeight;
-    if (Math.abs(ar / ratios[i] - 1) < 0.01) return;
+    if (Math.abs(ar / ratioOf(i) - 1) < 0.01) return;
     ratios[i] = ar;
     if (i === at) setContentFor(i);
     else layoutSides();
   }
 
   function setContentFor(i) {
-    const height = CONTENT_WIDTH / ratios[i];
+    const height = CONTENT_WIDTH / ratioOf(i);
     zoomEl.style.width = `${CONTENT_WIDTH}px`;
     zoomEl.style.height = `${height}px`;
     view.setContent(CONTENT_WIDTH, height);
@@ -328,7 +336,7 @@ export function initLightbox(root, photos, { title = '' } = {}) {
   // Crossfade to another photo, carrying the outgoing photo's Ken Burns frame with it.
   function fadeTo(i) {
     if (reduceMotion.matches) return commit(i);
-    const r = fitRect(ratios[at]);
+    const r = fitRect(ratioOf(at));
     placeRect(outgoing, r);
     const img = outgoing.firstElementChild;
     img.src = (hiresImg.classList.contains('is-loaded') && hiresImg.currentSrc)
@@ -524,7 +532,7 @@ export function initLightbox(root, photos, { title = '' } = {}) {
   // The photo grows out of its gallery cell (and shrinks back into it on close).
   function flipFrom(rect, reverse = false) {
     if (!rect || reduceMotion.matches) return null;
-    const r = fitRect(ratios[at]);
+    const r = fitRect(ratioOf(at));
     const k = rect.width / r.w;
     const from = `translate3d(${rect.left - r.x * k}px, ${rect.top - r.y * k}px, 0) scale(${k})`;
     track.style.transformOrigin = '0 0';
@@ -538,6 +546,9 @@ export function initLightbox(root, photos, { title = '' } = {}) {
   }
 
   function open(i, from = null, { fromHistory = false } = {}) {
+    // Measured first: showing the viewer and locking the body must not move the cell we
+    // are growing out of.
+    const fromRect = from?.getBoundingClientRect();
     opener = from;
     isOpen = true;
     lb.hidden = false;
@@ -556,7 +567,7 @@ export function initLightbox(root, photos, { title = '' } = {}) {
       }
     }
     lb.classList.add('is-opening');
-    const anim = flipFrom(from?.getBoundingClientRect());
+    const anim = flipFrom(fromRect);
     const done = () => lb.classList.remove('is-opening');
     if (anim) anim.finished.then(done, done);
     else done();
