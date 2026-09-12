@@ -244,6 +244,18 @@ p { text-wrap: pretty; }
   border-radius: var(--radius-pill);
 }
 
+/* ---------- map credits ---------- */
+
+/* Under the world map and under any trip map that draws borrowed data. */
+.map-credit {
+  margin: 0.6rem 0 0;
+  font-size: 0.6875rem;
+  color: var(--faint);
+  text-align: right;
+}
+
+.map-credit a { color: inherit; }
+
 /* ---------- glass ---------- */
 
 .glass {

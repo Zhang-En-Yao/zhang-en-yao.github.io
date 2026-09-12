@@ -6,6 +6,7 @@ import { thumbHtml } from './shared/thumb.js';
 import { renderWorldMap } from './travel/world-map.js';
 
 const CONTINENTS_SRC = 'assets/data/continents.json';
+const STARS_SRC = 'assets/data/stars.json';
 
 const mapEl = document.getElementById('map');
 const listEl = document.getElementById('list');
@@ -79,8 +80,13 @@ function renderList(trips, byName) {
     .join('');
 }
 
-Promise.all([loadCountries(), fetchJson(TRIPS_SRC), fetchJson(CONTINENTS_SRC)])
-  .then(([countries, trips, continents]) => {
+Promise.all([
+  loadCountries(),
+  fetchJson(TRIPS_SRC),
+  fetchJson(CONTINENTS_SRC),
+  fetchJson(STARS_SRC).catch(() => null), // The polar star charts are decoration; the map works without them.
+])
+  .then(([countries, trips, continents, sky]) => {
     const sorted = newestFirst(trips);
     if (!sorted.length) {
       mapEl.innerHTML = emptyState({
@@ -92,7 +98,7 @@ Promise.all([loadCountries(), fetchJson(TRIPS_SRC), fetchJson(CONTINENTS_SRC)])
     }
     renderStats(sorted);
     renderNext(sorted);
-    renderWorldMap(mapEl, countries, sorted, new Map(Object.entries(continents)));
+    renderWorldMap(mapEl, countries, sorted, new Map(Object.entries(continents)), sky);
     renderList(sorted, byCountryName(countries));
   })
   .catch((err) => {

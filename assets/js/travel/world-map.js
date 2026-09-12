@@ -9,8 +9,9 @@ import { MapView } from './map-view.js';
 
 const WIDTH = 960;
 const PAD = 6;
-const OMIT = new Set(['Antarctica']);
 const MAX_ZOOM = 40;
+const SKY_REACH = 93; // degrees of sky each polar chart draws, measured from its pole
+const SKY_SEAM = 0.22; // share of a star band that fades out where it meets the land
 const HIT_RADIUS = 20; // px around a dot that still counts as clicking it
 const EDGE_MARGIN = 48; // px a selected dot is kept away from the map's edges
 
@@ -58,8 +59,78 @@ function placesOf(trips, projection) {
   return places.sort((a, b) => a.xy[1] - b.xy[1]); // Lower dots paint over higher ones.
 }
 
-export function renderWorldMap(mapEl, countries, trips, continentOf) {
-  const land = { type: 'FeatureCollection', features: countries.filter((f) => !OMIT.has(f.properties.name)) };
+// A square map leaves a band above the Arctic and below Antarctica that the projection has
+// nothing to put in. Each carries the real sky over that pole, drawn the way star atlases
+// draw it: a stereographic projection — whose projection point is the opposite celestial
+// pole — centred on the celestial pole, and reflected, because d3 projects a sphere as seen
+// from outside while a star chart shows the sky as seen from under it. Right ascension 0h
+// points at the map, which stands the vernal equinox over the Greenwich meridian.
+//
+// An azimuthal chart is a disc, so it only fills a band whose far corners are inside its
+// rim: at a distance θ from the pole d3 puts a star at scale · tan(θ/2), which fixes the
+// scale once the reach is chosen. Reaching just past the celestial equator gives each band
+// its own hemisphere — together they hold the whole sky, once — and keeps the rim of the
+// disc off the corners, where it would otherwise show as an arc.
+function skyHtml(w, h, bandH, sky) {
+  if (!sky || bandH < 24) return '';
+  const scale = Math.hypot(w / 2, bandH / 2) / Math.tan((SKY_REACH / 2) * (Math.PI / 180));
+  const magMax = sky.magMax || 6;
+
+  const band = (sign, top, clip) => {
+    const projection = d3.geoStereographic()
+      .rotate([0, -90 * sign])
+      .reflectX(true)
+      .translate([w / 2, top + bandH / 2])
+      .scale(scale)
+      .clipAngle(SKY_REACH);
+    const path = d3.geoPath(projection).digits(1);
+
+    const figures = sky.lines
+      .map((c) => path({ type: 'MultiLineString', coordinates: c.paths }))
+      .filter(Boolean)
+      .map((d) => `<path class="map-constellation" d="${d}"/>`)
+      .join('');
+
+    // `projection(point)` does not clip, and the band holds barely a third of the disc, so
+    // drop the rest here rather than leave thousands of hidden circles in the document.
+    const stars = sky.stars
+      .filter(([, dec]) => 90 - dec * sign <= SKY_REACH)
+      .map(([ra, dec, mag]) => {
+        const p = projection([ra, dec]);
+        if (!p || p[0] < -3 || p[0] > w + 3 || p[1] < top - 3 || p[1] > top + bandH + 3) return '';
+        const bright = Math.min(1, (magMax - mag) / magMax);
+        const r = 0.5 + (magMax - mag) * 0.45;
+        return `<circle class="map-star" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}"`
+          + ` r="${r.toFixed(2)}" opacity="${(0.3 + bright * 0.6).toFixed(2)}"/>`;
+      })
+      .join('');
+
+    return `<g clip-path="url(#${clip})">${figures}${stars}</g>`;
+  };
+
+  // The sky is cut off square where it meets the ice; a band of the card's own colour over
+  // the last of it turns that cut into the sky passing behind the earth.
+  const seam = Math.round(bandH * SKY_SEAM);
+  const fade = (id, y0, y1) => `
+    <linearGradient id="${id}" x1="0" y1="${y0}" x2="0" y2="${y1}" gradientUnits="userSpaceOnUse">
+      <stop offset="0" class="map-sky-clear"/><stop offset="1" class="map-sky-solid"/>
+    </linearGradient>`;
+
+  return `
+    <defs>
+      <clipPath id="map-sky-north"><rect x="0" y="0" width="${w}" height="${bandH}"/></clipPath>
+      <clipPath id="map-sky-south"><rect x="0" y="${h - bandH}" width="${w}" height="${bandH}"/></clipPath>
+      ${fade('map-sky-seam-north', bandH - seam, bandH)}${fade('map-sky-seam-south', h - bandH + seam, h - bandH)}
+    </defs>
+    <g class="map-sky" aria-hidden="true">
+      ${band(1, 0, 'map-sky-north')}${band(-1, h - bandH, 'map-sky-south')}
+      <rect x="0" y="${bandH - seam}" width="${w}" height="${seam}" fill="url(#map-sky-seam-north)"/>
+      <rect x="0" y="${h - bandH}" width="${w}" height="${seam}" fill="url(#map-sky-seam-south)"/>
+    </g>`;
+}
+
+export function renderWorldMap(mapEl, countries, trips, continentOf, sky) {
+  const land = { type: 'FeatureCollection', features: countries };
 
   // Fit the land to WIDTH, then centre it vertically in a square content box, so the map card
   // is square however tall the projected world turns out to be.
@@ -67,8 +138,9 @@ export function renderWorldMap(mapEl, countries, trips, continentOf) {
   const path = d3.geoPath(projection).digits(1);
   const [[, y0], [, y1]] = path.bounds(land);
   const height = WIDTH;
+  const bandH = (height - (y1 - y0)) / 2; // empty sky above the Arctic and below Antarctica
   const [tx, ty] = projection.translate();
-  projection.translate([tx + PAD, ty - y0 + (height - (y1 - y0)) / 2]);
+  projection.translate([tx + PAD, ty - y0 + bandH]);
 
   const visited = new Set(trips.map((t) => t.country).filter(Boolean));
   const byName = new Map(land.features.map((f) => [f.properties.name, f]));
@@ -95,7 +167,7 @@ export function renderWorldMap(mapEl, countries, trips, continentOf) {
   mapEl.innerHTML = `
     <div class="map-viewport" tabindex="0" role="application"
          aria-label="World map of the places listed below. Arrow keys move the map; plus and minus zoom.">
-      <svg class="map-svg" aria-hidden="true"><g class="map-scene">${shapes}</g></svg>
+      <svg class="map-svg" aria-hidden="true"><g class="map-scene">${skyHtml(WIDTH, height, bandH, sky)}${shapes}</g></svg>
       <div class="map-markers">${markers}</div>
     </div>
     <p class="map-crumb glass" hidden></p>
@@ -263,7 +335,8 @@ export function renderWorldMap(mapEl, countries, trips, continentOf) {
   function setCrumb(name) {
     focusedCountry = name;
     crumb.hidden = !name;
-    if (name) crumb.textContent = [continentOf.get(name), name].filter(Boolean).join(' · ');
+    // Antarctica is its own continent, so de-duplicate rather than read "Antarctica · Antarctica".
+    if (name) crumb.textContent = [...new Set([continentOf.get(name), name].filter(Boolean))].join(' · ');
   }
 
   let hintTimer = 0;

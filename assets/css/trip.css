@@ -108,16 +108,8 @@
   stroke: none;
 }
 
-.map-credit {
-  margin: -0.75rem 0 1.5rem;
-  font-size: 0.6875rem;
-  color: var(--faint);
-  text-align: right;
-}
-
+/* Base style lives in core.css; inside prose the credit tucks under its map. */
 .prose .map-credit { margin: -0.75rem 0 1.25rem; }
-
-.map-credit a { color: inherit; }
 
 /* ---------- flights ---------- */
 
