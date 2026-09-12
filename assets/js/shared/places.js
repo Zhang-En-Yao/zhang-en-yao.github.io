@@ -13,8 +13,6 @@
 // marker is the whole mechanism.
 import { esc } from './dom.js';
 
-export const SRC = 'assets/data/places.json';
-
 const ROWS = [
   ['type', 'Type'],
   ['religion', 'Religion'],

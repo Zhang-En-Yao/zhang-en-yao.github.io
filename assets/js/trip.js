@@ -1,7 +1,7 @@
 import { esc, fetchJson, emptyState, SERVE_HINT } from './shared/dom.js';
 import { TRIPS_SRC, tripTitle } from './shared/trips.js';
 import { loadCountries } from './shared/atlas.js';
-import { SRC as PLACES_SRC } from './shared/places.js';
+import { tripAssets } from './shared/assets.js';
 import { headerHtml, bodyHtml } from './trip/content.js';
 import { galleryHtml, wireGallery } from './trip/gallery.js';
 import { buildToc } from './trip/toc.js';
@@ -27,7 +27,10 @@ async function render() {
   if (!trip) throw new Error(`No trip with id ${id}`);
   document.title = `${tripTitle(trip)} — Travels`;
 
-  if (!trip.file) {
+  // A trip is served either from its own assets repository or from this one, never both.
+  const base = tripAssets(trip);
+
+  if (!base && !trip.file) {
     tripEl.innerHTML = headerHtml(trip, countries) + emptyState({
       icon: 'file',
       title: 'Not written up yet',
@@ -38,11 +41,12 @@ async function render() {
   }
 
   const [content, streets, places] = await Promise.all([
-    fetchJson(`travel/${trip.file}`),
-    fetchJson(`assets/data/streets/${trip.id}.json`).catch(() => ({})), // Optional; see build-streets.py.
-    fetchJson(PLACES_SRC).catch(() => null), // Optional; see build-places.py.
+    fetchJson(base ? `${base}/content.json` : `travel/${trip.file}`),
+    // Both optional: a trip with no maps and no linked points still reads.
+    fetchJson(base ? `${base}/streets.json` : `assets/data/streets/${trip.id}.json`).catch(() => ({})),
+    fetchJson(base ? `${base}/places.json` : 'assets/data/places.json').catch(() => null),
   ]);
-  const [gallery, photos] = galleryHtml(content, trip.id);
+  const [gallery, photos] = galleryHtml(content, trip.id, base);
   tripEl.innerHTML = `${headerHtml(trip, countries)}<div class="prose">${bodyHtml(content, streets, places)}${gallery}</div>`;
 
   const prose = tripEl.querySelector('.prose');

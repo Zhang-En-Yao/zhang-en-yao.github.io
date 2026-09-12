@@ -1,8 +1,10 @@
 import { fetchJson } from './dom.js';
+import { CORE } from './assets.js';
 
-const WORLD_SRC = 'assets/data/countries-50m.json';
-const WORLD_DETAIL_SRC = 'assets/data/countries-10m.json';
-const MARINE_SRC = 'assets/data/marine-areas.json';
+const WORLD_SRC = `${CORE}/atlas/countries-50m.json`;
+const WORLD_DETAIL_SRC = `${CORE}/atlas/countries-10m.json`;
+const MARINE_SRC = `${CORE}/atlas/marine-areas.json`;
+export const CONTINENTS_SRC = `${CORE}/atlas/continents.json`;
 
 // Uses the global `topojson` (topojson-client, loaded as a classic script).
 const objects = async (src, ...names) => {

@@ -1,12 +1,12 @@
 import { esc, fetchJson, emptyState, plural, statsHtml, SERVE_HINT, RETRY_BUTTON } from './shared/dom.js';
 import { fmtRange, splitDuration, currentMonth } from './shared/format.js';
 import { TRIPS_SRC, tripTitle, tripHref, tripDuration, newestFirst } from './shared/trips.js';
-import { loadCountries, loadDetailedCountries, loadMarine, byCountryName } from './shared/atlas.js';
+import { loadCountries, loadDetailedCountries, loadMarine, byCountryName, CONTINENTS_SRC } from './shared/atlas.js';
+import { CORE } from './shared/assets.js';
 import { thumbHtml } from './shared/thumb.js';
 import { renderWorldMap } from './travel/world-map.js';
 
-const CONTINENTS_SRC = 'assets/data/continents.json';
-const STARS_SRC = 'assets/data/stars.json';
+const STARS_SRC = `${CORE}/sky/stars.json`;
 
 const mapEl = document.getElementById('map');
 const listEl = document.getElementById('list');

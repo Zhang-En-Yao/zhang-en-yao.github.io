@@ -12,9 +12,12 @@ const HIRES = { w: 4000, q: 85 }; // Loaded only when zooming in.
 
 const isUrl = (s) => /^https?:\/\//.test(s);
 
-// `photoRepo` is "owner/repo" or "owner/repo@branch"; the default repo is named after the trip id.
-function photoUrl(file, content, tripId) {
+// A migrated trip keeps its photos in its own assets repository, under photos/. Otherwise
+// `photoRepo` is "owner/repo" or "owner/repo@branch", defaulting to a repo named after the
+// trip id.
+function photoUrl(file, content, tripId, base) {
   if (isUrl(file)) return file;
+  if (base) return `${base}/photos/${encodeURIComponent(file)}`;
   const slug = content.photoRepo || `${PHOTO_REPO_OWNER}/${tripId}`;
   const [repo, branch = PHOTO_REPO_BRANCH] = slug.split('@');
   return `${PHOTO_CDN}/${repo}@${branch}/${encodeURIComponent(file)}`;
@@ -36,14 +39,14 @@ export function retryPhotoSrc(src) {
 
 // Returns [html, photos] where `photos` is the lightbox list in page order. `caption` is set
 // only for a photo given an explicit `alt`, not one named after its file.
-export function galleryHtml(content, tripId) {
+export function galleryHtml(content, tripId, base) {
   const photos = (content.photos || [])
     .map((p) => {
       const file = typeof p === 'string' ? p : p.file;
       if (!file) return null;
       const alt = typeof p === 'string' ? file.replace(/\.[^.]+$/, '') : (p.alt || '');
       const caption = typeof p === 'string' ? '' : (p.alt || '');
-      const raw = photoUrl(file, content, tripId);
+      const raw = photoUrl(file, content, tripId, base);
       return isUrl(file)
         ? { thumb: raw, src: raw, hires: raw, alt, caption }
         : { thumb: sizedUrl(raw, THUMB), src: sizedUrl(raw, FULL), hires: sizedUrl(raw, HIRES), alt, caption };
