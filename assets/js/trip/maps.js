@@ -3,7 +3,7 @@
 import { esc, plural } from '../shared/dom.js';
 import { hasCoords, fmtPoint } from '../shared/atlas.js';
 
-const REGION = { w: 800, h: 380, pad: 16, margin: 2.1, minSpanLon: 13 };
+const REGION = { w: 800, h: 800, pad: 16, margin: 2.1, minSpanLon: 13 };
 const AREA = { w: 700, h: 700, pad: 16, margin: 1.6, minSpanLon: 0.004 };
 
 const LABEL_GAP = 11;
