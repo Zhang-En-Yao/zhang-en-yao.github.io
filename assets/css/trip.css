@@ -327,23 +327,6 @@
   margin: 0;
 }
 
-/* A term you can follow to every other place that shares it. */
-.facet,
-.prose .facet {
-  display: inline-flex;
-  padding: 0.05rem 0.5rem;
-  font-size: 0.8125rem;
-  color: var(--text);
-  background: var(--card);
-  border-radius: var(--radius-pill);
-  text-decoration: none;
-  box-shadow: 0 0 0 1px var(--hairline);
-  transition: color 0.2s var(--ease), background-color 0.2s var(--ease);
-}
-
-.facet:hover,
-.prose .facet:hover { color: var(--card); background: var(--accent); }
-
 .prose .facts .whs {
   display: flex;
   flex-wrap: wrap;

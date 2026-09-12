@@ -9,8 +9,10 @@ Matching is name search (wbsearchentities) crossed with proximity to the coordin
 already in the file; anything the two do not agree on lands in OVERRIDES below, by hand.
 A point mapped to None has no Wikidata item and is left alone.
 
+Everything is written in Wikidata's own English labels; nothing is translated or reworded.
+
 Writes:
-  assets/data/places.json  entities, World Heritage sites, and the point index places.html reads
+  assets/data/places.json  one record per Wikidata entity, keyed by QID
   travel/<id>.json         a "wikidata" key on each point, and its coordinate snapped to
                            Wikidata when the two are within SNAP_M
 
@@ -93,14 +95,13 @@ AREA_TYPES = {
     "Q15835", "Q357685", "Q2637759", "Q1851368",
 }
 
-# Claims worth showing, and how many values to keep of each.
+# Claims the fact card shows. Everything Wikidata has is written out; how many of them a
+# card prints is the page's business, not this script's.
 CLAIMS = [
-    ("type", "P31", 2), ("style", "P149", 3), ("religion", "P140", 2),
-    ("architect", "P84", 3), ("founder", "P112", 2), ("heritage", "P1435", 3),
+    ("type", "P31"), ("style", "P149"), ("religion", "P140"),
+    ("architect", "P84"), ("founder", "P112"), ("heritage", "P1435"),
 ]
 DATES = [("inception", "P571"), ("opened", "P1619"), ("ended", "P576")]
-WIKIS = ["zh", "en", "ja", "es", "ca", "vi", "gl"]
-ZH = '"zh-tw","zh-hant","zh"'  # in preference order; the first hit for an item wins
 
 
 def get(url):
@@ -195,32 +196,22 @@ def resolve(point):
     return best
 
 
-def pack(rows, key, limit):
-    """Claim values as "QID~English~Chinese", deduplicated, at most `limit` of them."""
-    seen = {}
-    for row in rows:
-        qid = row[key]["value"].rsplit("/", 1)[-1]
-        en = row.get("en", {}).get("value", "")
-        zh = row.get("zh", {}).get("value", "")
-        if qid not in seen or (zh and not seen[qid][1]):
-            seen[qid] = (en, zh)
-    out = []
-    for qid, (en, zh) in list(seen.items())[:limit]:
-        out.append("~".join([qid, en, zh if zh != en else ""]).rstrip("~"))
-    return out
-
-
-def pull(qids, prop, limit):
+def pull(qids, prop):
+    """{item QID: [{id, label}]} for one claim, in Wikidata's own English labels."""
     out = {}
     for i in range(0, len(qids), 120):
         values = " ".join("wd:" + q for q in qids[i:i + 120])
-        rows = sparql(f"""SELECT ?item ?v ?en ?zh WHERE {{ VALUES ?item {{ {values} }}
+        rows = sparql(f"""SELECT ?item ?v ?en WHERE {{ VALUES ?item {{ {values} }}
           ?item wdt:{prop} ?v .
-          OPTIONAL {{ ?v rdfs:label ?en FILTER(LANG(?en) = "en") }}
-          OPTIONAL {{ ?v rdfs:label ?zh FILTER(LANG(?zh) IN ({ZH})) }} }}""")
+          OPTIONAL {{ ?v rdfs:label ?en FILTER(LANG(?en) = "en") }} }}""")
         for row in rows:
-            out.setdefault(row["item"]["value"].rsplit("/", 1)[-1], []).append(row)
-    return {q: pack(rows, "v", limit) for q, rows in out.items()}
+            item = row["item"]["value"].rsplit("/", 1)[-1]
+            value = row["v"]["value"].rsplit("/", 1)[-1]
+            label = row.get("en", {}).get("value")
+            seen = out.setdefault(item, {})
+            if label and value not in seen:
+                seen[value] = label
+    return {q: [{"id": k, "label": v} for k, v in labels.items()] for q, labels in out.items()}
 
 
 def pull_dates(qids, prop):
@@ -312,30 +303,26 @@ def main():
     rows = []
     for i in range(0, len(qids), 120):
         values = " ".join("wd:" + q for q in qids[i:i + 120])
-        rows += sparql(f"""SELECT ?item ?c ?en ?zh ?enD ?zhD WHERE {{ VALUES ?item {{ {values} }}
+        rows += sparql(f"""SELECT ?item ?c ?label ?description WHERE {{ VALUES ?item {{ {values} }}
           OPTIONAL {{ ?item wdt:P625 ?c }}
-          OPTIONAL {{ ?item rdfs:label ?en FILTER(LANG(?en) = "en") }}
-          OPTIONAL {{ ?item rdfs:label ?zh FILTER(LANG(?zh) IN ({ZH})) }}
-          OPTIONAL {{ ?item schema:description ?enD FILTER(LANG(?enD) = "en") }}
-          OPTIONAL {{ ?item schema:description ?zhD FILTER(LANG(?zhD) IN ({ZH})) }} }}""")
+          OPTIONAL {{ ?item rdfs:label ?label FILTER(LANG(?label) = "en") }}
+          OPTIONAL {{ ?item schema:description ?description FILTER(LANG(?description) = "en") }} }}""")
     for row in rows:
         place = places[row["item"]["value"].rsplit("/", 1)[-1]]
-        if "c" in row and "c" not in place:
+        if "c" in row and "coord" not in place:
             m = re.search(r"Point\(([-\d.]+) ([-\d.]+)\)", row["c"]["value"])
             if m:
-                place["c"] = [round(float(m.group(2)), 6), round(float(m.group(1)), 6)]
-        for key, field in (("en", "en"), ("zh", "zh"), ("enD", "_ed"), ("zhD", "_zd")):
-            if key in row and field not in place:
-                place[field] = row[key]["value"]
-    for place in places.values():
-        desc = place.pop("_zd", None) or place.pop("_ed", None)
-        place.pop("_ed", None)
-        if desc:
-            place["desc"] = desc
+                place["coord"] = [round(float(m.group(2)), 6), round(float(m.group(1)), 6)]
+        for key in ("label", "description"):
+            if key in row and key not in place:
+                place[key] = row[key]["value"]
 
-    for key, prop, limit in CLAIMS:
-        for qid, values in pull(qids, prop, limit).items():
-            values = [v for v in values if not v.startswith(("Q43113623~", "Q9259~"))]
+    # "part of a World Heritage Site" and "World Heritage Site" say nothing the
+    # heritageSite link below does not say better.
+    skip = {"Q43113623", "Q9259"}
+    for key, prop in CLAIMS:
+        for qid, values in pull(qids, prop).items():
+            values = [v for v in values if v["id"] not in skip]
             if values:
                 places[qid][key] = values
         print(f"  {key}: {sum(1 for p in places.values() if key in p)}")
@@ -344,32 +331,30 @@ def main():
             places[qid][key] = years
 
     # World Heritage: the item's own listing, or the one it is a part of.
-    whs, sites = {}, {}
+    listings, sites = {}, {}
     for i in range(0, len(qids), 150):
         values = " ".join("wd:" + q for q in qids[i:i + 150])
         for row in sparql(f"""SELECT ?item ?whs ?id WHERE {{ VALUES ?item {{ {values} }}
           {{ ?item wdt:P757 ?id . BIND(?item AS ?whs) }} UNION {{ ?item wdt:P361 ?whs . ?whs wdt:P757 ?id }}
           UNION {{ ?item wdt:P361/wdt:P361 ?whs . ?whs wdt:P757 ?id }} }}"""):
             qid = row["item"]["value"].rsplit("/", 1)[-1]
-            whs[qid] = f'{row["whs"]["value"].rsplit("/", 1)[-1]}~{row["id"]["value"]}'
-    for qid, packed in whs.items():
-        places[qid]["whs"] = packed
-    if whs:
-        values = " ".join("wd:" + w.split("~")[0] for w in set(whs.values()))
-        for row in sparql(f"""SELECT ?whs ?en ?zh ?crit ?critLabel ?year WHERE {{ VALUES ?whs {{ {values} }}
-          OPTIONAL {{ ?whs rdfs:label ?en FILTER(LANG(?en) = "en") }}
-          OPTIONAL {{ ?whs rdfs:label ?zh FILTER(LANG(?zh) IN ({ZH})) }}
+            listings[qid] = {"id": row["whs"]["value"].rsplit("/", 1)[-1], "ref": row["id"]["value"]}
+    for qid, listing in listings.items():
+        places[qid]["heritageSite"] = listing
+    if listings:
+        values = " ".join("wd:" + w["id"] for w in listings.values())
+        for row in sparql(f"""SELECT ?whs ?label ?crit ?critLabel ?year WHERE {{ VALUES ?whs {{ {values} }}
+          OPTIONAL {{ ?whs rdfs:label ?label FILTER(LANG(?label) = "en") }}
           OPTIONAL {{ ?whs wdt:P2614 ?crit }}
           OPTIONAL {{ ?whs p:P1435 [ ps:P1435 wd:Q9259 ; pq:P580 ?year ] }}
           SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en" }} }}"""):
-            site = sites.setdefault(row["whs"]["value"].rsplit("/", 1)[-1], {"crit": []})
-            for key, field in (("en", "en"), ("zh", "zh")):
-                if key in row and field not in site:
-                    site[field] = row[key]["value"]
+            site = sites.setdefault(row["whs"]["value"].rsplit("/", 1)[-1], {"criteria": []})
+            if "label" in row and "label" not in site:
+                site["label"] = row["label"]["value"]
             if "year" in row:
-                site["year"] = row["year"]["value"][:4]
-            if "critLabel" in row and row["critLabel"]["value"] not in site["crit"]:
-                site["crit"].append(row["critLabel"]["value"])
+                site["inscribed"] = row["year"]["value"][:4]
+            if "critLabel" in row and row["critLabel"]["value"] not in site["criteria"]:
+                site["criteria"].append(row["critLabel"]["value"])
 
     # Snap the coordinates the match agrees with; leave the rest for review.
     review = []
@@ -378,23 +363,20 @@ def main():
         if not place:
             review.append((point, None, "no entity"))
             continue
-        if "c" not in place:
+        if "coord" not in place:
             review.append((point, None, "no coordinate"))
             continue
-        distance = haversine(point["lat"], point["lon"], *place["c"])
-        area = any(v.split("~")[0] in AREA_TYPES for v in place.get("type", []))
+        distance = haversine(point["lat"], point["lon"], *place["coord"])
+        area = any(v["id"] in AREA_TYPES for v in place.get("type", []))
         if distance <= (SNAP_AREA_M if area else SNAP_M):
-            point["snap"] = place["c"]
+            point["snap"] = place["coord"]
         else:
             review.append((point, round(distance), "area" if area else "point"))
 
-    index = [{"t": p["trip"], "n": p["name"], "s": p["where"], "q": p["qid"]}
-             for p in points if p["qid"]]
-    titles = {p["trip"]: p["title"] for p in points}
-    OUT.write_text(json.dumps({"places": places, "whs": sites, "points": index, "trips": titles},
+    OUT.write_text(json.dumps({"places": places, "heritageSites": sites},
                               ensure_ascii=False, separators=(",", ":")) + "\n")
-    print(f'{OUT.name}: {len(places)} entities, {len(index)} points, '
-          f'{OUT.stat().st_size / 1024:.0f} KB')
+    print(f"{OUT.name}: {len(places)} entities, {len(sites)} World Heritage sites, "
+          f"{OUT.stat().st_size / 1024:.0f} KB")
     write_back(points)
 
     if args.review:
