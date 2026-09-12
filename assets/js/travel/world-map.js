@@ -12,6 +12,7 @@ const PAD = 6;
 const MAX_ZOOM = 40;
 const SKY_REACH = 93; // degrees of sky each polar chart draws, measured from its pole
 const SKY_SEAM = 0.22; // share of a star band that fades out where it meets the land
+const SKY_SOFT = 8; // magnitudes past the limit where a star's radius stops growing linearly
 const HIT_RADIUS = 20; // px around a dot that still counts as clicking it
 const EDGE_MARGIN = 48; // px a selected dot is kept away from the map's edges
 
@@ -99,7 +100,13 @@ function skyHtml(w, h, bandH, sky) {
         const p = projection([ra, dec]);
         if (!p || p[0] < -3 || p[0] > w + 3 || p[1] < top - 3 || p[1] > top + bandH + 3) return '';
         const bright = Math.min(1, (magMax - mag) / magMax);
-        const r = 0.5 + (magMax - mag) * 0.45;
+        // Magnitude is already logarithmic, so a radius linear in it is the star-atlas
+        // convention — but it is unbounded, and the Sun sits 33 magnitudes above the
+        // faintest star here, which would draw a 15px disc. Past SKY_SOFT the growth
+        // turns logarithmic: every real star keeps its size, and anything brighter than
+        // Sirius is compressed instead of exploding.
+        const over = Math.max(0, magMax - mag);
+        const r = 0.5 + 0.45 * (over <= SKY_SOFT ? over : SKY_SOFT + Math.log1p(over - SKY_SOFT));
         return `<circle class="map-star" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}"`
           + ` r="${r.toFixed(2)}" opacity="${(0.3 + bright * 0.6).toFixed(2)}"/>`;
       })
