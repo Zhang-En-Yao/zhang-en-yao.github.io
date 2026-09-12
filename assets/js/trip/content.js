@@ -6,6 +6,7 @@ import { tripTitle, tripDuration } from '../shared/trips.js';
 import { regionMapHtml, areaMapHtml } from './maps.js';
 import { flightsHtml } from './flights.js';
 import { clusterPoints, dedupeSameSite, CLUSTER_CAP_M } from './clusters.js';
+import { factsHtml } from '../shared/places.js';
 
 export function headerHtml(trip, countries) {
   const where = [trip.country, trip.continent].filter(Boolean).join(' · ');
@@ -27,9 +28,10 @@ const BED_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 
 const lodgingHtml = (item) => (item.lodging ? `<p class="lodging">${BED_ICON}<span>${esc(item.lodging)}</span></p>` : '');
 
-const pointHtml = (point) => `
+const pointHtml = (point, places) => `
     <h4>${esc(point.name)}</h4>
     ${point.kind ? `<p class="point-kind">${esc(point.kind)}</p>` : ''}
+    ${point.wikidata ? factsHtml(point.wikidata, places) : ''}
     ${paragraphs(point.body)}`;
 
 // Street keys match build-streets.py: "Section / Subsection", plus " #N" when split.
@@ -42,7 +44,7 @@ function subsectionMapsHtml(points, streets, key) {
 
 // A `route` section (the Camino) gets one map of all its stops, keyed by the section
 // heading, instead of a map per subsection.
-function sectionHtml(section, streets) {
+function sectionHtml(section, streets, places) {
   const subs = section.subsections || [];
   const routeMap = section.route
     ? areaMapHtml(dedupeSameSite(subs.flatMap((s) => s.points || [])), { streets: streets[section.heading], route: true })
@@ -52,7 +54,7 @@ function sectionHtml(section, streets) {
     ${section.route ? '' : subsectionMapsHtml(sub.points || [], streets, `${section.heading} / ${sub.heading}`)}
     ${lodgingHtml(sub)}
     ${paragraphs(sub.intro)}
-    ${(sub.points || []).map(pointHtml).join('')}`);
+    ${(sub.points || []).map((p) => pointHtml(p, places)).join('')}`);
 
   return `
     <h2>${esc(section.heading)}</h2>
@@ -62,4 +64,5 @@ function sectionHtml(section, streets) {
     ${subsHtml.join('')}`;
 }
 
-export const bodyHtml = (content, streets) => (content.sections || []).map((s) => sectionHtml(s, streets)).join('');
+export const bodyHtml = (content, streets, places) =>
+  (content.sections || []).map((s) => sectionHtml(s, streets, places)).join('');

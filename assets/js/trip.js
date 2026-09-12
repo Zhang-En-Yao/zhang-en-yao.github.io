@@ -1,6 +1,7 @@
 import { esc, fetchJson, emptyState, SERVE_HINT } from './shared/dom.js';
 import { TRIPS_SRC, tripTitle } from './shared/trips.js';
 import { loadCountries } from './shared/atlas.js';
+import { SRC as PLACES_SRC } from './shared/places.js';
 import { headerHtml, bodyHtml } from './trip/content.js';
 import { galleryHtml, wireGallery } from './trip/gallery.js';
 import { buildToc } from './trip/toc.js';
@@ -36,12 +37,13 @@ async function render() {
     return;
   }
 
-  const [content, streets] = await Promise.all([
+  const [content, streets, places] = await Promise.all([
     fetchJson(`travel/${trip.file}`),
     fetchJson(`travel/streets/${trip.id}.json`).catch(() => ({})), // Optional; see build-streets.py.
+    fetchJson(PLACES_SRC).catch(() => null), // Optional; see build-places.py.
   ]);
   const [gallery, photos] = galleryHtml(content, trip.id);
-  tripEl.innerHTML = `${headerHtml(trip, countries)}<div class="prose">${bodyHtml(content, streets)}${gallery}</div>`;
+  tripEl.innerHTML = `${headerHtml(trip, countries)}<div class="prose">${bodyHtml(content, streets, places)}${gallery}</div>`;
 
   const prose = tripEl.querySelector('.prose');
   buildToc(prose, tocEl);

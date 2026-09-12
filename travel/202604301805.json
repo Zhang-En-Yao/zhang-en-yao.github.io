@@ -62,8 +62,9 @@
             {
               "name": "Okinawa Churaumi Aquarium",
               "kind": "Aquarium",
-              "lat": 26.69439,
-              "lon": 127.87794,
+              "lat": 26.694389,
+              "lon": 127.877944,
+              "wikidata": "Q1445750",
               "body": [
                 "The aquarium is the anchor of the Ocean Expo Park, laid out on the Motobu headland on the grounds of Expo '75 — the International Ocean Exposition held in 1975–76 to mark Okinawa's return to Japanese sovereignty three years earlier, after twenty-seven years of United States military administration. The present building opened in 2002, replacing a smaller aquarium put up for the fair on the same site. Its name joins the Okinawan words *chura*, beautiful, and *umi*, sea.",
                 "The building steps down the slope, so that a visitor descends from shallow reef tanks to the deep-water \"Kuroshio Sea,\" a tank of roughly 7,500 cubic metres named for the warm current that runs past the islands and is pumped through it. Seen through an acrylic panel 8.2 metres by 22.5 — for years among the largest in the world — it holds whale sharks and manta rays; Churaumi was the first aquarium to keep whale sharks over the long term and the first to record captive manta ray births."
@@ -80,6 +81,7 @@
               "kind": "Bridge",
               "lat": 26.6905,
               "lon": 128.0147,
+              "wikidata": "Q24834962",
               "body": [
                 "The bridge opened in 2005, a 1,960-metre span linking the small island of Kouri to Yagaji Island, which a causeway and the older Warumi Bridge of 2010 in turn tie back to the Motobu mainland. It is one of the longest toll-free bridges in Japan, and it replaced the ferry that had been Kouri's only fixed connection to the rest of Okinawa. It runs low over shallow water above a pale sand-and-coral bottom, and the drive out across that bright turquoise is the image the island trades on."
               ]
@@ -87,8 +89,9 @@
             {
               "name": "Kouri Island",
               "kind": "Island",
-              "lat": 26.7036,
-              "lon": 128.0178,
+              "lat": 26.706111,
+              "lon": 128.017778,
+              "wikidata": "Q4518163",
               "body": [
                 "Kouri is a near-circular island of about 3 square kilometres in Nakijin village, ringed by a single road roughly 8 kilometres round. It carries a Ryukyuan origin legend in which a boy and a girl — the first people — fall to the island from the sky and learn love by watching the dugongs; the story has earned it the tourist name \"Island of Love\" and made a photo-stop of two heart-shaped gaps in the rocks off the northern shore, fixed in the public mind by a 2013 airline advertisement. The island still grows sugarcane and is known for its sea urchin, landed in early summer."
               ]
@@ -110,8 +113,9 @@
             {
               "name": "Shuri Castle Park",
               "kind": "Castle / World Heritage Site",
-              "lat": 26.217,
-              "lon": 127.7194,
+              "lat": 26.217031,
+              "lon": 127.719475,
+              "wikidata": "Q907052",
               "body": [
                 "Shuri was the seat of the Ryukyu Kingdom, which from 1429 ruled the island chain as a single state, trading across maritime East Asia and sending tribute to the Ming and later the Qing court; after a Satsuma invasion in 1609 it also owed obligations to that Japanese domain while keeping its throne and its ties to China. The castle was the royal residence and the kingdom's administrative and ceremonial centre, its main hall — the Seiden — facing west toward China, its lacquer-red colour and its carving a mixture of Chinese and Japanese forms with Ryukyuan ones. In 1879 Japan abolished the kingdom, exiled the last king Shō Tai, and made the islands Okinawa Prefecture.",
                 "Stripped of its court, the castle served as a garrison and a school and fell into decay; it was slated for demolition before being saved and named a national treasure in the 1920s. In the 1945 Battle of Okinawa the Japanese Thirty-Second Army dug its headquarters into tunnels beneath the hill, and American naval gunfire and bombing levelled the site. The University of the Ryukyus stood on the ground into the 1970s; the Seiden was rebuilt from old photographs and records and reopened in 1992, and the stone foundations and the sacred sites around them were inscribed as World Heritage in 2000. On the night of 31 October 2019 a fire destroyed the Seiden and the halls beside it once more; this visit falls during the rebuilding, with the main hall due to be finished in 2026."
@@ -128,6 +132,7 @@
               "kind": "Shinto shrine",
               "lat": 26.2213,
               "lon": 127.6668,
+              "wikidata": "Q704636",
               "body": [
                 "Naminoue — \"above the waves\" — stands on a coral bluff that drops straight to the sea, and it was a sacred place in the indigenous Ryukyuan religion, a point for prayer toward Nirai Kanai, the world beyond the horizon, long before it held a shrine building. Under later Japanese influence it was recast as a Shinto shrine linked to the Kumano cult, and in the modern prefecture it was ranked as Okinawa's first shrine, at the head of the island's Shinto hierarchy.",
                 "The buildings were destroyed in 1945 and rebuilt in stages, the present hall dating from 1993. Directly below is Naminoue Beach, the only beach within the city of Naha, now backed by an elevated expressway carried offshore. Beside the shrine is the Buddhist temple Gokoku-ji, founded in 1368, where officers of Commodore Matthew Perry's squadron were quartered and where Perry signed a compact with the Ryukyu Kingdom in 1854, days after forcing open Japan itself."
@@ -136,8 +141,9 @@
             {
               "name": "Okinawa Gokoku Shrine",
               "kind": "Shinto shrine",
-              "lat": 26.20314,
-              "lon": 127.67608,
+              "lat": 26.203139,
+              "lon": 127.676083,
+              "wikidata": "Q11552847",
               "body": [
                 "Founded in 1936 in Onoyama Park, across the Kokuba estuary from Naminoue, this is Okinawa's Gokoku — \"nation-protecting\" — shrine, one of a class established across prewar Japan to enshrine the local war dead. It now venerates some 178,000 people who died in and around the 1945 Battle of Okinawa: soldiers and conscripts, the very large number of Okinawan civilians killed with them, and the war dead of other prefectures who fell on the islands. Burned out in the battle, it was rebuilt in 1965 and sits among the sports grounds and gymnasiums of the park."
               ]
@@ -151,8 +157,9 @@
             {
               "name": "Kokusai-dori",
               "kind": "Shopping street",
-              "lat": 26.214,
-              "lon": 127.688,
+              "lat": 26.215972,
+              "lon": 127.687278,
+              "wikidata": "Q4616917",
               "body": [
                 "The \"International Street\" runs about 1.6 kilometres through central Naha, from the prefectural offices to Asato. The name comes from the Ernie Pyle International Theater, a cinema that opened along it in 1948 under American administration and was itself named for the war correspondent Ernie Pyle, killed by machine-gun fire on Iejima just off Okinawa in April 1945.",
                 "The whole district had been flattened in the 1945 battle, and the speed with which shops and crowds came back to this one street earned it the nickname the \"Miracle Mile.\" It is now the tourist spine of the city — souvenir shops, izakaya and department stores, with the covered Heiwa-dori arcade and the Makishi public market running off it to the south — and is closed to traffic on Sunday afternoons."
@@ -232,8 +239,9 @@
             {
               "name": "Senaga Island",
               "kind": "Island",
-              "lat": 26.17602,
-              "lon": 127.6406,
+              "lat": 26.175,
+              "lon": 127.6425,
+              "wikidata": "Q4518914",
               "body": [
                 "Senaga is a small island off the Tomigusuku shore, just south of the end of Naha Airport's runway and joined to the main island by a short causeway. Requisitioned by the United States military after the war and used for fuel and ammunition, it was returned in 1977 — unusually early — and slowly turned over to leisure.",
                 "On its western slope is Umikaji Terrace, a bank of white cuboid shops and restaurants opened in 2015 in imitation of a Greek island village, facing the open sea and the sunset. Aircraft on final approach to Naha pass low overhead every few minutes, which is much of the appeal; there is also a hot-spring hotel drawing on a well beneath the island, and a small *utaki* sacred site on the summit."

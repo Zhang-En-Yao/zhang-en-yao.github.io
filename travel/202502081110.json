@@ -87,8 +87,9 @@
             {
               "name": "Hokkaido Shrine",
               "kind": "Shinto shrine",
-              "lat": 43.0546,
-              "lon": 141.3073,
+              "lat": 43.054235,
+              "lon": 141.307705,
+              "wikidata": "Q710826",
               "body": [
                 "The shrine was founded in 1869 by order of Emperor Meiji, in the same year as the Kaitakushi itself, and it was part of the same project: three *kaitaku sanjin*, deities of land opening — Ōkunitama, Ōnamuchi and Sukunahikona — were carried north from Tokyo and enshrined to preside over the settlement of the island. After a temporary hall in the new town, the shrine moved in 1871 to this slope below Mount Maruyama, where it was styled Sapporo Shrine. In 1964 the spirit of Emperor Meiji was added to the three and it took its present name, Hokkaidō Jingū — the shrine of the whole island rather than of its capital.",
                 "It faces northeast, a siting usually explained as looking out toward Sakhalin and the Russian frontier the Meiji state was anxious about; the plainness of the buildings is more recent than it looks, the main hall having burned down in 1974 and been rebuilt in 1978. Within the same grounds stands the small Kaitaku Shrine of 1938, which enshrines several dozen figures of the colonization era, so that the pioneers are venerated a few metres from the deities sent to help them. The wooded approach carries some 1,400 cherry and plum trees that flower together in early May — Hokkaido's seasons run late enough that plum and cherry do not take turns — and at New Year this is the busiest *hatsumōde* site north of Honshu. In February it is all snow, the path packed hard between banks of it."
@@ -97,8 +98,9 @@
             {
               "name": "Maruyama Park",
               "kind": "Park",
-              "lat": 43.0533,
-              "lon": 141.312,
+              "lat": 43.05075,
+              "lon": 141.309583,
+              "wikidata": "Q6778052",
               "body": [
                 "The park grew up around the shrine on land the Kaitakushi had planted with trees in the 1870s, and was formally laid out as a public park in 1913. Behind it the Maruyama primeval forest, a stand of broadleaf and conifer left uncut on the cone of the hill, was made a natural monument in 1921 — a piece of pre-settlement Hokkaido kept, deliberately, at the edge of the city that replaced it. Maruyama Zoo, opened in 1951 on the park's northern side, was the first zoo in Hokkaido."
               ]
@@ -114,8 +116,9 @@
             {
               "name": "Odori Park",
               "kind": "Park",
-              "lat": 43.0606,
-              "lon": 141.347,
+              "lat": 43.059722,
+              "lon": 141.346389,
+              "wikidata": "Q3107971",
               "body": [
                 "Odori — \"large street\" — began in 1871 not as a park but as a firebreak, a strip of cleared ground splitting the new grid into an official northern half and a commercial and residential southern one, and it is still the line all Sapporo addresses count from. It runs about 1.5 kilometres over twelve blocks and is a little over a hundred metres wide, planted through the twentieth century into lawns, fountains and elms.",
                 "Since 1950 it has been the site of the Sapporo Snow Festival, which began when six statues were built here by local high-school students and grew once the Self-Defense Forces began trucking in snow to raise sculptures several storeys high; the 1972 Winter Olympics, held in Sapporo, turned it into an international draw, and it now pulls in the order of two million visitors in a week. In 2025 the Odori site ran to 11 February, so the first days of this trip fall inside the last of it."
@@ -124,8 +127,9 @@
             {
               "name": "Sapporo TV Tower",
               "kind": "Tower",
-              "lat": 43.0611,
-              "lon": 141.3564,
+              "lat": 43.061111,
+              "lon": 141.356389,
+              "wikidata": "Q1063319",
               "body": [
                 "The tower closes the eastern end of Odori, 147.2 metres tall, opened in 1957 as a broadcast mast and designed by Tachū Naitō, the engineer of Nagoya's tower and of Tokyo Tower the following year. Its observation deck at 90 metres looks straight down the length of the park, which is the reason to go up during the snow festival rather than at any other time. The digital clock on its face was added for the 1972 Olympics."
               ]
@@ -133,8 +137,9 @@
             {
               "name": "Sapporo Clock Tower",
               "kind": "Historic building",
-              "lat": 43.0626,
-              "lon": 141.3535,
+              "lat": 43.062602,
+              "lon": 141.353681,
+              "wikidata": "Q1140619",
               "body": [
                 "This white clapboard hall was built in 1878 as the drill hall of the Sapporo Agricultural College — founded two years earlier, the ancestor of Hokkaido University, and run in its first year by William S. Clark of the Massachusetts Agricultural College, who left the students the parting line \"Boys, be ambitious.\" The building is American balloon-frame construction, a type the Kaitakushi imported wholesale along with its advisers, and it is now an Important Cultural Property.",
                 "The clock came later, ordered from Howard and Company of Boston and installed in 1881. It is weight-driven and still wound by hand twice a week, which makes it one of the oldest working tower clocks in Japan. Hemmed in on all sides by office blocks, it is also the standing joke of Japanese tourism, named in most lists of the country's \"three great disappointments\" — a small wooden building where visitors expect a landmark."
@@ -143,8 +148,9 @@
             {
               "name": "Former Hokkaido Government Office",
               "kind": "Historic building",
-              "lat": 43.0642,
-              "lon": 141.3468,
+              "lat": 43.063944,
+              "lon": 141.348,
+              "wikidata": "Q861554",
               "body": [
                 "The red brick building of 1888 — *akarenga* — was the seat of Hokkaido's government for eighty years, until the present offices went up behind it in 1968. It is American neo-Baroque, built of some 2.5 million bricks fired locally, its octagonal dome modelled on the Massachusetts State House in Boston: the Kaitakushi looked to the American frontier states rather than to Europe for how a new northern territory ought to be run and how its capital ought to look. A fire gutted the interior in 1909 and the restoration was finished in 1911.",
                 "The building has been shut for seismic strengthening and repair since 2019 and did not reopen until the middle of 2025, so on this visit it is a façade behind hoarding, seen from the snow-covered front garden and its frozen ponds."
@@ -161,6 +167,7 @@
               "kind": "Market",
               "lat": 43.0577,
               "lon": 141.3546,
+              "wikidata": "Q11371661",
               "body": [
                 "The market grew from fishermen selling their catch on the bank of the Sōsei River in the first years of the twentieth century, and it has stayed on the same block ever since, a single roofed lane of stalls at the southeastern corner of the grid. What it sells is what Hokkaido's winter fishery lands: king and hair crab, sea urchin, salmon roe, scallops — much of it now over rice as a *kaisendon* eaten standing or at a counter in the back."
               ]
@@ -168,8 +175,9 @@
             {
               "name": "Susukino",
               "kind": "Entertainment district",
-              "lat": 43.0554,
-              "lon": 141.3538,
+              "lat": 43.054904,
+              "lon": 141.353383,
+              "wikidata": "Q869175",
               "body": [
                 "Susukino dates from 1871, when the Kaitakushi licensed a pleasure quarter here on the reasoning that the labourers brought in to build the city would otherwise leave it. It is now the largest entertainment district north of Tokyo — several thousand bars, restaurants and clubs in a few blocks — and its crossing, under the Nikka whisky sign that has stood there since 1969, is the one piece of Sapporo that photographs like a big Japanese city. During the snow festival the blocks along Ekimae-dōri hold the Susukino Ice Festival, a corridor of clear ice sculptures with fish and flowers frozen inside them."
               ]
@@ -185,6 +193,7 @@
               "kind": "Mountain / viewpoint",
               "lat": 43.0261,
               "lon": 141.3236,
+              "wikidata": "Q11625132",
               "body": [
                 "Moiwa is 531 metres, close enough to the southwest edge of the grid that the whole city lies out below it, and it is reached by a ropeway of 1958, renewed in 2011, and a small cable car for the last stretch to the summit. Its forest, like Maruyama's, was made a natural monument in 1921.",
                 "The name is an Ainu inheritance gone slightly wrong: this peak was *inkar-us-pe*, \"the place one climbs to watch\", a lookout, while *mo-iwa*, the small mountain, was what is now called Maruyama — Meiji-era mapping attached the names to the wrong hills and they stuck. The view from the top, counted since 2015 among Japan's three great night views alongside Nagasaki and Kobe, is worth the cold: the lit grid runs out in straight lines to the dark of the Ishikari plain."
@@ -199,8 +208,9 @@
             {
               "name": "Sapporo Beer Museum",
               "kind": "Museum",
-              "lat": 43.0709,
-              "lon": 141.3703,
+              "lat": 43.071667,
+              "lon": 141.368889,
+              "wikidata": "Q1055944",
               "body": [
                 "Beer was another government project. The Kaitakushi opened its brewery in Sapporo in 1876 under Seibei Nakagawa, who had trained in Germany, on the argument that Hokkaido's climate suited barley and hops and that the settlement needed an industry; the North Star on the label is the Kaitakushi's own emblem. Privatised in 1886, the brewery became Sapporo Beer and the oldest brand still brewing in Japan.",
                 "The museum occupies a red brick building of 1890 that was originally a sugar factory on the same site and later served the brewery, and opened as a museum in 1987. The beer garden beside it serves lamb *jingisukan*, grilled on a domed iron plate — a Hokkaido dish that comes out of the same official enthusiasm, sheep having been pushed on the island's farmers in the 1910s and 1920s for wool."
@@ -225,6 +235,7 @@
               "kind": "Canal",
               "lat": 43.1988,
               "lon": 140.9947,
+              "wikidata": "Q10959355",
               "body": [
                 "The canal, finished in 1923, was not dug inland but made by reclaiming a strip of sea slightly offshore, which is why it curves: ships anchored in the bay were unloaded onto barges, and the barges ran the cargo along it to the doors of the stone warehouses on the landward bank. It is 1,140 metres long. Around it stood the offices of the banks and shipping firms that handled the herring and coal trade, enough of them on Nichigin-dōri for the district to be called the Wall Street of the North.",
                 "Postwar the port's business moved to the new harbour at Ishikari, quay cranes made barges pointless, and by the 1960s the canal was a stagnant ditch the city proposed to fill in for a six-lane road. The argument ran for over a decade and ended in a compromise that satisfied nobody entirely and worked anyway: half the width was filled and carries the road, half was kept as water at about twenty metres wide, with a stone promenade and sixty-odd gas lamps completed in 1986. The row of warehouses behind it now holds restaurants and galleries, and the walk is the single image Otaru sells."
@@ -235,6 +246,7 @@
               "kind": "Disused railway",
               "lat": 43.1975,
               "lon": 140.997,
+              "wikidata": "Q7698128",
               "body": [
                 "The line from Temiya, Otaru's inner harbour, to Sapporo opened in 1880 as part of the Horonai Railway — the third railway built in Japan, after Tokyo–Yokohama and Osaka–Kobe, and the first in Hokkaido. It existed to bring coal down from the Horonai mine to ships, with American-built locomotives and American engineering advice, and it is the reason Otaru rather than any other bay on this coast became the port. Freight ran until 1985. The trackbed through the middle of town is now a walking path, its rails left in place, and in February it is lined with candles for the Snow Light Path."
               ]
@@ -244,6 +256,7 @@
               "kind": "Winter festival",
               "lat": 43.198,
               "lon": 140.996,
+              "wikidata": "Q11462179",
               "body": [
                 "Held over about ten days each February since 1999, the Snow Light Path is the quieter opposite of Sapporo's festival: no sculptures, just candles, set in hollows scooped out of the snow and inside the round glass floats Otaru's fishing fleet once used, along the canal, the old Temiya trackbed and the side streets, lit by volunteers at dusk. The name comes from *Yuki-akari no michi*, the 1926 poetry collection of Sei Itō, who grew up here."
               ]
@@ -268,6 +281,7 @@
               "kind": "Glassworks / shop",
               "lat": 43.1911,
               "lon": 141.0013,
+              "wikidata": "Q11400834",
               "body": [
                 "The firm was founded in 1901 as a maker of oil lamps and, more profitably, of the blown glass floats that held up the herring nets in the bay. Both markets vanished — electricity took the lamps, plastic and the fishery's collapse took the floats — and the company turned to decorative glassware in the 1970s, which is now what Otaru is known for. Its Hall Number 3, in a 1891 warehouse, is lit entirely by some 167 oil lamps, which is the original product being sold as atmosphere."
               ]
@@ -277,6 +291,7 @@
               "kind": "Museum / shop",
               "lat": 43.1898,
               "lon": 141.0025,
+              "wikidata": "Q48765500",
               "body": [
                 "The main hall is a brick and stone building of 1912 put up by a rice and grain trading company, now filled over three floors with music boxes — the largest such shop in Japan, and another instance of the town finding a use for premises built for something else entirely. Outside it stands a steam clock, built by Raymond Saunders of Vancouver and installed in 1977; it whistles on the quarter hour and is one of very few of its kind anywhere."
               ]
@@ -298,8 +313,9 @@
             {
               "name": "Asahiyama Zoo",
               "kind": "Zoo",
-              "lat": 43.7683,
-              "lon": 142.4805,
+              "lat": 43.768051,
+              "lon": 142.479782,
+              "wikidata": "Q993926",
               "body": [
                 "Opened in 1967 on a hill east of the city, Asahiyama is the northernmost zoo in Japan and for its first thirty years an unremarkable municipal one. It nearly closed in the mid-1990s: an outbreak of echinococcosis among the animals, then a collapse in visitors to a few hundred thousand a year, and a council that saw no reason to keep paying.",
                 "What saved it was a change of method its keepers called *kōdō tenji*, behavioural exhibition — designing enclosures around what an animal does rather than around what it looks like. Penguins are shown from beneath through a glass tunnel, seals swim up a vertical cylindrical tank that runs through the middle of the path, polar bears are watched from a dome set at seal's-eye level in their pool. By 2004 monthly attendance had passed Ueno's, which for a small city zoo in the north was a national story. Winter is its best season: when the snow is deep enough the king penguins are walked out along a track through the grounds twice a day, ostensibly for exercise, and the enclosures were built for animals that prefer this weather."
@@ -316,6 +332,7 @@
               "kind": "Food hall",
               "lat": 43.8018,
               "lon": 142.3838,
+              "wikidata": "Q11087091",
               "body": [
                 "Asahikawa's ramen is a soy-sauce broth made double, a pork-and-chicken stock combined with a fish stock of dried sardine and kelp, and finished with a film of lard on top — insulation, in a town where a bowl outdoors would otherwise cool between the counter and the seat. The noodles are low in water and crimped, so they survive the fat without going soft. The style spread nationally in the 1990s, and Ramen Village, opened on a retail park on the northern edge of town in 1996, gathers eight of the city's shops under one roof — a marketing construction rather than an old quarter, but an efficient way to eat the local version of the dish."
               ]
@@ -339,6 +356,7 @@
               "kind": "Pond",
               "lat": 43.4966,
               "lon": 142.6272,
+              "wikidata": "Q11661016",
               "body": [
                 "The pond is an accident of civil engineering. After Mount Tokachi erupted in 1988, erosion-control dams were built along the Biei River the following year to hold back any future mudflow toward the town; water gathered behind one of them, drowning a stand of larch whose bare trunks still stand in the water.",
                 "Its colour comes from the Shirogane hot spring upstream, whose water carries aluminium that reacts on meeting the river to form colloidal particles fine enough to scatter light back as blue. The pond was known locally and to photographers, and became famous in 2012 when one image of it was included as a desktop wallpaper by Apple. In deep winter it freezes and disappears under snow; since 2014 it has been floodlit on winter evenings instead, which is the only way to see anything of it in February."
@@ -349,6 +367,7 @@
               "kind": "Waterfall",
               "lat": 43.4728,
               "lon": 142.6425,
+              "wikidata": "Q17228813",
               "body": [
                 "\"White beard\" falls a couple of kilometres upstream at Shirogane Onsen, and it is a subsurface waterfall: no stream runs over the lip, the water instead seeping out through cracks in a lava layer partway down the cliff and dropping some thirty metres in threads into the Biei River. The river below it runs the same blue as the pond, and for the same reason — this is where the hot spring's aluminium enters the water. It is seen from the Blue River Bridge, and it runs through the winter, framed in ice."
               ]
@@ -366,6 +385,7 @@
               "kind": "Tree / viewpoint",
               "lat": 43.6072,
               "lon": 142.4487,
+              "wikidata": "Q17990887",
               "body": [
                 "A single poplar on a rise north of the town, named after the young couple in a 1972 Nissan Skyline campaign filmed beside it. It is on private farmland, like most of these landmarks, and the courtesy of not walking into the field is asked at some length on the signs."
               ]
@@ -393,6 +413,7 @@
               "kind": "Photography gallery",
               "lat": 43.5697,
               "lon": 142.4553,
+              "wikidata": "Q30066271",
               "body": [
                 "The reason Biei is visited at all is Shinzō Maeda, a photographer who began working these hills in 1971 and whose pictures of them — the fields as pure pattern, the single trees as punctuation — created the way the place is now seen and photographed by everyone else. The Takushinkan gallery opened in 1987 in a converted school building set among larch woods, and shows his work and that of his son Akira. Visiting it is the closest thing to an explanation of why the rest of the day was spent looking at other people's farmland."
               ]

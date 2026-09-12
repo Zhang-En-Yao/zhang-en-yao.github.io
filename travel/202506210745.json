@@ -108,8 +108,9 @@
             {
               "name": "Tsutenkaku",
               "kind": "Tower / observation deck",
-              "lat": 34.6525,
-              "lon": 135.5063,
+              "lat": 34.652222,
+              "lon": 135.506111,
+              "wikidata": "Q1148463",
               "body": [
                 "Shinsekai — \"New World\" — was laid out in 1912 on ground left over from the National Industrial Exposition of 1903, and it was built as an argument: the northern half copied Paris, the southern half copied Coney Island, with an amusement park called Luna Park behind and a tower at the head of it all. The first Tsutenkaku, finished that year, was a 64-metre iron tower set on an arch, a compressed quotation of the Eiffel Tower standing on something like the Arc de Triomphe, and for a while it was the tallest structure in Asia. A cable car ran from the tower into the park.",
                 "Luna Park closed in 1923 and the district slid; a fire in the adjoining theatre in 1943 damaged the tower, and what was left was pulled down and given to the war effort as scrap. The present Tsutenkaku dates from 1956, when local subscribers rebuilt it at 103 metres to a design by Naitō Tachū, the structural engineer who went on to do Tokyo Tower. On the fifth floor sits Billiken, a grinning good-luck figure invented by an American artist in 1908 and installed in Luna Park in 1912 — the original vanished with the park, and the one enshrined now is a replacement carved in 1979. The neon crown at the top has long carried the next day's weather forecast in colour. The streets below are the kushikatsu quarter, cheap and loud in a way central Osaka mostly no longer is."
@@ -124,8 +125,9 @@
             {
               "name": "Sumiyoshi Taisha",
               "kind": "Shinto shrine",
-              "lat": 34.6122,
-              "lon": 135.4933,
+              "lat": 34.612513,
+              "lon": 135.492934,
+              "wikidata": "Q705949",
               "body": [
                 "The head shrine of some 2,300 Sumiyoshi shrines, and by tradition founded in the third century by Empress Jingū on her return from a campaign in Korea. It enshrines the three Sumiyoshi deities — Sokotsutsu-no-o, Nakatsutsu-no-o and Uwatsutsu-no-o, born when Izanagi purified himself in the sea — together with Jingū herself. They are gods of the sea and of safe passage, which is the point: the shore once reached almost to the gate, and the embassies sent to Tang China prayed here before sailing. They are also, by a later turn, gods of *waka* poetry.",
                 "The four main halls are the reason to come. *Sumiyoshi-zukuri* is one of the oldest surviving shrine forms, straight-gabled, thatched, with the entrance on the gable end and no trace of the Chinese detailing that reached Japanese architecture later; the shape has been kept by rebuilding it, historically on a fixed cycle, and the present halls date from 1810 and are National Treasures. Three stand in file pointing west toward the sea, with the fourth beside the third — a formation usually read as a fleet under way. In front is the steep vermilion arched bridge, the Sorihashi, traditionally said to have been given by Yodo-dono, Hideyoshi's consort; the bay it once looked out on is now a kilometre of reclaimed land and warehouses."
@@ -140,8 +142,9 @@
             {
               "name": "Umeda",
               "kind": "District",
-              "lat": 34.7025,
-              "lon": 135.4959,
+              "lat": 34.7,
+              "lon": 135.497,
+              "wikidata": "Q1194307",
               "body": [
                 "Umeda is written \"plum field\", but the name is usually explained as a softening of *umeda*, \"filled field\" — this was marsh and rice land north of the merchant city, buried to make ground. That is exactly why the railway ended up here: when the Osaka–Kobe line opened in 1874 the station was put out on the edge, away from the packed streets of the old town, and the city then grew to meet it.",
                 "What happened next was invented in Osaka. Kobayashi Ichizō, who ran the Hankyu railway, worked out that a private line could make its money from everything around the track rather than the fares — housing estates at one end, an amusement destination and the Takarazuka revue at the other, and a department store built directly over the terminus. Hankyu's store opened in 1929 and is generally counted the first terminal department store anywhere; every Japanese city with a private railway has copied it since. The result is Kita, the northern half of Osaka's centre: several stations of different companies with the same name or nearly, a famously disorienting underground shopping labyrinth joining them, Hara Hiroshi's Umeda Sky Building of 1993 with its open ring of a rooftop observatory to the northwest, and the old Umekita freight yard to the north redeveloped as Grand Front Osaka from 2013 and as a park in the phase that followed."
@@ -167,8 +170,9 @@
             {
               "name": "Yasaka Shrine",
               "kind": "Shinto shrine",
-              "lat": 35.0036,
-              "lon": 135.7786,
+              "lat": 35.003645,
+              "lon": 135.778529,
+              "wikidata": "Q692714",
               "body": [
                 "The vermilion gate at the eastern end of Shijō belongs to the shrine Kyoto calls Gion-san. Its foundation is given variously as 656 or 876, and for most of its history it was not a Shinto shrine in the modern sense at all: it was Gion-sha, a Buddhist-and-kami complex dedicated to Gozu Tennō, the ox-headed deity of plague, identified with Susanoo. The Meiji government's forced separation of Buddhism from Shinto in 1868 stripped the Buddhist half away and renamed the place Yasaka Shrine; the roughly 2,300 branch shrines around the country still carry the Gion name.",
                 "Its festival is the reason the shrine matters. The Gion Matsuri traces itself to 869, when plague was killing people in the capital and sixty-six halberds — one for each province — were set up and paraded to placate the angry spirits behind it. It has run through July ever since, with the float processions in the middle of the month, and it is the model for a great many other Japanese festivals. The main hall was rebuilt in 1654 under the fourth Tokugawa shogun and is unusual in gathering the sanctuary and the worship hall beneath a single great roof; it was raised to National Treasure in 2020. Maruyama Park, Kyoto's oldest public park and its most crowded cherry-viewing ground, opens out behind."
@@ -177,8 +181,9 @@
             {
               "name": "Yasaka Kōshin-dō",
               "kind": "Buddhist temple",
-              "lat": 34.9981,
-              "lon": 135.7784,
+              "lat": 34.998378,
+              "lon": 135.778737,
+              "wikidata": "Q3571897",
               "body": [
                 "Properly Daikokusan Kongō-ji Kōshin-dō, and one of the principal Kōshin halls in Japan. The belief behind it is Taoist in origin: three worms living in the body are said to slip out on the night of *kōshin*, which falls once every sixty days, and report the sleeper's misdeeds to heaven — so believers sat up through the night rather than let them go. Temple tradition holds that its image of Shōmen Kongō, the blue-bodied protector who keeps the worms in check, was brought from China by Kūkai and enshrined here by the monk Jōzō in 960, which would make this the first place the practice was opened to ordinary lay people rather than kept at court.",
                 "The monkey is the other half of it. The three monkeys who see, hear and speak no evil belong to this cult, and the small bright cloth bundles hung in their hundreds across the courtyard are *kukurizaru* — a monkey with its hands and feet bound, since a monkey left free follows its desires. You write a wish on one and hang it, and the price is that you give up a desire of your own; the temple is explicit that the wish is granted in exchange for the restraint, not for the cloth."
@@ -187,8 +192,9 @@
             {
               "name": "Hōkan-ji (Yasaka Pagoda)",
               "kind": "Buddhist temple / pagoda",
-              "lat": 34.9979,
-              "lon": 135.7788,
+              "lat": 34.99855,
+              "lon": 135.779242,
+              "wikidata": "Q11555353",
               "body": [
                 "The five-storey pagoda standing in the middle of the lane is all that is left of Hōkan-ji, a temple traditionally founded in 589 by Prince Shōtoku to hold relics of the Buddha. It burned and was rebuilt repeatedly; the present pagoda, about 46 metres high, was put up in 1440 by the sixth Ashikaga shogun, Yoshinori, after a fire four years earlier, and is an Important Cultural Property.",
                 "It is the oldest thing in this quarter by a wide margin, and unusually for a pagoda the lower storeys can be entered, with the great central pillar running down through them. Its position — set into the slope so that the lane frames it from below — is why it has become the shorthand image of Kyoto, and why the streets around it are a preservation district where the shopfronts and the power lines are regulated."
@@ -197,8 +203,9 @@
             {
               "name": "Kiyomizu-dera",
               "kind": "Buddhist temple / World Heritage Site",
-              "lat": 34.9949,
-              "lon": 135.785,
+              "lat": 34.994831,
+              "lon": 135.785003,
+              "wikidata": "Q221716",
               "body": [
                 "Founded in 778, before the capital itself, around the spring that gives it its name — *kiyomizu*, clear water, still running off the hillside in the three channels of the Otowa waterfall below the main hall. The founding is credited to the monk Enchin and to Sakanoue no Tamuramaro, the general sent north against the Emishi, who is said to have given his own residence for the hall in 798. It belonged to the Hossō school, the oldest of the Nara sects, and only became independent of Kōfuku-ji in the twentieth century.",
                 "The main hall enshrines an eleven-headed, thousand-armed Kannon shown to the public once in thirty-three years. Its stage projects thirteen metres out over the slope on a lattice of zelkova pillars joined without nails — a platform for temple dance and music facing the city, rebuilt in 1633 by the third Tokugawa shogun after a fire and reroofed in cypress bark in the restoration completed in 2020. The Edo-period phrase for taking an irreversible decision, \"to jump off the stage at Kiyomizu\", was also literal: temple records count well over two hundred jumps, most of them survived, until the practice was banned in 1872. The temple was inscribed as part of the Historic Monuments of Ancient Kyoto in 1994."
@@ -213,8 +220,9 @@
             {
               "name": "Fushimi Inari Taisha",
               "kind": "Shinto shrine",
-              "lat": 34.9671,
-              "lon": 135.7727,
+              "lat": 34.967202,
+              "lon": 135.773386,
+              "wikidata": "Q714828",
               "body": [
                 "The head shrine of roughly 30,000 Inari shrines, founded in 711 on this hill by the Hata, an immigrant clan of continental origin who had the wealth and the irrigation technology of the Kyoto basin before the capital arrived. Inari is the deity of rice, and therefore of the harvest, and therefore — once rice stopped being the measure of wealth — of business; the shrine's fortunes have tracked that shift, and the donors are now companies. The fox is not the deity but its messenger, usually shown with a key, a jewel or a sheaf of rice in its mouth.",
                 "The shrine buildings at the foot were burned in the Ōnin War and rebuilt in 1499. Above them the *senbon torii* begin: something like ten thousand gates, each one paid for by a person or a firm whose name is lacquered on the back, roofing a path that climbs 233-metre Mount Inari in a circuit of about four kilometres past hundreds of small altars and stone foxes. The dense tunnels near the bottom are the photographed part; the upper mountain, where the crowds thin out and the shrines get older and stranger, is the rest of it."
@@ -231,8 +239,9 @@
             {
               "name": "Shimogamo Shrine",
               "kind": "Shinto shrine / World Heritage Site",
-              "lat": 35.0389,
-              "lon": 135.7727,
+              "lat": 35.039069,
+              "lon": 135.773012,
+              "wikidata": "Q701620",
               "body": [
                 "Properly Kamo-mioya, \"the shrine of the Kamo ancestors\": it enshrines Kamo Taketsunumi, the clan's founding deity, and his daughter Tamayorihime, who are the grandfather and mother of the deity at Kamigamo upstream. It stands in the fork where the Takano and Kamo rivers meet, and its grounds hold Tadasu no Mori, about twelve hectares of unlogged broadleaf forest that has never been cleared or burned in the city's whole recorded history — some of the trees are several hundred years old, and the stream running through it is the setting of a great deal of classical poetry.",
                 "The court took the Kamo shrines seriously enough to send an unmarried imperial princess, the *saiin*, to serve here for four centuries. The Aoi Matsuri, traced to the sixth century and a run of storms and failed harvests blamed on these deities, still walks a Heian-costumed procession from the palace to this shrine and on to Kamigamo. The main halls, National Treasures, are renewed on a twenty-one-year cycle in the *shikinen sengū* rebuilding."
@@ -241,8 +250,9 @@
             {
               "name": "Kamigamo Shrine",
               "kind": "Shinto shrine / World Heritage Site",
-              "lat": 35.06,
-              "lon": 135.7527,
+              "lat": 35.060507,
+              "lon": 135.752752,
+              "wikidata": "Q700448",
               "body": [
                 "Properly Kamo-wakeikazuchi, after the thunder deity it enshrines — the child, in the clan myth, of Tamayorihime, who conceived him after carrying home a red-lacquered arrow she found floating down the river. Worship on the site predates the capital; the formal shrine buildings are credited to Emperor Tenmu in 678, and the present main hall and its twin were rebuilt in 1863 and are National Treasures.",
                 "In front of the Hosodono stand two neat cones of white sand, the *tatesuna*, standing in for the sacred mountain Kōyama to the north where the deity is said to have descended. They are the source of the purifying sand and salt cones set at gates and doorways all over Japan. The Nara-no-ogawa stream runs through the precinct and out through Shake-machi, the lane of priests' houses along the water that is now a preservation district, and the shrine still runs horse races, the *kurabeuma*, on 5 May — a rite recorded here since 1093."
@@ -259,8 +269,9 @@
             {
               "name": "Kinkaku-ji",
               "kind": "Zen temple / World Heritage Site",
-              "lat": 35.0394,
-              "lon": 135.7292,
+              "lat": 35.0395,
+              "lon": 135.7285,
+              "wikidata": "Q270983",
               "body": [
                 "The ground was a Kamakura-period aristocratic estate that Ashikaga Yoshimitsu, the third shogun, acquired in 1397 and rebuilt as Kitayama-dono, a retirement palace grand enough to receive a Chinese envoy — Yoshimitsu had resumed trade with Ming China and accepted the title \"King of Japan\" to get it. At his death in 1408 the complex became a Rinzai Zen temple, Rokuon-ji, named after his posthumous title, and everything but the pavilion has since gone.",
                 "The Golden Pavilion is a three-storey reliquary hall, each storey in a different idiom: aristocratic *shinden* style at the bottom, a warrior-house style with a Kannon hall above it, and a Chinese Zen hall at the top, with the upper two floors covered in gold leaf and a bronze phoenix on the roof. The building standing today is a 1955 reconstruction: on 2 July 1950 a twenty-two-year-old novice of the temple burned the original down and attempted to kill himself on the hill behind, an act Mishima Yukio turned into *The Temple of the Golden Pavilion* six years later. The gilding was redone in 1987 with leaf five times thicker than the original, which is why it reads as brighter in the mirror pond than any prewar photograph."
@@ -269,8 +280,9 @@
             {
               "name": "Ginkaku-ji",
               "kind": "Zen temple / World Heritage Site",
-              "lat": 35.027,
-              "lon": 135.7983,
+              "lat": 35.026667,
+              "lon": 135.798333,
+              "wikidata": "Q257473",
               "body": [
                 "Yoshimasa, the eighth shogun and Yoshimitsu's grandson, began this villa in 1482 as Higashiyama-dono. The context is what makes it strange: his own indecision over the succession had helped set off the Ōnin War, which burned most of Kyoto between 1467 and 1477, and he moved out here to build a retreat while the city was still wrecked. At his death in 1490 it became the Zen temple Jishō-ji, again named for his posthumous title.",
                 "The Kannon hall that everyone calls the Silver Pavilion was never silvered — the nickname is later, and the black-lacquered original was probably always meant to sit against the hillside rather than shine off the pond. Beside it, the Tōgu-dō contains Dōjinsai, a four-and-a-half-mat room with a built-in desk and staggered shelves that is generally taken as the ancestor of both the *shoin* study and the tea room. That is the real legacy: the Higashiyama culture assembled around Yoshimasa gave formal shape to the tea ceremony, flower arrangement, ink painting, nō, and the taste for the restrained and the worn that Japan has claimed as its own ever since. The raked sand sea and its truncated cone, the Kōgetsudai, are Edo-period additions to the garden, not his."
@@ -287,6 +299,7 @@
               "kind": "District / Place of Scenic Beauty",
               "lat": 35.0116,
               "lon": 135.6761,
+              "wikidata": "Q2859566",
               "body": [
                 "The western edge of the basin, where the Hozu river comes out of its gorge and becomes the Ōi. Heian courtiers kept villas here for the view and the moon and the autumn colour, and an emperor is credited with having cherries transplanted from Yoshino to the hillside in the thirteenth century; the whole district is designated a national Place of Scenic Beauty and Historic Site on the strength of a thousand years of being written about.",
                 "Tenryū-ji, at the centre, was founded in 1339 by Ashikaga Takauji to placate the spirit of Emperor Go-Daigo, whom he had driven out, and its pond garden is attributed to the monk Musō Soseki and is a World Heritage site in its own right. The bamboo path at Sagano runs north from behind it. The gorge upstream was cleared for timber rafts by the merchant Suminokura Ryōi in the early seventeenth century, and the flat-bottomed boats that still come down it are the descendants of that trade."
@@ -295,8 +308,9 @@
             {
               "name": "Togetsukyō Bridge",
               "kind": "Bridge",
-              "lat": 35.013,
-              "lon": 135.6779,
+              "lat": 35.012806,
+              "lon": 135.677722,
+              "wikidata": "Q11561923",
               "body": [
                 "\"The bridge crossing to the moon\" — the name is credited to Emperor Kameyama in the thirteenth century, who watched the moon track across the sky above it. A bridge was first thrown across here in 836 by the monk Dōshō, serving the temple Hōrin-ji on the south bank; it has been swept away and rebuilt many times, including once by Suminokura Ryōi when he opened the river to timber traffic.",
                 "The present bridge, about 155 metres long, dates from 1934 and is a piece of quiet stagecraft: the structure is reinforced concrete, but the railings and parapet are wood, so that the thing reads as a timber bridge from either bank. It floods — the typhoon of 2013 put the river over the deck — and it is repaired and left looking exactly as it did."
@@ -311,8 +325,9 @@
             {
               "name": "Kyoto Tower",
               "kind": "Tower / observation deck",
-              "lat": 34.9876,
-              "lon": 135.7593,
+              "lat": 34.9875,
+              "lon": 135.759167,
+              "wikidata": "Q1201304",
               "body": [
                 "Opened at the end of December 1964, weeks after the first Tōkaidō Shinkansen ran into the station across the street, and built on the site of the old central post office. At 131 metres it is still the tallest structure in the city — the height is usually explained as a nod to Kyoto's population of 1.31 million at the time. Yamada Mamoru designed it as a lighthouse over a city with no sea, a white tapering shaft above a block of hotel and shops.",
                 "Structurally it is a curiosity: there is no lattice and no internal frame, only rings of curved steel plate welded into a continuous stressed skin, closer to an aircraft fuselage than to Tsutenkaku's ironwork. It was fought hard by architects, academics and Buddhist clergy while it was being built, on the grounds that nothing should stand above the temple roofs, and that argument is not over — the city's 2007 height ordinance, which cut the limits across central Kyoto, is the descendant of it. The observation deck sits at 100 metres and, on a clear day, reaches Osaka."

@@ -54,8 +54,9 @@
             {
               "name": "Saigon City Hall",
               "kind": "Civic building",
-              "lat": 10.7765,
-              "lon": 106.70091,
+              "lat": 10.77647,
+              "lon": 106.70097,
+              "wikidata": "Q2227195",
               "body": [
                 "Begun in 1898 and finished in 1908, the Hôtel de Ville de Saïgon was built to house the city's French municipal council. The architect Fernand Gardès modelled it loosely on the town halls of provincial France — a symmetrical block with a central belfry over the entrance — and the sculptor Louis-Lucien Ruffier covered the façade with allegorical figures of France protecting a young Vietnam and of good government subduing wild nature. It closed the view up Rue Charner, the boulevard laid over a filled-in canal that had run from the river to its steps.",
                 "The Vietnamese called it Dinh Xã Tây, roughly \"the Western administration house.\" It served the Saigon city government of South Vietnam after 1954, and since 1975 has been the seat of the Ho Chi Minh City People's Committee — a working government building, floodlit at night but closed to visitors. The boulevard in front, renamed Nguyễn Huệ, was turned into a paved pedestrian mall in 2015; a bronze statue of Ho Chi Minh stands before the building, facing down it toward the Saigon River."
@@ -64,8 +65,9 @@
             {
               "name": "Saigon Central Post Office",
               "kind": "Post office",
-              "lat": 10.77992,
-              "lon": 106.69993,
+              "lat": 10.78,
+              "lon": 106.7,
+              "wikidata": "Q2227270",
               "body": [
                 "Built between 1886 and 1891 as the head post and telegraph office of French Cochinchina, on the square beside the cathedral. The design is usually credited to Gustave Eiffel — a durable local legend — but was in fact the work of Alfred Foulhoux, the colony's chief architect; the great iron-ribbed barrel vault over the hall is nonetheless exactly the kind of engineering Eiffel's firm was known for. Two painted wall maps survive from the 1890s, one of the telegraph lines of southern Vietnam and Cambodia and one of Saigon and its surroundings, beneath a portrait of Ho Chi Minh at the far end. It is still a working post office."
               ]
@@ -73,8 +75,9 @@
             {
               "name": "Saigon Notre-Dame Basilica",
               "kind": "Cathedral",
-              "lat": 10.77972,
-              "lon": 106.69906,
+              "lat": 10.779722,
+              "lon": 106.699167,
+              "wikidata": "Q428129",
               "body": [
                 "Built between 1877 and 1880 to a design by Jules Bourard, the cathedral was raised almost entirely from materials shipped from France: the structural iron, the stained glass from French workshops, and above all the bare red facing bricks from Marseille that never took on moss or damp — the source of its local name, the Red Church (nhà thờ Đức Bà). The two west towers stood bare until 1895, when the iron spires were added, bringing the height to about 60 metres, for decades the tallest thing in Saigon. It stands beside the colonial Central Post Office of 1886–91, a building long and wrongly attributed to Gustave Eiffel.",
                 "Its full dedication is to the Immaculate Conception; Rome granted it the rank of minor basilica in 1962. The granite statue of Our Lady of Peace on the small square in front was carved in Italy and installed in 1959, and in 2005 was reported by some onlookers to have wept, drawing crowds for several days. The building has been closed for a slow, repeatedly delayed restoration since 2017, its towers wrapped in scaffolding."
@@ -92,8 +95,9 @@
             {
               "name": "Bến Thành Market",
               "kind": "Market",
-              "lat": 10.77243,
-              "lon": 106.69802,
+              "lat": 10.772521,
+              "lon": 106.698019,
+              "wikidata": "Q3232879",
               "body": [
                 "The city's central covered market, its clock-towered south gate one of the standard symbols of Saigon. An older riverside market was displaced by the colonial build-up of the centre; the French moved the trade to this site and put up the present steel-framed hall in 1912–14, on ground reclaimed from a filled pond and marsh. The four gates face the cardinal directions, with bas-relief panels of the delta's produce set above them. Inside, it is now largely given over to visitors — fabric, souvenirs, coffee, lacquerware — with fresh food pushed to the edges and to the night-market stalls that fill the surrounding streets once the hall has closed."
               ]
@@ -109,8 +113,9 @@
             {
               "name": "Independence Palace",
               "kind": "Palace / historic site",
-              "lat": 10.77716,
-              "lon": 106.69573,
+              "lat": 10.77705,
+              "lon": 106.69537,
+              "wikidata": "Q933384",
               "body": [
                 "The site was occupied from 1873 by the Norodom Palace, residence of the Governor of French Cochinchina and later of the French High Commissioner for Indochina. Handed to the state of South Vietnam in 1954, it became the presidential palace of Ngô Đình Diệm. In February 1962 two of his own air force pilots bombed and strafed it, wrecking the left wing; Diệm chose to demolish the building entirely and commission a new one.",
                 "The replacement was designed by Ngô Viết Thụ, the first Vietnamese winner of the Grand Prix de Rome, who organised its plan and façades around auspicious Chinese characters and a screen of vertical concrete fins evoking bamboo. Diệm was assassinated in the 1963 coup and never saw it; it opened in 1966 and served President Nguyễn Văn Thiệu until 1975. On the morning of 30 April 1975 a North Vietnamese T-54 tank broke through the perimeter fence and the war ended on the lawn — the single most reproduced image of the fall of Saigon. It is kept as it was left: 1960s reception rooms upstairs, a warren of map rooms and radio sets in the basement bunker, and a helicopter on the roof beside two painted circles marking where a defecting pilot's bombs fell three weeks before the end."
@@ -127,6 +132,7 @@
               "kind": "Church",
               "lat": 10.78998,
               "lon": 106.69061,
+              "wikidata": "Q7682043",
               "body": [
                 "The Church of the Sacred Heart of Jesus in the Tân Định quarter was built between 1870 and 1876 and enlarged several times — Romanesque in its massing, with Gothic and Renaissance detail, and one of the largest churches in the city. What makes it photographed daily is the colour: since a repainting in the 1950s it has been kept a vivid pink, inside and out, down to the altars and trim. It remains an ordinary working parish church, next to the Tân Định market on Hai Bà Trưng Street."
               ]
@@ -149,8 +155,9 @@
             {
               "name": "Phạm Ngũ Lão and Bùi Viện",
               "kind": "District",
-              "lat": 10.76739,
-              "lon": 106.69261,
+              "lat": 10.768472,
+              "lon": 106.692778,
+              "wikidata": "Q3033670",
               "body": [
                 "The grid of streets around Phạm Ngũ Lão, Bùi Viện and Đề Thám became Saigon's backpacker quarter in the early 1990s, when the Đổi Mới reforms reopened Vietnam to independent travellers and the first cheap guesthouses and traveller cafés opened here. Bùi Viện itself was made an official \"walking street\" in 2017, closed to traffic in the evenings and given over to bars, plastic stools, grilled food and beer — loud, and largely foreign.",
                 "The two through-streets are named for heroes of the wars against invasion from the north: Phạm Ngũ Lão, a general under the Trần dynasty in the 13th-century campaigns against the Mongols, and — by a nice irony for a street full of Western visitors — Bùi Viện, a 19th-century mandarin of the Nguyễn court remembered for an early, unofficial diplomatic mission to the United States in search of a counterweight to France."
@@ -183,8 +190,9 @@
             {
               "name": "Bạch Đằng Wharf",
               "kind": "Riverfront",
-              "lat": 10.77393,
-              "lon": 106.70563,
+              "lat": 10.775269,
+              "lon": 106.706903,
+              "wikidata": "Q32226383",
               "body": [
                 "The Saigon River embankment along Tôn Đức Thắng Street, a promenade and landing stage since the French laid out the port, and the meeting point for the coach south to the delta. It takes its name from the Bạch Đằng River in the north, where Vietnamese commanders destroyed a Chinese fleet in 938 and a Mongol-Yuan fleet in 1288 by staking the tidal riverbed with iron-tipped poles — the founding victories of Vietnamese independence, invoked here far from the site itself.",
                 "A few hundred metres downstream is the Nhà Rồng (\"Dragon House\") wharf, the old headquarters of a French shipping line, from which in 1911 a young Nguyễn Tất Thành — later Ho Chi Minh — sailed for Marseille working as a galley hand, beginning thirty years abroad; the building is now a museum to him. The Bạch Đằng quay's own park was rebuilt in 2022."
@@ -203,6 +211,7 @@
               "kind": "Buddhist temple",
               "lat": 10.3697,
               "lon": 106.373,
+              "wikidata": "Q7932540",
               "body": [
                 "The largest Buddhist temple in Tiền Giang province, on the northern edge of Mỹ Tho. It began in the early 19th century as a small hermitage and was rebuilt on its present scale from about 1907, after storm damage and years of neglect, under the abbot Thích Huệ Đăng. Its gates and entrance front are a deliberate hybrid — Vietnamese timber joinery, Chinese roof figures, the pointed arches and columns of French colonial building, and Khmer and Cham ornament — a fair picture of who lives in the western delta. The garden holds three large open-air Buddhas, standing, sitting and reclining, added in recent decades."
               ]
@@ -212,6 +221,7 @@
               "kind": "Town / river islands",
               "lat": 10.349,
               "lon": 106.3645,
+              "wikidata": "Q33425",
               "body": [
                 "Mỹ Tho, on the Tiền (the northernmost arm of the Mekong), was founded in the 1680s by Chinese refugees loyal to the fallen Ming and became one of the delta's first trading ports; the French made it the terminus of Indochina's first railway, a line from Saigon opened in 1885 and lifted in the 1950s. In the river off the town lie four wooded islands named for the four sacred animals — Long the dragon, Lân the unicorn, Quy the tortoise and Phụng the phoenix. Boats leave the Mỹ Tho cruise port to thread between them; Cồn Phụng, the phoenix island, was the base of the syncretic \"Coconut Religion\" of Nguyễn Thành Nam, who preached vegetarianism and an end to the war from a riverside sanctuary here until the movement was shut down after 1975."
               ]
@@ -221,6 +231,7 @@
               "kind": "River island",
               "lat": 10.346,
               "lon": 106.379,
+              "wikidata": "Q16480765",
               "body": [
                 "The largest of the four islands, also called Unicorn Island (Cồn Lân), almost wholly given over to the day-tour circuit. The usual sequence: a walk through longan and jackfruit orchards to a pavilion where musicians perform đờn ca tài tử, the delta's chamber music for voice and plucked strings and a listed intangible heritage; then honey tea at a bee-keeping shed, and coconut candy pulled, cut and wrapped by hand. From a jetty on the island's creeks, hand-rowed sampans under conical hats carry visitors down a narrow palm-shaded canal — the most photographed few minutes of any Mekong trip."
               ]
@@ -230,6 +241,7 @@
               "kind": "Village",
               "lat": 10.3355,
               "lon": 106.38,
+              "wikidata": "Q10830864",
               "body": [
                 "A commune on the Bến Tre bank of the river, in a province that is effectively one continuous coconut grove — Bến Tre grows and processes the bulk of Vietnam's coconuts. The stop is a family workshop making kẹo dừa, the province's chewy coconut candy: fresh coconut milk boiled down with malt sugar, poured out to set, then cut and wrapped in edible rice paper by hand. Rowed sampans work the Tân Thạch canal between the workshops."
               ]
