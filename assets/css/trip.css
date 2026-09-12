@@ -360,6 +360,16 @@
 
 .prose .facts-links a { color: var(--muted); }
 
+/* A point whose `wikidata` key has not been checked yet. Quiet enough to read past, present
+   enough that the gap is visible on the page rather than only in a build log. */
+.prose .facts-unchecked {
+  margin: 0 0 1.4rem;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.8125rem;
+  color: var(--faint);
+  border-left: 2px solid var(--line);
+}
+
 @media (max-width: 480px) {
   .prose .facts dl { grid-template-columns: 1fr; gap: 0.1rem; }
   .prose .facts .fact + .fact dt { margin-top: 0.45rem; }

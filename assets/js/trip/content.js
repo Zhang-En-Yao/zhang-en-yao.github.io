@@ -6,7 +6,7 @@ import { tripTitle, tripDuration } from '../shared/trips.js';
 import { regionMapHtml, areaMapHtml } from './maps.js';
 import { flightsHtml } from './flights.js';
 import { clusterPoints, dedupeSameSite, CLUSTER_CAP_M } from './clusters.js';
-import { factsHtml } from '../shared/places.js';
+import { sourceHtml } from '../shared/places.js';
 
 export function headerHtml(trip, countries) {
   const where = [trip.country, trip.continent].filter(Boolean).join(' · ');
@@ -31,7 +31,7 @@ const lodgingHtml = (item) => (item.lodging ? `<p class="lodging">${BED_ICON}<sp
 const pointHtml = (point, places) => `
     <h4>${esc(point.name)}</h4>
     ${point.kind ? `<p class="point-kind">${esc(point.kind)}</p>` : ''}
-    ${point.wikidata ? factsHtml(point.wikidata, places) : ''}
+    ${sourceHtml(point, places)}
     ${paragraphs(point.body)}`;
 
 // Street keys match build-streets.py: "Section / Subsection", plus " #N" when split.

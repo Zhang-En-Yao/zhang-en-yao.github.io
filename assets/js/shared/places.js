@@ -1,6 +1,16 @@
-// The Wikidata record behind an itinerary point: assets/data/places.json, keyed by QID and
-// built by assets/data/build-places.py. Nothing here interprets the data — it picks the
-// fields to show and prints the labels Wikidata gave them.
+// The Wikidata record behind an itinerary point: places.json, keyed by QID. Nothing here
+// interprets the data — it picks the fields to show and prints the labels Wikidata gave
+// them.
+//
+// A point's `wikidata` key has three states, and each renders differently, because a gap
+// you cannot see is a gap nobody fills:
+//
+//   "wikidata": "Q17158"   linked      — the fact card below
+//   "wikidata": null       checked     — nothing; no Wikidata item exists, and that is settled
+//   key absent             unchecked   — a marker saying so, until content.json says otherwise
+//
+// Nothing guesses the missing one. The build scripts do not search by name either; the
+// marker is the whole mechanism.
 import { esc } from './dom.js';
 
 export const SRC = 'assets/data/places.json';
@@ -41,7 +51,15 @@ function heritageSiteHtml(place, sites) {
 
 const row = (label, body) => (body ? `<div class="fact"><dt>${label}</dt><dd>${body}</dd></div>` : '');
 
-// The card under a point's heading. `data` is the parsed places.json.
+// What goes under a point's heading, decided by which of the three states its key is in.
+// `data` is the parsed places.json.
+export function sourceHtml(point, data) {
+  if (!('wikidata' in point)) return '<p class="facts-unchecked">No source linked yet</p>';
+  if (point.wikidata === null) return '';
+  return factsHtml(point.wikidata, data);
+}
+
+// The card itself.
 export function factsHtml(qid, data) {
   const place = data && data.places && data.places[qid];
   if (!place) return '';
