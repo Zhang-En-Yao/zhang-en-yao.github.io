@@ -3,7 +3,6 @@
 import { esc } from '../shared/dom.js';
 
 const PHOTO_CDN = 'https://cdn.jsdelivr.net/gh';
-const PHOTO_REPO_OWNER = 'ZhangEnYao';
 const PHOTO_REPO_BRANCH = 'main';
 const PHOTO_PROXY = 'https://wsrv.nl/';
 const THUMB = { w: 900, q: 75 };
@@ -12,14 +11,23 @@ const HIRES = { w: 4000, q: 85 }; // Loaded only when zooming in.
 
 const isUrl = (s) => /^https?:\/\//.test(s);
 
-// A migrated trip keeps its photos in its own assets repository, under photos/. Otherwise
-// `photoRepo` is "owner/repo" or "owner/repo@branch", defaulting to a repo named after the
-// trip id.
-function photoUrl(file, content, tripId, base) {
+// Where a photo lives, or '' when nothing says.
+//
+// A migrated trip keeps its photos in its own assets repository under photos/, and the
+// `assets` pin in travel/index.json already names that repository — nothing else has to.
+// A trip that has not migrated names its photo repository with `photoRepo` ("owner/repo"
+// or "owner/repo@branch"), the older arrangement of one repository per trip's photos.
+// `photoRepo` disappears with the last unmigrated trip.
+//
+// There is deliberately no default. A guessed repository name renders as a broken image
+// rather than an error, which is how the old fallback (an owner spelled without its
+// hyphens) sat here never resolving for anyone. A trip with neither is a content error,
+// and tools/check-assets.py is where it is caught.
+function photoUrl(file, content, base) {
   if (isUrl(file)) return file;
   if (base) return `${base}/photos/${encodeURIComponent(file)}`;
-  const slug = content.photoRepo || `${PHOTO_REPO_OWNER}/${tripId}`;
-  const [repo, branch = PHOTO_REPO_BRANCH] = slug.split('@');
+  if (!content.photoRepo) return '';
+  const [repo, branch = PHOTO_REPO_BRANCH] = content.photoRepo.split('@');
   return `${PHOTO_CDN}/${repo}@${branch}/${encodeURIComponent(file)}`;
 }
 
@@ -39,14 +47,15 @@ export function retryPhotoSrc(src) {
 
 // Returns [html, photos] where `photos` is the lightbox list in page order. `caption` is set
 // only for a photo given an explicit `alt`, not one named after its file.
-export function galleryHtml(content, tripId, base) {
+export function galleryHtml(content, base) {
   const photos = (content.photos || [])
     .map((p) => {
       const file = typeof p === 'string' ? p : p.file;
       if (!file) return null;
       const alt = typeof p === 'string' ? file.replace(/\.[^.]+$/, '') : (p.alt || '');
       const caption = typeof p === 'string' ? '' : (p.alt || '');
-      const raw = photoUrl(file, content, tripId, base);
+      const raw = photoUrl(file, content, base);
+      if (!raw) return null; // No source for this trip's photos; see photoUrl.
       return isUrl(file)
         ? { thumb: raw, src: raw, hires: raw, alt, caption }
         : { thumb: sizedUrl(raw, THUMB), src: sizedUrl(raw, FULL), hires: sizedUrl(raw, HIRES), alt, caption };

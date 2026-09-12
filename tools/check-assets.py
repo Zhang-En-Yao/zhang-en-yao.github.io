@@ -155,6 +155,36 @@ def check_trip(trip, base):
              " repository — photos are read from photos/ there, so the key is now a lie")
 
 
+def check_unmigrated(trip):
+    """A trip still served from this repository. Only one thing here can break without
+    anyone noticing: photos. trip/gallery.js has no default repository name — a guessed one
+    renders as a broken image instead of an error — so a trip with photos must say where
+    they are, and the repository it names must actually serve them."""
+    tid = trip["id"]
+    path = ROOT / "travel" / (trip.get("file") or "")
+    if not trip.get("file"):
+        return  # on the map, not written up
+    if not path.exists():
+        return fail(f"{tid}", f"travel/{trip['file']} is missing")
+    content = json.loads(path.read_text())
+    photos = content.get("photos") or []
+    if not photos:
+        return
+    first = photos[0] if isinstance(photos[0], str) else photos[0].get("file", "")
+    if first.startswith("http"):
+        return
+    repo = content.get("photoRepo")
+    if not repo:
+        return fail(f"{tid}/{trip['file']}", f"{len(photos)} photos but no photoRepo, and no"
+                    " assets pin — trip/gallery.js has nowhere to fetch them from")
+    slug, _, branch = repo.partition("@")
+    url = f"https://cdn.jsdelivr.net/gh/{slug}@{branch or 'main'}/{first}"
+    try:
+        urllib.request.urlopen(urllib.request.Request(url, method="HEAD"), timeout=TIMEOUT)
+    except Exception as e:  # noqa: BLE001
+        fail(f"{tid}/photos", f"photoRepo {repo!r} does not serve {first} ({e})")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--core", action="store_true", help="check assets.core only")
@@ -168,6 +198,7 @@ def main():
         for trip in json.loads(INDEX.read_text()):
             pin = trip.get("assets")
             if not pin:
+                check_unmigrated(trip)
                 continue
             if "@" not in pin or pin.endswith("@main"):
                 fail(f'{trip["id"]}', f"assets pin {pin!r} is not owner/repo@tag")

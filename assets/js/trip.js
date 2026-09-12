@@ -46,7 +46,7 @@ async function render() {
     fetchJson(base ? `${base}/streets.json` : `assets/data/streets/${trip.id}.json`).catch(() => ({})),
     fetchJson(base ? `${base}/places.json` : 'assets/data/places.json').catch(() => null),
   ]);
-  const [gallery, photos] = galleryHtml(content, trip.id, base);
+  const [gallery, photos] = galleryHtml(content, base);
   tripEl.innerHTML = `${headerHtml(trip, countries)}<div class="prose">${bodyHtml(content, streets, places)}${gallery}</div>`;
 
   const prose = tripEl.querySelector('.prose');
