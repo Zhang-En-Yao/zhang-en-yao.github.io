@@ -24,6 +24,7 @@ import json
 import pathlib
 import re
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -40,21 +41,40 @@ def fail(where, message):
 
 
 sizes = {}
+fetched = {}
+TRIES = 4
 
 
 def get(url):
-    """The pinned file, or None with the failure recorded."""
-    try:
-        with urllib.request.urlopen(url, timeout=TIMEOUT) as r:
-            body = r.read()
+    """The pinned file, or None with the failure recorded.
+
+    Retried, and each URL fetched once per run. A CDN drops a connection now and then —
+    a TLS handshake that times out is not the data being wrong, and a red build for it is
+    a red build nobody will believe the next time. Only a 404 is answered immediately:
+    a tag that does not exist will not start existing on the third try.
+    """
+    if url in fetched:
+        return fetched[url]
+    for attempt in range(TRIES):
+        try:
+            with urllib.request.urlopen(url, timeout=TIMEOUT) as r:
+                body = r.read()
             sizes[url] = len(body)
-            return json.loads(body)
-    except urllib.error.HTTPError as e:
-        fail(url, f"HTTP {e.code} — the tag does not exist, or the file is not in it")
-    except (urllib.error.URLError, TimeoutError) as e:
-        fail(url, f"unreachable ({e})")
-    except json.JSONDecodeError as e:
-        fail(url, f"not valid JSON ({e}) — jsDelivr may be serving an error page")
+            fetched[url] = json.loads(body)
+            return fetched[url]
+        except urllib.error.HTTPError as e:
+            fail(url, f"HTTP {e.code} — the tag does not exist, or the file is not in it")
+            break
+        except json.JSONDecodeError as e:
+            fail(url, f"not valid JSON ({e}) — jsDelivr may be serving an error page")
+            break
+        except Exception as e:  # noqa: BLE001 — timeouts arrive as several unrelated types
+            if attempt == TRIES - 1:
+                fail(url, f"unreachable after {TRIES} tries ({e})")
+                break
+            print(f"      retrying ({e})", file=sys.stderr)
+            time.sleep(2 * (attempt + 1))
+    fetched[url] = None
     return None
 
 
