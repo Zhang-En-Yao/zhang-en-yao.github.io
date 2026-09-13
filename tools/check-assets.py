@@ -156,33 +156,32 @@ def check_trip(trip, base):
 
 
 def check_unmigrated(trip):
-    """A trip still served from this repository. Only one thing here can break without
-    anyone noticing: photos. trip/gallery.js has no default repository name — a guessed one
-    renders as a broken image instead of an error — so a trip with photos must say where
-    they are, and the repository it names must actually serve them."""
+    """A trip still served from this repository. Photos cannot be: trip/gallery.js builds
+    photo URLs only from a trip's `assets` pin, so a trip with photos and no pin has nowhere
+    to fetch them from and the gallery silently comes up empty."""
     tid = trip["id"]
-    path = ROOT / "travel" / (trip.get("file") or "")
     if not trip.get("file"):
-        return  # on the map, not written up
+        return "on the map, not written up"
+    path = ROOT / "travel" / trip["file"]
     if not path.exists():
-        return fail(f"{tid}", f"travel/{trip['file']} is missing")
+        fail(f"{tid}", f"travel/{trip['file']} is missing")
+        return "missing"
     content = json.loads(path.read_text())
-    photos = content.get("photos") or []
-    if not photos:
-        return
-    first = photos[0] if isinstance(photos[0], str) else photos[0].get("file", "")
-    if first.startswith("http"):
-        return
-    repo = content.get("photoRepo")
-    if not repo:
-        return fail(f"{tid}/{trip['file']}", f"{len(photos)} photos but no photoRepo, and no"
-                    " assets pin — trip/gallery.js has nowhere to fetch them from")
-    slug, _, branch = repo.partition("@")
-    url = f"https://cdn.jsdelivr.net/gh/{slug}@{branch or 'main'}/{first}"
-    try:
-        urllib.request.urlopen(urllib.request.Request(url, method="HEAD"), timeout=TIMEOUT)
-    except Exception as e:  # noqa: BLE001
-        fail(f"{tid}/photos", f"photoRepo {repo!r} does not serve {first} ({e})")
+    photos = [p for p in content.get("photos") or []
+              if not (p if isinstance(p, str) else p.get("file", "")).startswith("http")]
+    if photos:
+        fail(f"{tid}/{trip['file']}", f"{len(photos)} photos but no assets pin — since"
+             " photoRepo was retired there is nowhere for gallery.js to fetch them from")
+    linked = []
+    for section in content.get("sections", []):
+        for sub in section.get("subsections", []):
+            linked += [p["wikidata"] for p in sub.get("points", []) if p.get("wikidata")]
+        linked += [p["wikidata"] for p in section.get("points", []) if p.get("wikidata")]
+    local = json.loads((ROOT / "assets" / "data" / "places.json").read_text())["places"]
+    orphans = [q for q in linked if q not in local]
+    if orphans:
+        fail(f"{tid}", f"{len(orphans)} QIDs are not in assets/data/places.json: {orphans[:4]}")
+    return f"local, {len(linked)} linked points, {len(photos)} photos"
 
 
 def main():
@@ -193,20 +192,33 @@ def main():
     base = core_pin()
     print(f"core  {base}")
     check_core(base)
+    if args.core:
+        return done()
 
-    if not args.core:
-        for trip in json.loads(INDEX.read_text()):
-            pin = trip.get("assets")
-            if not pin:
-                check_unmigrated(trip)
-                continue
-            if "@" not in pin or pin.endswith("@main"):
-                fail(f'{trip["id"]}', f"assets pin {pin!r} is not owner/repo@tag")
-                continue
-            trip_base = f"https://cdn.jsdelivr.net/gh/{pin}"
-            print(f"trip  {trip_base}")
-            check_trip(trip, trip_base)
+    trips = json.loads(INDEX.read_text())
+    pinned = [t for t in trips if t.get("assets")]
+    rest = [t for t in trips if not t.get("assets")]
 
+    for trip in pinned:
+        pin = trip["assets"]
+        if "@" not in pin or pin.endswith("@main"):
+            fail(trip["id"], f"assets pin {pin!r} is not owner/repo@tag")
+            continue
+        trip_base = f"https://cdn.jsdelivr.net/gh/{pin}"
+        print(f"trip  {trip_base}")
+        check_trip(trip, trip_base)
+
+    # Every trip is listed, pinned or not. A trip that is quietly still local is exactly the
+    # thing this should say out loud — silence reads as "checked and fine".
+    if rest:
+        print("\nnot pinned, still served from this repository:")
+        for trip in rest:
+            print(f'   {trip["id"]}  {check_unmigrated(trip)}')
+
+    return done()
+
+
+def done():
     if problems:
         print("\n" + "\n".join("FAIL " + p for p in problems), file=sys.stderr)
         raise SystemExit(1)

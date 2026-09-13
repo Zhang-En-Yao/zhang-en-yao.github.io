@@ -2,8 +2,6 @@
 // resized on the fly by the wsrv.nl image proxy (a 900px WebP is ~15 KB vs a 1.7 MB original).
 import { esc } from '../shared/dom.js';
 
-const PHOTO_CDN = 'https://cdn.jsdelivr.net/gh';
-const PHOTO_REPO_BRANCH = 'main';
 const PHOTO_PROXY = 'https://wsrv.nl/';
 const THUMB = { w: 900, q: 75 };
 const FULL = { w: 2000, q: 80 };
@@ -13,22 +11,15 @@ const isUrl = (s) => /^https?:\/\//.test(s);
 
 // Where a photo lives, or '' when nothing says.
 //
-// A migrated trip keeps its photos in its own assets repository under photos/, and the
-// `assets` pin in travel/index.json already names that repository — nothing else has to.
-// A trip that has not migrated names its photo repository with `photoRepo` ("owner/repo"
-// or "owner/repo@branch"), the older arrangement of one repository per trip's photos.
-// `photoRepo` disappears with the last unmigrated trip.
-//
-// There is deliberately no default. A guessed repository name renders as a broken image
-// rather than an error, which is how the old fallback (an owner spelled without its
-// hyphens) sat here never resolving for anyone. A trip with neither is a content error,
-// and tools/check-assets.py is where it is caught.
-function photoUrl(file, content, base) {
+// A trip's photos sit in photos/ inside its own assets repository, and the `assets` pin in
+// travel/index.json already names that repository — nothing else has to say where they are,
+// which is why the old `photoRepo` key is gone. Nothing is guessed from the trip id either:
+// a made-up repository name renders as a broken image rather than an error, so a photo with
+// no `base` is left out and tools/check-assets.py fails the build.
+function photoUrl(file, base) {
   if (isUrl(file)) return file;
-  if (base) return `${base}/photos/${encodeURIComponent(file)}`;
-  if (!content.photoRepo) return '';
-  const [repo, branch = PHOTO_REPO_BRANCH] = content.photoRepo.split('@');
-  return `${PHOTO_CDN}/${repo}@${branch}/${encodeURIComponent(file)}`;
+  if (!base) return '';
+  return `${base}/photos/${encodeURIComponent(file)}`;
 }
 
 function sizedUrl(url, { w, q }) {
@@ -54,7 +45,7 @@ export function galleryHtml(content, base) {
       if (!file) return null;
       const alt = typeof p === 'string' ? file.replace(/\.[^.]+$/, '') : (p.alt || '');
       const caption = typeof p === 'string' ? '' : (p.alt || '');
-      const raw = photoUrl(file, content, base);
+      const raw = photoUrl(file, base);
       if (!raw) return null; // No source for this trip's photos; see photoUrl.
       return isUrl(file)
         ? { thumb: raw, src: raw, hires: raw, alt, caption }
