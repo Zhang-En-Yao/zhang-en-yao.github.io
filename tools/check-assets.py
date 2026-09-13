@@ -39,11 +39,16 @@ def fail(where, message):
     problems.append(f"{where}: {message}")
 
 
+sizes = {}
+
+
 def get(url):
     """The pinned file, or None with the failure recorded."""
     try:
         with urllib.request.urlopen(url, timeout=TIMEOUT) as r:
-            return json.load(r)
+            body = r.read()
+            sizes[url] = len(body)
+            return json.loads(body)
     except urllib.error.HTTPError as e:
         fail(url, f"HTTP {e.code} — the tag does not exist, or the file is not in it")
     except (urllib.error.URLError, TimeoutError) as e:
@@ -218,7 +223,23 @@ def main():
     return done()
 
 
+# A page fetches these one after another before it can render, so their size is a fact
+# about the site, not about the data. Reported, never failed: only you can say whether a
+# 4 MB street file is worth what it draws.
+BIG = 2_000_000
+
+
+def weigh():
+    big = sorted(((n, u) for u, n in sizes.items() if n > BIG), reverse=True)
+    if not big:
+        return
+    print(f"\nlarger than {BIG // 1_000_000} MB, fetched on every page view:")
+    for n, url in big:
+        print(f"   {n / 1_048_576:5.1f} MB  {url.split('@', 1)[-1]}")
+
+
 def done():
+    weigh()
     if problems:
         print("\n" + "\n".join("FAIL " + p for p in problems), file=sys.stderr)
         raise SystemExit(1)
