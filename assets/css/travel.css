@@ -77,14 +77,10 @@
   height: 100%;
 }
 
-/* The real sky in the map's empty polar bands — see skyHtml in world-map.js. One token for
-   both themes: engraved ink on paper in light, stars against the night in dark. Each star
-   carries its own opacity, set from its magnitude. */
+/* The real sky wrapped around the globe's own outline — see skyHtml in world-map.js. One
+   token for both themes: engraved ink on paper in light, stars against the night in dark.
+   Each star carries its own opacity, set from its magnitude. */
 .map-star { fill: var(--faint); }
-
-/* Stops of the gradient that fades each band out where the ice begins. */
-.map-sky-clear { stop-color: var(--card); stop-opacity: 0; }
-.map-sky-solid { stop-color: var(--card); stop-opacity: 1; }
 
 /* The constellation figures sit under the stars they join, and stay hairlines at any zoom. */
 .map-constellation {

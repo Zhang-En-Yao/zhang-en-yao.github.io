@@ -11,7 +11,6 @@ const WIDTH = 960;
 const PAD = 6;
 const MAX_ZOOM = 40;
 const SKY_REACH = 93; // degrees of sky each polar chart draws, measured from its pole
-const SKY_SEAM = 0.22; // share of a star band that fades out where it meets the land
 const SKY_SOFT = 8; // magnitudes past the limit where a star's radius stops growing linearly
 const HIT_RADIUS = 20; // px around a dot that still counts as clicking it
 const EDGE_MARGIN = 48; // px a selected dot is kept away from the map's edges
@@ -60,45 +59,57 @@ function placesOf(trips, projection) {
   return places.sort((a, b) => a.xy[1] - b.xy[1]); // Lower dots paint over higher ones.
 }
 
-// A square map leaves a band above the Arctic and below Antarctica that the projection has
-// nothing to put in. Each carries the real sky over that pole, drawn the way star atlases
-// draw it: a stereographic projection — whose projection point is the opposite celestial
-// pole — centred on the celestial pole, and reflected, because d3 projects a sphere as seen
-// from outside while a star chart shows the sky as seen from under it. Right ascension 0h
-// points at the map, which stands the vernal equinox over the Greenwich meridian.
+// A square map leaves room the land projection has nothing to put in: the arctic and
+// antarctic reaches, and the corners the world's own curve leaves bare. Each half fills
+// that space with the real sky over its pole, drawn the way star atlases draw it: a
+// stereographic projection — whose projection point is the opposite celestial pole —
+// centred on the celestial pole, and reflected, because d3 projects a sphere as seen from
+// outside while a star chart shows the sky as seen from under it. Right ascension 0h points
+// at the map, which stands the vernal equinox over the Greenwich meridian.
 //
-// An azimuthal chart is a disc, so it only fills a band whose far corners are inside its
-// rim: at a distance θ from the pole d3 puts a star at scale · tan(θ/2), which fixes the
-// scale once the reach is chosen. Reaching just past the celestial equator gives each band
-// its own hemisphere — together they hold the whole sky, once — and keeps the rim of the
-// disc off the corners, where it would otherwise show as an arc.
-function skyHtml(w, h, bandH, sky) {
-  if (!sky || bandH < 24) return '';
-  const scale = Math.hypot(w / 2, bandH / 2) / Math.tan((SKY_REACH / 2) * (Math.PI / 180));
+// The chart is a genuine circle rather than a strip of one: it's scaled to reach the
+// farthest corner of its half of the canvas, so the whole disc — every star within reach of
+// the pole — is drawn, then clipped to whatever of that disc falls outside `path({type:
+// 'Sphere'})`, the same globe outline `land` is drawn against. That makes the visible sky
+// follow the real boundary between the earth and space, wrapping the globe on every side
+// instead of sitting in a flat band only above and below it.
+function skyHtml(w, h, projection, sky) {
+  if (!sky) return '';
+  const path = d3.geoPath(projection).digits(1);
+  const sphere = path({ type: 'Sphere' });
+  if (!sphere) return '';
   const magMax = sky.magMax || 6;
 
-  const band = (sign, top, clip) => {
-    const projection = d3.geoStereographic()
+  const band = (sign) => {
+    const pole = projection([0, 90 * sign]);
+    if (!pole) return '';
+    const [px, py] = pole;
+    const [y0, y1] = sign > 0 ? [0, h / 2] : [h / 2, h];
+    const reach = Math.max(...[[0, y0], [w, y0], [0, y1], [w, y1]]
+      .map(([cx, cy]) => Math.hypot(cx - px, cy - py)));
+    const scale = reach / Math.tan((SKY_REACH / 2) * (Math.PI / 180));
+
+    const skyProjection = d3.geoStereographic()
       .rotate([0, -90 * sign])
       .reflectX(true)
-      .translate([w / 2, top + bandH / 2])
+      .translate([px, py])
       .scale(scale)
       .clipAngle(SKY_REACH);
-    const path = d3.geoPath(projection).digits(1);
+    const skyPath = d3.geoPath(skyProjection).digits(1);
 
     const figures = sky.lines
-      .map((c) => path({ type: 'MultiLineString', coordinates: c.paths }))
+      .map((c) => skyPath({ type: 'MultiLineString', coordinates: c.paths }))
       .filter(Boolean)
       .map((d) => `<path class="map-constellation" d="${d}"/>`)
       .join('');
 
-    // `projection(point)` does not clip, and the band holds barely a third of the disc, so
+    // `skyProjection(point)` does not clip, and most of the disc falls under the globe, so
     // drop the rest here rather than leave thousands of hidden circles in the document.
     const stars = sky.stars
       .filter(([, dec]) => 90 - dec * sign <= SKY_REACH)
       .map(([ra, dec, mag]) => {
-        const p = projection([ra, dec]);
-        if (!p || p[0] < -3 || p[0] > w + 3 || p[1] < top - 3 || p[1] > top + bandH + 3) return '';
+        const p = skyProjection([ra, dec]);
+        if (!p || p[0] < -3 || p[0] > w + 3 || p[1] < y0 - 3 || p[1] > y1 + 3) return '';
         const bright = Math.min(1, (magMax - mag) / magMax);
         // Magnitude is already logarithmic, so a radius linear in it is the star-atlas
         // convention — but it is unbounded, and the Sun sits 33 magnitudes above the
@@ -112,28 +123,17 @@ function skyHtml(w, h, bandH, sky) {
       })
       .join('');
 
-    return `<g clip-path="url(#${clip})">${figures}${stars}</g>`;
+    const half = sign > 0 ? 'map-sky-north' : 'map-sky-south';
+    return `<g clip-path="url(#${half})"><g clip-path="url(#map-sky-outside)">${figures}${stars}</g></g>`;
   };
-
-  // The sky is cut off square where it meets the ice; a band of the card's own colour over
-  // the last of it turns that cut into the sky passing behind the earth.
-  const seam = Math.round(bandH * SKY_SEAM);
-  const fade = (id, y0, y1) => `
-    <linearGradient id="${id}" x1="0" y1="${y0}" x2="0" y2="${y1}" gradientUnits="userSpaceOnUse">
-      <stop offset="0" class="map-sky-clear"/><stop offset="1" class="map-sky-solid"/>
-    </linearGradient>`;
 
   return `
     <defs>
-      <clipPath id="map-sky-north"><rect x="0" y="0" width="${w}" height="${bandH}"/></clipPath>
-      <clipPath id="map-sky-south"><rect x="0" y="${h - bandH}" width="${w}" height="${bandH}"/></clipPath>
-      ${fade('map-sky-seam-north', bandH - seam, bandH)}${fade('map-sky-seam-south', h - bandH + seam, h - bandH)}
+      <clipPath id="map-sky-outside"><path clip-rule="evenodd" d="M0,0H${w}V${h}H0Z ${sphere}"/></clipPath>
+      <clipPath id="map-sky-north"><rect x="0" y="0" width="${w}" height="${h / 2}"/></clipPath>
+      <clipPath id="map-sky-south"><rect x="0" y="${h / 2}" width="${w}" height="${h / 2}"/></clipPath>
     </defs>
-    <g class="map-sky" aria-hidden="true">
-      ${band(1, 0, 'map-sky-north')}${band(-1, h - bandH, 'map-sky-south')}
-      <rect x="0" y="${bandH - seam}" width="${w}" height="${seam}" fill="url(#map-sky-seam-north)"/>
-      <rect x="0" y="${h - bandH}" width="${w}" height="${seam}" fill="url(#map-sky-seam-south)"/>
-    </g>`;
+    <g class="map-sky" aria-hidden="true">${band(1)}${band(-1)}</g>`;
 }
 
 // `data` carries the atlas (countries), the trips, the continent lookup, the named waters
@@ -196,7 +196,7 @@ export function renderWorldMap(mapEl, data) {
   mapEl.innerHTML = `
     <div class="map-viewport" tabindex="0" role="application"
          aria-label="World map of the places listed below. Arrow keys move the map; plus and minus zoom.">
-      <svg class="map-svg" aria-hidden="true"><g class="map-scene">${skyHtml(WIDTH, height, bandH, sky)}<g class="map-marine-areas">${waterShapes}${borderShapes}</g><g class="map-land">${shapes}</g></g></svg>
+      <svg class="map-svg" aria-hidden="true"><g class="map-scene">${skyHtml(WIDTH, height, projection, sky)}<g class="map-marine-areas">${waterShapes}${borderShapes}</g><g class="map-land">${shapes}</g></g></svg>
       <div class="map-markers">${markers}</div>
     </div>
     <p class="map-crumb glass" hidden></p>

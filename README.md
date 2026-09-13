@@ -31,7 +31,6 @@ No build step: plain HTML, CSS, and native ES modules.
 
    ```json
    {
-     "photoRepo": "Zhang-En-Yao/assets.photos.202506210745",
      "photos": ["DSCF0217.jpg", { "file": "DSCF0239.jpg", "alt": "Dotonbori" }],
      "sections": [
        {
