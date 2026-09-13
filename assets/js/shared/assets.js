@@ -13,7 +13,7 @@
 
 const CDN = 'https://cdn.jsdelivr.net/gh';
 
-export const CORE = `${CDN}/Zhang-En-Yao/assets.core@2026-09-12`;
+export const CORE = `${CDN}/Zhang-En-Yao/assets.core@2026-09-13`;
 
 // A trip's base URL, or null when it has no `assets` pin in travel/index.json — that trip
 // is still served from this repository. Both paths work at once, so trips move one at a
