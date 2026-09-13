@@ -182,10 +182,16 @@ def check_unmigrated(trip):
         for sub in section.get("subsections", []):
             linked += [p["wikidata"] for p in sub.get("points", []) if p.get("wikidata")]
         linked += [p["wikidata"] for p in section.get("points", []) if p.get("wikidata")]
-    local = json.loads((ROOT / "assets" / "data" / "places.json").read_text())["places"]
-    orphans = [q for q in linked if q not in local]
-    if orphans:
-        fail(f"{tid}", f"{len(orphans)} QIDs are not in assets/data/places.json: {orphans[:4]}")
+    # assets/data went away with the last unpinned trip. If a trip is ever added back here
+    # it needs that file again, and saying so is more use than a traceback.
+    fallback = ROOT / "assets" / "data" / "places.json"
+    if linked and not fallback.exists():
+        fail(f"{tid}", f"{len(linked)} points are linked to Wikidata, but"
+             " assets/data/places.json no longer exists — this trip needs an assets pin")
+    elif linked:
+        orphans = [q for q in linked if q not in json.loads(fallback.read_text())["places"]]
+        if orphans:
+            fail(f"{tid}", f"{len(orphans)} QIDs are not in assets/data/places.json: {orphans[:4]}")
     return f"local, {len(linked)} linked points, {len(photos)} photos"
 
 
