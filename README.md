@@ -103,6 +103,28 @@ Pages fetch their data and use ES modules, so serve the folder instead of openin
 python3 -m http.server 8000
 ```
 
+### Previewing a trip repo before it's published
+
+A migrated trip's `assets` pin (`owner/repo@tag` in `travel/index.json`) only resolves once
+that repo has been pushed and tagged — there's no way to point it at a local, unpublished
+checkout. To read a trip repo's `content.json` (plus `streets.json` / `places.json` if
+already built) before it's tagged, use the local-file fallback `render()` still supports for
+an unmigrated trip:
+
+```sh
+ln -s /path/to/assets.trip.<id>/content.json travel/<id>.json
+ln -s /path/to/assets.trip.<id>/streets.json assets/data/streets/<id>.json
+```
+
+Then add `"file": "<id>.json"` to that trip's entry in `travel/index.json` and open
+`trip.html?id=<id>` on the local server above. `places.json` has no local-fallback path
+(`assets/data/places.json` is the old shared aggregate, now unused) — skip it; the page
+reads fine without it, just without fact cards.
+
+Both the symlinks and the `file` key are local-only scaffolding: once the trip repo is
+tagged, remove them and set `assets` instead (`git checkout travel/index.json` plus `rm` the
+symlinks undoes this cleanly).
+
 ## Structure
 
 ```

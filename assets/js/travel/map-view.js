@@ -5,6 +5,12 @@
 // Optional hooks for a photo viewer: `padding` keeps the content clear of overlaid bars,
 // `onSwipe` receives one-finger drags made while fully zoomed out (to page between photos),
 // `onDoubleTap` delays single taps to tell the two apart, and `wheelPan` pans on plain scroll.
+//
+// Optional hook for a draggable globe: `onDrag(dx, dy)`, when given, receives a
+// single-pointer drag's raw pixel delta (and its post-release momentum, one tick at a
+// time) instead of `MapView` panning `x`/`y` itself — there's no "content" to translate,
+// just an external rotation the caller updates. Pinch, wheel and buttons still scale `s`
+// exactly as normal; only the meaning of a one-finger drag changes.
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -41,7 +47,7 @@ function interpolateZoom([ux0, uy0, w0], [ux1, uy1, w1]) {
   return at;
 }
 
-const easeInOutCubic = (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
+export const easeInOutCubic = (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
 
 // iOS-style resistance past an edge: the further you pull, the less it follows.
 const rubberBand = (overshoot, size) => (1 - 1 / ((overshoot * 0.55) / size + 1)) * size;
@@ -55,11 +61,11 @@ const DOUBLE_TAP_MS = 260;
 export class MapView {
   constructor(el, {
     width, height, maxZoom = 40, padding = {}, keys = true, wheelPan = false,
-    home, onChange, onTap, onDoubleTap, onHover, onGesture, onScrollHint, onSwipe,
+    home, onChange, onTap, onDoubleTap, onHover, onGesture, onScrollHint, onSwipe, onDrag,
   }) {
     Object.assign(this, {
       el, width, height, maxZoom, wheelPan,
-      home, onChange, onTap, onDoubleTap, onHover, onGesture, onScrollHint, onSwipe,
+      home, onChange, onTap, onDoubleTap, onHover, onGesture, onScrollHint, onSwipe, onDrag,
     });
     this.padding = { top: 0, right: 0, bottom: 0, left: 0, ...padding };
     this.w = 0;
@@ -214,6 +220,7 @@ export class MapView {
   }
 
   panBy(dx, dy) {
+    if (this.onDrag) return this.onDrag(dx, dy);
     this.flyTo({ ...this.view, x: this.view.x + dx, y: this.view.y + dy });
   }
 
@@ -257,20 +264,25 @@ export class MapView {
     });
   }
 
-  // Momentum after a flick, decelerating like a scroll view and stopping at the edges.
+  // Momentum after a flick, decelerating like a scroll view and stopping at the edges —
+  // or, in `onDrag` mode, just decelerating: there's no edge to stop at.
   glide(vx, vy) {
     if (reduceMotion.matches || Math.hypot(vx, vy) < 0.2) return this.settle();
     this.run({
       step: (now, dt) => {
-        const v = this.view;
-        const free = { s: v.s, x: v.x + vx * dt, y: v.y + vy * dt };
-        const next = this.clamp(free);
-        if (next.x !== free.x) vx = 0;
-        if (next.y !== free.y) vy = 0;
+        if (this.onDrag) {
+          this.onDrag(vx * dt, vy * dt);
+        } else {
+          const v = this.view;
+          const free = { s: v.s, x: v.x + vx * dt, y: v.y + vy * dt };
+          const next = this.clamp(free);
+          if (next.x !== free.x) vx = 0;
+          if (next.y !== free.y) vy = 0;
+          this.apply(next);
+        }
         const decay = Math.exp(-dt / DECELERATION_MS);
         vx *= decay;
         vy *= decay;
-        this.apply(next);
         return Math.hypot(vx, vy) < 0.02;
       },
     });
@@ -338,10 +350,19 @@ export class MapView {
         while (samples.length > 2 && e.timeStamp - samples[0][0] > 100) samples.shift();
         this.onSwipe('move', { dx, dy });
       } else if (gesture.type === 'pan') {
-        gesture.raw.x += p[0] - prev[0];
-        gesture.raw.y += p[1] - prev[1];
-        this.apply(this.clamp(gesture.raw, true));
-        samples.push([e.timeStamp, this.view.x, this.view.y]);
+        const dx = p[0] - prev[0];
+        const dy = p[1] - prev[1];
+        gesture.raw.x += dx;
+        gesture.raw.y += dy;
+        if (this.onDrag) {
+          // No view position to track here, just the running delta handed to `onDrag`
+          // and (via `samples`) the release velocity below.
+          this.onDrag(dx, dy);
+          samples.push([e.timeStamp, gesture.raw.x, gesture.raw.y]);
+        } else {
+          this.apply(this.clamp(gesture.raw, true));
+          samples.push([e.timeStamp, this.view.x, this.view.y]);
+        }
         while (samples.length > 2 && e.timeStamp - samples[0][0] > 100) samples.shift();
       } else if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];

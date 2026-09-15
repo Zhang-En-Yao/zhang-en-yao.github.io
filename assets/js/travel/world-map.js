@@ -1,21 +1,25 @@
-// The world map on the travel page: tinted countries and a dot per place visited. Drag,
-// pinch or ⌘/Ctrl + scroll to explore; click a country to fly to it; click a dot for the
-// trips that went there. Uses the global `d3` (d3-geo).
+// The world map on the travel page: a draggable globe with a tinted country per country and
+// a dot per place visited. Drag to spin it, pinch or ⌘/Ctrl + scroll to zoom; click a country
+// to face it; click a dot for the trips that went there. Uses the global `d3` (d3-geo).
 import { esc, plural } from '../shared/dom.js';
 import { fmtRange } from '../shared/format.js';
 import { tripDuration, tripHref, tripTitle } from '../shared/trips.js';
-import { polygonsOf, hasCoords } from '../shared/atlas.js';
-import { MapView } from './map-view.js';
+import { hasCoords } from '../shared/atlas.js';
+import { MapView, easeInOutCubic } from './map-view.js';
 
 const WIDTH = 960;
 const PAD = 6;
 const MAX_ZOOM = 40;
-const SKY_REACH = 93; // degrees of sky each polar chart draws, measured from its pole
+const FOCUS_ZOOM = 6; // how far a clicked country zooms in, relative to the fitted globe
 const SKY_SOFT = 8; // magnitudes past the limit where a star's radius stops growing linearly
+const SKY_INSIDE_DIM = 0.5; // stars seen through the glass globe, rather than around it
+const ROTATE_MS = 650; // duration of a "fly to" rotation (home, or a clicked country)
 const HIT_RADIUS = 20; // px around a dot that still counts as clicking it
 const EDGE_MARGIN = 48; // px a selected dot is kept away from the map's edges
+const HALF_PI = Math.PI / 2; // a point past this great-circle distance from view centre is on the far side
 
 const isApple = /Mac|iPhone|iPad/.test(navigator.userAgentData?.platform ?? navigator.platform);
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 const icon = (paths, extra = '') =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${paths}</svg>`;
@@ -27,113 +31,27 @@ const ICONS = {
   chevron: icon('<path d="m9 6 6 6-6 6"/>', 'class="map-callout-chevron"'),
 };
 
-// Content-space bounds of a country, ignoring pieces cut across the antimeridian (Chukotka,
-// the far Aleutians) by keeping vertices within half a map of the median.
-function boundsOf(feature, projection) {
-  const pts = polygonsOf(feature.geometry)
-    .flatMap((poly) => poly.flat())
-    .map((c) => projection(c))
-    .filter((p) => p && Number.isFinite(p[0]) && Number.isFinite(p[1]));
-  if (!pts.length) return null;
-  const median = pts.map((p) => p[0]).sort((a, b) => a - b)[pts.length >> 1];
-  const near = pts.filter((p) => Math.abs(p[0] - median) < WIDTH / 2);
-  const xs = near.map((p) => p[0]);
-  const ys = near.map((p) => p[1]);
-  return [[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]];
+// The shortest way from one longitude to another, in degrees, wrapped to [-180, 180] — so
+// flying from 170° to -170° turns 20° eastward instead of 340° the other way around.
+function shortestTurn(from, to) {
+  return (((to - from + 180) % 360) + 360) % 360 - 180;
 }
 
-// One place per city, however many trips went there (newest trip first).
-function placesOf(trips, projection) {
+// One place per city, however many trips went there (newest trip first). Screen position
+// and near/far-hemisphere state are set later, per frame, by `redraw` — they depend on the
+// live rotation, not anything fixed at load.
+function placesOf(trips) {
   const places = [];
   trips.forEach((trip) => (trip.cities || []).filter(hasCoords).forEach((city) => {
     let place = places.find((p) => p.name === city.name
       && Math.abs(p.lon - city.lon) < 0.5 && Math.abs(p.lat - city.lat) < 0.5);
     if (!place) {
-      const xy = projection([city.lon, city.lat]);
-      if (!xy) return;
-      place = { name: city.name, lon: city.lon, lat: city.lat, xy, country: trip.country, trips: [] };
+      place = { name: city.name, lon: city.lon, lat: city.lat, xy: [0, 0], front: true, country: trip.country, trips: [] };
       places.push(place);
     }
     if (!place.trips.includes(trip)) place.trips.push(trip);
   }));
-  return places.sort((a, b) => a.xy[1] - b.xy[1]); // Lower dots paint over higher ones.
-}
-
-// A square map leaves room the land projection has nothing to put in: the arctic and
-// antarctic reaches, and the corners the world's own curve leaves bare. Each half fills
-// that space with the real sky over its pole, drawn the way star atlases draw it: a
-// stereographic projection — whose projection point is the opposite celestial pole —
-// centred on the celestial pole, and reflected, because d3 projects a sphere as seen from
-// outside while a star chart shows the sky as seen from under it. Right ascension 0h points
-// at the map, which stands the vernal equinox over the Greenwich meridian.
-//
-// The chart is a genuine circle rather than a strip of one: it's scaled to reach the
-// farthest corner of its half of the canvas, so the whole disc — every star within reach of
-// the pole — is drawn, then clipped to whatever of that disc falls outside `path({type:
-// 'Sphere'})`, the same globe outline `land` is drawn against. That makes the visible sky
-// follow the real boundary between the earth and space, wrapping the globe on every side
-// instead of sitting in a flat band only above and below it.
-function skyHtml(w, h, projection, sky) {
-  if (!sky) return '';
-  const path = d3.geoPath(projection).digits(1);
-  const sphere = path({ type: 'Sphere' });
-  if (!sphere) return '';
-  const magMax = sky.magMax || 6;
-
-  const band = (sign) => {
-    const pole = projection([0, 90 * sign]);
-    if (!pole) return '';
-    const [px, py] = pole;
-    const [y0, y1] = sign > 0 ? [0, h / 2] : [h / 2, h];
-    const reach = Math.max(...[[0, y0], [w, y0], [0, y1], [w, y1]]
-      .map(([cx, cy]) => Math.hypot(cx - px, cy - py)));
-    const scale = reach / Math.tan((SKY_REACH / 2) * (Math.PI / 180));
-
-    const skyProjection = d3.geoStereographic()
-      .rotate([0, -90 * sign])
-      .reflectX(true)
-      .translate([px, py])
-      .scale(scale)
-      .clipAngle(SKY_REACH);
-    const skyPath = d3.geoPath(skyProjection).digits(1);
-
-    const figures = sky.lines
-      .map((c) => skyPath({ type: 'MultiLineString', coordinates: c.paths }))
-      .filter(Boolean)
-      .map((d) => `<path class="map-constellation" d="${d}"/>`)
-      .join('');
-
-    // `skyProjection(point)` does not clip, and most of the disc falls under the globe, so
-    // drop the rest here rather than leave thousands of hidden circles in the document.
-    const stars = sky.stars
-      .filter(([, dec]) => 90 - dec * sign <= SKY_REACH)
-      .map(([ra, dec, mag]) => {
-        const p = skyProjection([ra, dec]);
-        if (!p || p[0] < -3 || p[0] > w + 3 || p[1] < y0 - 3 || p[1] > y1 + 3) return '';
-        const bright = Math.min(1, (magMax - mag) / magMax);
-        // Magnitude is already logarithmic, so a radius linear in it is the star-atlas
-        // convention — but it is unbounded, and the Sun sits 33 magnitudes above the
-        // faintest star here, which would draw a 15px disc. Past SKY_SOFT the growth
-        // turns logarithmic: every real star keeps its size, and anything brighter than
-        // Sirius is compressed instead of exploding.
-        const over = Math.max(0, magMax - mag);
-        const r = 0.5 + 0.45 * (over <= SKY_SOFT ? over : SKY_SOFT + Math.log1p(over - SKY_SOFT));
-        return `<circle class="map-star" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}"`
-          + ` r="${r.toFixed(2)}" opacity="${(0.3 + bright * 0.6).toFixed(2)}"/>`;
-      })
-      .join('');
-
-    const half = sign > 0 ? 'map-sky-north' : 'map-sky-south';
-    return `<g clip-path="url(#${half})"><g clip-path="url(#map-sky-outside)">${figures}${stars}</g></g>`;
-  };
-
-  return `
-    <defs>
-      <clipPath id="map-sky-outside"><path clip-rule="evenodd" d="M0,0H${w}V${h}H0Z ${sphere}"/></clipPath>
-      <clipPath id="map-sky-north"><rect x="0" y="0" width="${w}" height="${h / 2}"/></clipPath>
-      <clipPath id="map-sky-south"><rect x="0" y="${h / 2}" width="${w}" height="${h / 2}"/></clipPath>
-    </defs>
-    <g class="map-sky" aria-hidden="true">${band(1)}${band(-1)}</g>`;
+  return places;
 }
 
 // `data` carries the atlas (countries), the trips, the continent lookup, the named waters
@@ -142,16 +60,45 @@ function skyHtml(w, h, projection, sky) {
 export function renderWorldMap(mapEl, data) {
   const { countries, trips, continentOf, marine, sky, loadDetail } = data;
   const land = { type: 'FeatureCollection', features: countries };
+  const height = WIDTH; // the globe is a circle inscribed in a square, so this never varies
 
-  // Fit the land to WIDTH, then centre it vertically in a square content box, so the map card
-  // is square however tall the projected world turns out to be.
-  const projection = d3.geoNaturalEarth1().fitWidth(WIDTH - PAD * 2, land);
+  // Face the globe toward the spherical mean of every visited place (d3's own centroid,
+  // fed a MultiPoint of every city, rather than a hand-rolled average).
+  const placeCoords = trips.flatMap((t) => (t.cities || []).filter(hasCoords).map((c) => [c.lon, c.lat]));
+  const homeCenter = placeCoords.length ? d3.geoCentroid({ type: 'MultiPoint', coordinates: placeCoords }) : [0, 0];
+  const homeRotate = [-homeCenter[0], -homeCenter[1], 0];
+  let rotate = homeRotate.slice();
+
+  // `projection` (clipped to the near hemisphere) draws the crisp, interactive globe and
+  // answers every bare point lookup (clipAngle only limits `d3.geoPath`, never a direct
+  // call, so it still returns a correct position for a far-side point). `wideProjection`
+  // shares the same rotation, scale and translate but is clipped just short of the full
+  // sphere, so `d3.geoPath` draws far-side geometry too — faint, seen through the near
+  // side. Both are mutated in place each frame (`.rotate(rotate)`) rather than rebuilt —
+  // `fitExtent` below only has to run once, since zoom is a CSS transform on `.map-scene`,
+  // never a change to the projection's own scale.
+  const box = [[PAD, PAD], [WIDTH - PAD, WIDTH - PAD]];
+  const projection = d3.geoOrthographic().rotate(rotate).clipAngle(90).fitExtent(box, { type: 'Sphere' });
+  const wideProjection = d3.geoOrthographic().rotate(rotate).clipAngle(179.9)
+    .scale(projection.scale()).translate(projection.translate());
   const path = d3.geoPath(projection).digits(1);
-  const [[, y0], [, y1]] = path.bounds(land);
-  const height = WIDTH;
-  const bandH = (height - (y1 - y0)) / 2; // empty sky above the Arctic and below Antarctica
-  const [tx, ty] = projection.translate();
-  projection.translate([tx + PAD, ty - y0 + bandH]);
+  const wpath = d3.geoPath(wideProjection).digits(1);
+
+  // The real sky lives outside the glass globe, the way a planet floats in space — which an
+  // orthographic projection can never draw (every point on a sphere projects inside its own
+  // unit circle, always: x²+y² ≤ 1). Stereographic has no such limit, so it's used for the
+  // sky instead, scaled so its own horizon (90° from view centre) lands exactly on the
+  // globe's edge — d3's raw stereographic radius is `r(θ) = k·tan(θ/2)` (not the "2k tan"
+  // form some cartography texts use), so `k = globeRadius` alone already makes
+  // `r(90°) = globeRadius` — then clipped just past the box's own corners, so the sky
+  // reaches the edges of the card and no further.
+  const globeRadius = projection.scale();
+  const cornerReach = Math.hypot((WIDTH - 2 * PAD) / 2, (WIDTH - 2 * PAD) / 2);
+  const skyScale = globeRadius;
+  const skyClipAngle = Math.min(178, 2 * Math.atan(cornerReach / globeRadius) * (180 / Math.PI) + 3);
+  const skyProjection = d3.geoStereographic().rotate(rotate).clipAngle(skyClipAngle)
+    .scale(skyScale).translate(projection.translate());
+  const skyPath = d3.geoPath(skyProjection).digits(1);
 
   const visited = new Set(trips.map((t) => t.country).filter(Boolean));
   const byName = new Map(land.features.map((f) => [f.properties.name, f]));
@@ -159,45 +106,74 @@ export function renderWorldMap(mapEl, data) {
     if (!byName.has(c)) console.warn(`travel: "${c}" is not a country name in the atlas, so it will not be tinted.`);
   });
 
-  const countryShapes = (features) => features
+  // Every builder below emits exactly one element per feature/star/line, even when it's
+  // currently invisible (`path(f)` returns null on the far side, at load) — `redraw`
+  // binds DOM elements to geometry by array index, so a feature quietly skipped here
+  // would desync every binding after it, not just go missing itself.
+  const countryShapes = (features, pathFn) => features
     .map((f) => {
-      const d = path(f);
       const name = f.properties.name;
-      return d ? `<path class="map-country${visited.has(name) ? ' is-visited' : ''}" d="${d}" data-country="${esc(name)}"/>` : '';
+      return `<path class="map-country${visited.has(name) ? ' is-visited' : ''}" d="${pathFn(f) || ''}" data-country="${esc(name)}"/>`;
     })
     .join('');
-  const shapes = countryShapes(land.features);
+
+  // The far hemisphere, ghosted, seen through the glass globe — decorative only, so it
+  // skips marine detail, interactivity, and any later coastline-detail upgrade.
+  const ghostShapes = (features) => features
+    .map((f) => `<path class="map-country-ghost${visited.has(f.properties.name) ? ' is-visited' : ''}" d="${wpath(f) || ''}"/>`)
+    .join('');
 
   // Ocean polygons reach the map's outer edge, which would draw a globe-shaped outline.
   // The smaller named waters supply the internal boundaries we want instead.
-  const waterShapes = (marine?.areas ?? [])
-    .filter((f) => f.properties.type !== 'ocean')
-    .map((f) => {
-      const d = path(f);
-      return d ? `<path class="map-marine map-marine-${esc(f.properties.type)}" d="${d}"/>` : '';
-    })
+  const waterFeatures = (marine?.areas ?? []).filter((f) => f.properties.type !== 'ocean');
+  const waterShapes = (features) => features
+    .map((f) => `<path class="map-marine map-marine-${esc(f.properties.type)}" d="${path(f) || ''}"/>`)
     .join('');
 
   // Where two countries' waters meet. Natural Earth draws these as indicators, not claims.
-  const borderShapes = (marine?.borders ?? [])
-    .map((f) => path(f))
-    .filter(Boolean)
-    .map((d) => `<path class="map-marine-border" d="${d}"/>`)
+  const borderFeatures = marine?.borders ?? [];
+  const borderShapes = (features) => features
+    .map((f) => `<path class="map-marine-border" d="${path(f) || ''}"/>`)
     .join('');
 
-  const places = placesOf(trips, projection);
-  const markers = places
+  // The whole sky, drawn once: every constellation figure, and every star with its own
+  // magnitude-scaled radius and brightness (star atlas convention — logarithmic past
+  // SKY_SOFT, so the Sun's absurd magnitude doesn't draw a 15px disc).
+  const starRadius = (mag, magMax) => {
+    const over = Math.max(0, magMax - mag);
+    return 0.5 + 0.45 * (over <= SKY_SOFT ? over : SKY_SOFT + Math.log1p(over - SKY_SOFT));
+  };
+  const skyHtml = () => {
+    if (!sky) return '';
+    const magMax = sky.magMax || 6;
+    const figures = sky.lines
+      .map((c) => `<path class="map-constellation" d="${skyPath({ type: 'MultiLineString', coordinates: c.paths }) || ''}"/>`)
+      .join('');
+    const stars = sky.stars
+      .map(([ra, dec, mag]) => {
+        const bright = Math.min(1, (magMax - mag) / magMax);
+        const r = starRadius(mag, magMax);
+        return `<circle class="map-star" data-ra="${ra}" data-dec="${dec}" r="${r.toFixed(2)}"`
+          + ` data-opacity="${(0.3 + bright * 0.6).toFixed(2)}"/>`;
+      })
+      .join('');
+    return `<g class="map-sky" aria-hidden="true">${figures}${stars}</g>`;
+  };
+
+  const markerHtml = (places) => places
     .map((p, i) => `
       <button class="map-marker" type="button" data-place="${i}"
               aria-label="${esc(p.name)}, ${plural(p.trips.length, 'trip')}"><span class="map-marker-dot"></span></button>`)
     .join('');
 
+  const allPlaces = placesOf(trips);
+
   mapEl.style.setProperty('--map-aspect', `${WIDTH} / ${height}`);
   mapEl.innerHTML = `
     <div class="map-viewport" tabindex="0" role="application"
-         aria-label="World map of the places listed below. Arrow keys move the map; plus and minus zoom.">
-      <svg class="map-svg" aria-hidden="true"><g class="map-scene">${skyHtml(WIDTH, height, projection, sky)}<g class="map-marine-areas">${waterShapes}${borderShapes}</g><g class="map-land">${shapes}</g></g></svg>
-      <div class="map-markers">${markers}</div>
+         aria-label="World map of the places listed below. Arrow keys rotate the globe; plus and minus zoom.">
+      <svg class="map-svg" aria-hidden="true"><g class="map-scene">${skyHtml()}<path class="map-globe"/><g class="map-land-ghost">${ghostShapes(land.features)}</g><g class="map-marine-areas">${waterShapes(waterFeatures)}${borderShapes(borderFeatures)}</g><g class="map-land">${countryShapes(land.features, path)}</g></g></svg>
+      <div class="map-markers">${markerHtml(allPlaces)}</div>
     </div>
     <p class="map-crumb glass" hidden></p>
     <div class="map-controls">
@@ -213,6 +189,7 @@ export function renderWorldMap(mapEl, data) {
 
   const viewport = mapEl.querySelector('.map-viewport');
   const scene = mapEl.querySelector('.map-scene');
+  const globeEl = mapEl.querySelector('.map-globe');
   const markerEls = [...mapEl.querySelectorAll('.map-marker')];
   const crumb = mapEl.querySelector('.map-crumb');
   const tip = mapEl.querySelector('.map-tip');
@@ -220,20 +197,30 @@ export function renderWorldMap(mapEl, data) {
   const hint = mapEl.querySelector('.map-hint');
   const buttons = Object.fromEntries([...mapEl.querySelectorAll('[data-action]')].map((b) => [b.dataset.action, b]));
 
+  // Bindings between rendered elements and the geometry that produced them, one element
+  // per feature/star/line in the same order the html builders above emitted them, so
+  // `redraw` can update `d`/`cx`/`cy` on every drag frame without ever touching innerHTML
+  // (which, for ~5,000 stars, would be far too slow).
+  const ghostLandEls = [...mapEl.querySelectorAll('.map-land-ghost path')].map((el, i) => ({ el, feature: land.features[i] }));
+  const waterEls = [...mapEl.querySelectorAll('.map-marine')].map((el, i) => ({ el, feature: waterFeatures[i] }));
+  const borderEls = [...mapEl.querySelectorAll('.map-marine-border')].map((el, i) => ({ el, feature: borderFeatures[i] }));
+  const starEls = sky ? [...mapEl.querySelectorAll('.map-star')].map((el) => ({
+    el, point: [+el.dataset.ra, +el.dataset.dec], opacity: +el.dataset.opacity,
+  })) : [];
+  const lineEls = sky ? [...mapEl.querySelectorAll('.map-constellation')].map((el, i) => ({ el, coords: sky.lines[i].paths })) : [];
+
+  let frontFeatures = land.features;
+  let frontLandEls = [...mapEl.querySelectorAll('.map-land path')].map((el, i) => ({ el, feature: frontFeatures[i] }));
+
   let selected = -1;
   let hovered = -1;
   let focusedCountry = null;
+  let view; // assigned below, once `redraw` has run once to compute the home framing
 
   // Breathing room around a framed area, clear of the zoom controls on the right.
   const insets = (v) => {
     const pad = Math.min(40, v.w * 0.06);
     return { top: pad, bottom: pad, left: pad, right: pad + 44 };
-  };
-
-  const placeBounds = () => {
-    const xs = places.map((p) => p.xy[0]);
-    const ys = places.map((p) => p.xy[1]);
-    return [[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]];
   };
 
   // 1:50m is indistinguishable from 1:10m at world zoom, so the finer atlas is fetched
@@ -246,18 +233,109 @@ export function renderWorldMap(mapEl, data) {
     try {
       const features = await loadDetail();
       const box = mapEl.querySelector('.map-land');
-      if (box) box.innerHTML = countryShapes(features);
+      if (box) {
+        box.innerHTML = countryShapes(features, path);
+        frontFeatures = features;
+        frontLandEls = [...box.querySelectorAll('path')].map((el, i) => ({ el, feature: frontFeatures[i] }));
+        redraw(true);
+      }
     } catch (err) {
       detail = false;
       console.warn('travel: could not load the detailed atlas', err);
     }
   }
 
-  const view = new MapView(viewport, {
+  // Re-walking every country's coastline is, empirically, the expensive part of a redraw
+  // (tens of ms for a few hundred features — stars and markers are cheap by comparison).
+  // A single discrete action (a keypress, a click) still repaints land immediately, since
+  // it will always be well past LAND_THROTTLE_MS since the last update; only a rapid
+  // stream of drag/glide frames actually gets throttled, to whatever rate land can sustain
+  // — the rotation itself, and everything cheap (sky, markers), still track every frame.
+  const LAND_THROTTLE_MS = 80;
+  let lastLandUpdate = 0;
+
+  // Repaints every rotation-dependent thing in place: the globe's own silhouette, land
+  // (both hemispheres), marine detail, the sky, and every marker's position and
+  // near/far-hemisphere state. Called on every drag frame, every step of a "fly to"
+  // rotation, and once up front to establish the initial view. `force` bypasses the land
+  // throttle, for moments (an animation's last frame, a detail-atlas swap) where a stale
+  // coastline would be visible rather than just a dropped mid-motion frame.
+  function redraw(force = false) {
+    projection.rotate(rotate);
+    wideProjection.rotate(rotate);
+    skyProjection.rotate(rotate);
+    const center = [-rotate[0], -rotate[1]]; // the geographic point currently facing the viewer
+
+    const now = performance.now();
+    if (force || now - lastLandUpdate > LAND_THROTTLE_MS) {
+      lastLandUpdate = now;
+      globeEl.setAttribute('d', path({ type: 'Sphere' }) || '');
+      frontLandEls.forEach(({ el, feature }) => el.setAttribute('d', path(feature) || ''));
+      ghostLandEls.forEach(({ el, feature }) => el.setAttribute('d', wpath(feature) || ''));
+      waterEls.forEach(({ el, feature }) => el.setAttribute('d', path(feature) || ''));
+      borderEls.forEach(({ el, feature }) => el.setAttribute('d', path(feature) || ''));
+    }
+
+    if (sky) {
+      const [cx, cy] = projection.translate();
+      const limit = (skyClipAngle - 2) * (Math.PI / 180);
+      lineEls.forEach(({ el, coords }) => el.setAttribute('d', skyPath({ type: 'MultiLineString', coordinates: coords }) || ''));
+      starEls.forEach(({ el, point, opacity }) => {
+        if (d3.geoDistance(point, center) > limit) { el.setAttribute('opacity', 0); return; }
+        const p = skyProjection(point);
+        if (!p || !Number.isFinite(p[0]) || !Number.isFinite(p[1])) { el.setAttribute('opacity', 0); return; }
+        const inside = Math.hypot(p[0] - cx, p[1] - cy) <= globeRadius;
+        el.setAttribute('cx', p[0].toFixed(1));
+        el.setAttribute('cy', p[1].toFixed(1));
+        el.setAttribute('opacity', (opacity * (inside ? SKY_INSIDE_DIM : 1)).toFixed(2));
+      });
+    }
+
+    allPlaces.forEach((p) => {
+      p.xy = projection([p.lon, p.lat]) || p.xy;
+      p.front = d3.geoDistance([p.lon, p.lat], center) <= HALF_PI;
+    });
+    markerEls.forEach((el, i) => {
+      const front = allPlaces[i].front;
+      el.classList.toggle('is-back', !front);
+      el.tabIndex = front ? 0 : -1;
+    });
+
+    // `view` doesn't exist yet the very first time `redraw` runs (see below) — the
+    // `MapView` constructor triggers its own initial `update` once it's built.
+    if (view) update(view.view);
+  }
+
+  // Called for every frame the CSS pan/zoom view changes (and once while `view` is still
+  // being constructed) — separate from `redraw`, which handles rotation. Both end here,
+  // since a marker's screen position always depends on both.
+  function update({ s, x, y }, v = view) {
+    scene.setAttribute('transform', `translate(${x.toFixed(2)},${y.toFixed(2)}) scale(${s.toFixed(5)})`);
+    allPlaces.forEach((p, i) => {
+      markerEls[i].style.transform = `translate3d(${(p.xy[0] * s + x).toFixed(1)}px, ${(p.xy[1] * s + y).toFixed(1)}px, 0)`;
+    });
+    if (selected >= 0) positionPopover(callout, selected, 18);
+    if (hovered >= 0) positionPopover(tip, hovered, 14);
+    buttons.in.disabled = s >= v.maxScale * 0.999;
+    buttons.out.disabled = s <= v.minScale * 1.001;
+    buttons.home.disabled = v.isHome() && Math.abs(shortestTurn(rotate[0], homeRotate[0])) < 0.5 && Math.abs(rotate[1] - homeRotate[1]) < 0.5;
+    if (s >= v.minScale * DETAIL_AT) upgradeDetail();
+  }
+
+  redraw(true); // establish xy/front for every place before computing the home framing below
+
+  const homeFront = allPlaces.filter((p) => p.front);
+  const homeBounds = homeFront.length
+    ? [[Math.min(...homeFront.map((p) => p.xy[0])), Math.min(...homeFront.map((p) => p.xy[1]))],
+      [Math.max(...homeFront.map((p) => p.xy[0])), Math.max(...homeFront.map((p) => p.xy[1]))]]
+    : [[0, 0], [WIDTH, height]];
+
+  view = new MapView(viewport, {
     width: WIDTH,
     height,
     maxZoom: MAX_ZOOM,
-    home: (v) => (places.length ? v.fitView(placeBounds(), { inset: insets(v), maxZoom: 8 }) : v.fitView([[0, 0], [WIDTH, height]])),
+    home: (v) => v.fitView(homeBounds, { inset: insets(v), maxZoom: 8 }),
+    onDrag: rotateBy,
     onChange: update,
     onTap: tapAt,
     onHover: hoverAt,
@@ -265,24 +343,46 @@ export function renderWorldMap(mapEl, data) {
     onScrollHint: showHint,
   });
 
-  // Called for every frame the view changes (and once while `view` is still being constructed).
-  function update({ s, x, y }, v = view) {
-    scene.setAttribute('transform', `translate(${x.toFixed(2)},${y.toFixed(2)}) scale(${s.toFixed(5)})`);
-    places.forEach((p, i) => {
-      markerEls[i].style.transform = `translate3d(${(p.xy[0] * s + x).toFixed(1)}px, ${(p.xy[1] * s + y).toFixed(1)}px, 0)`;
-    });
-    if (selected >= 0) positionPopover(callout, selected, 18);
-    if (hovered >= 0) positionPopover(tip, hovered, 14);
-    buttons.in.disabled = s >= v.maxScale * 0.999;
-    buttons.out.disabled = s <= v.minScale * 1.001;
-    buttons.home.disabled = v.isHome();
-    if (s >= v.minScale * DETAIL_AT) upgradeDetail();
+  // A drag turns the globe as if the surface under the pointer were being pushed: `k`
+  // converts a screen-pixel delta into a rotation delta (the small-angle approximation
+  // arc ≈ chord/radius is the standard, widely-used technique for this — a literal
+  // grab-a-point drag needs solving the full rotation and isn't worth it here). Latitude
+  // is clamped to the poles; longitude wraps freely, like spinning a desk globe.
+  function rotateBy(dx, dy) {
+    const k = (180 / Math.PI) / projection.scale();
+    rotate = [rotate[0] + dx * k, Math.max(-90, Math.min(90, rotate[1] - dy * k)), 0];
+    redraw();
+  }
+
+  // Animates `rotate` toward `target`, the short way around in longitude.
+  let rotateRaf = 0;
+  function flyRotateTo(target) {
+    cancelAnimationFrame(rotateRaf);
+    const from = rotate.slice();
+    const to = [from[0] + shortestTurn(from[0], target[0]), target[1], 0];
+    if (reduceMotion.matches) { rotate = to; redraw(true); return; }
+    const start = performance.now();
+    const step = (now) => {
+      const t = Math.min(1, (now - start) / ROTATE_MS);
+      const e = easeInOutCubic(t);
+      rotate = [from[0] + (to[0] - from[0]) * e, from[1] + (to[1] - from[1]) * e, 0];
+      redraw(t >= 1); // force the last frame, so the rest position always shows crisp land
+      if (t < 1) rotateRaf = requestAnimationFrame(step);
+    };
+    rotateRaf = requestAnimationFrame(step);
+  }
+
+  function goHome() {
+    setCrumb(null);
+    flyRotateTo(homeRotate);
+    view.flyTo(view.homeView());
   }
 
   function nearestPlace(at) {
     let best = -1;
     let bestDistance = HIT_RADIUS;
-    places.forEach((p, i) => {
+    allPlaces.forEach((p, i) => {
+      if (!p.front) return;
       const [px, py] = view.toScreen(p.xy);
       const d = Math.hypot(px - at[0], py - at[1]);
       if (d < bestDistance) { bestDistance = d; best = i; }
@@ -292,7 +392,7 @@ export function renderWorldMap(mapEl, data) {
 
   // Above the dot when there is room, below it otherwise; kept inside the card horizontally.
   function positionPopover(el, index, gap) {
-    const [px, py] = view.toScreen(places[index].xy);
+    const [px, py] = view.toScreen(allPlaces[index].xy);
     const inside = px >= 0 && px <= view.w && py >= 0 && py <= view.h;
     el.classList.toggle('is-offscreen', !inside);
     const { offsetWidth: w, offsetHeight: h } = el;
@@ -304,11 +404,12 @@ export function renderWorldMap(mapEl, data) {
   }
 
   function openCallout(index) {
+    if (!allPlaces[index].front) return;
     if (selected === index) return closeCallout();
     closeCallout();
     void callout.offsetWidth; // Restart the pop-in animation.
     selected = index;
-    const place = places[index];
+    const place = allPlaces[index];
     markerEls[index].classList.add('is-selected');
     callout.setAttribute('aria-label', place.name);
     callout.innerHTML = `
@@ -331,11 +432,13 @@ export function renderWorldMap(mapEl, data) {
     hideTip();
     positionPopover(callout, index, 18);
 
-    // Bring a dot near the edge into view so its card has room.
+    // Bring a dot near the edge into view: a direct CSS-view shift, not `view.panBy` —
+    // that now rotates the globe (see `onDrag` above), which isn't what "make room for
+    // the callout" means here.
     const [px, py] = view.toScreen(place.xy);
     const dx = Math.max(0, EDGE_MARGIN - px) - Math.max(0, px - (view.w - EDGE_MARGIN));
     const dy = Math.max(0, EDGE_MARGIN - py) - Math.max(0, py - (view.h - EDGE_MARGIN));
-    if (dx || dy) view.panBy(dx, dy);
+    if (dx || dy) view.flyTo({ ...view.view, x: view.view.x + dx, y: view.view.y + dy });
   }
 
   function closeCallout() {
@@ -353,7 +456,7 @@ export function renderWorldMap(mapEl, data) {
     hovered = index;
     if (index < 0 || index === selected) return hideTip();
     markerEls[index].classList.add('is-hovered');
-    tip.textContent = places[index].name;
+    tip.textContent = allPlaces[index].name;
     tip.hidden = false;
     positionPopover(tip, index, 14);
   }
@@ -372,10 +475,19 @@ export function renderWorldMap(mapEl, data) {
     if (shape) focusCountry(shape.dataset.country);
   }
 
+  // Rotates the globe to face the country, and zooms in a fixed amount — zoom no longer
+  // tracks a feature's own bounds (there's nothing to fit a box to once "where you're
+  // looking" is a rotation, not a pan), just a pleasant fixed level.
   function focusCountry(name) {
-    const bounds = byName.has(name) && boundsOf(byName.get(name), projection);
-    if (!bounds || name === focusedCountry) return;
-    view.flyTo(view.fitView(bounds, { inset: insets(view), maxZoom: 24 }));
+    const feature = byName.get(name);
+    if (!feature || name === focusedCountry) return;
+    const [lon, lat] = d3.geoCentroid(feature);
+    flyRotateTo([-lon, -lat, 0]);
+    // The country lands at `projection.translate()` (content space) once rotated to face
+    // it; centre that content point on the viewport's own screen centre, same as `zoomBy`.
+    const [px, py] = projection.translate();
+    const s = view.clampScale(view.minScale * FOCUS_ZOOM);
+    view.flyTo({ s, x: view.w / 2 - px * s, y: view.h / 2 - py * s });
     setCrumb(name);
   }
 
@@ -414,19 +526,15 @@ export function renderWorldMap(mapEl, data) {
   mapEl.querySelector('.map-controls').addEventListener('click', (e) => {
     const action = e.target.closest('[data-action]')?.dataset.action;
     if (!action) return;
-    setCrumb(null);
-    if (action === 'in') view.zoomBy(2);
-    else if (action === 'out') view.zoomBy(0.5);
-    else view.flyTo(view.homeView());
+    if (action === 'in') { setCrumb(null); view.zoomBy(2); }
+    else if (action === 'out') { setCrumb(null); view.zoomBy(0.5); }
+    else goHome();
   });
 
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     if (selected >= 0) closeCallout();
-    else if (mapEl.contains(document.activeElement) && !view.isHome()) {
-      setCrumb(null);
-      view.flyTo(view.homeView());
-    }
+    else if (mapEl.contains(document.activeElement) && !buttons.home.disabled) goHome();
   });
 
   document.addEventListener('pointerdown', (e) => {
