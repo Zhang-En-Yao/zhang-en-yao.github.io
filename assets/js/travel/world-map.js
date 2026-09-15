@@ -56,11 +56,16 @@ function placesOf(trips) {
 }
 
 // `data` carries the atlas (countries), the trips, the continent lookup, the named waters
-// and the star charts. `loadDetail` is optional: called once, the first time someone zooms
-// past DETAIL_AT, to swap the 1:50m coastlines for 1:10m.
+// and the star charts. `ghostCountries` — a coarser 1:110m atlas — is optional, falling
+// back to `countries` itself if it didn't load, since the far hemisphere redraws every
+// rotation frame and a tenth the vertices matters far more there than precision (it's
+// never clicked, and always seen faintly through the glass). `loadDetail` is optional too:
+// called once, the first time someone zooms past DETAIL_AT, to swap the front hemisphere's
+// 1:50m coastlines for 1:10m.
 export function renderWorldMap(mapEl, data) {
-  const { countries, trips, continentOf, marine, sky, loadDetail } = data;
+  const { countries, ghostCountries, trips, continentOf, marine, sky, loadDetail } = data;
   const land = { type: 'FeatureCollection', features: countries };
+  const ghostFeatures = ghostCountries || countries;
   const height = WIDTH; // the globe is a circle inscribed in a square, so this never varies
 
   // Face the globe toward the spherical mean of every visited place (d3's own centroid,
@@ -178,7 +183,7 @@ export function renderWorldMap(mapEl, data) {
   mapEl.innerHTML = `
     <div class="map-viewport" tabindex="0" role="application"
          aria-label="World map of the places listed below. Arrow keys rotate the globe; plus and minus zoom.">
-      <svg class="map-svg" aria-hidden="true"><g class="map-scene">${skyHtml()}<path class="map-globe"/><g class="map-land-ghost">${ghostShapes(land.features)}</g><g class="map-marine-areas">${waterShapes(waterFeatures)}${borderShapes(borderFeatures)}</g><g class="map-land">${countryShapes(land.features, path)}</g></g></svg>
+      <svg class="map-svg" aria-hidden="true"><g class="map-scene">${skyHtml()}<path class="map-globe"/><g class="map-land-ghost">${ghostShapes(ghostFeatures)}</g><g class="map-marine-areas">${waterShapes(waterFeatures)}${borderShapes(borderFeatures)}</g><g class="map-land">${countryShapes(land.features, path)}</g></g></svg>
       <div class="map-markers">${markerHtml(allPlaces)}</div>
     </div>
     <p class="map-crumb glass" hidden></p>
@@ -207,7 +212,7 @@ export function renderWorldMap(mapEl, data) {
   // per feature/star/line in the same order the html builders above emitted them, so
   // `redraw` can update `d`/`cx`/`cy` on every drag frame without ever touching innerHTML
   // (which, for ~5,000 stars, would be far too slow).
-  const ghostLandEls = [...mapEl.querySelectorAll('.map-land-ghost path')].map((el, i) => ({ el, feature: land.features[i] }));
+  const ghostLandEls = [...mapEl.querySelectorAll('.map-land-ghost path')].map((el, i) => ({ el, feature: ghostFeatures[i] }));
   const waterEls = [...mapEl.querySelectorAll('.map-marine')].map((el, i) => ({ el, feature: waterFeatures[i] }));
   const borderEls = [...mapEl.querySelectorAll('.map-marine-border')].map((el, i) => ({ el, feature: borderFeatures[i] }));
   const starEls = sky ? [...mapEl.querySelectorAll('.map-star')].map((el) => ({
@@ -251,13 +256,16 @@ export function renderWorldMap(mapEl, data) {
     }
   }
 
-  // Re-walking every country's coastline is, empirically, the expensive part of a redraw
-  // (tens of ms for a few hundred features — stars and markers are cheap by comparison).
-  // A single discrete action (a keypress, a click) still repaints land immediately, since
-  // it will always be well past LAND_THROTTLE_MS since the last update; only a rapid
-  // stream of drag/glide frames actually gets throttled, to whatever rate land can sustain
-  // — the rotation itself, and everything cheap (sky, markers), still track every frame.
-  const LAND_THROTTLE_MS = 80;
+  // Re-walking every country's coastline is, empirically, the expensive part of a redraw —
+  // not the DOM writes (a few ms for ~240 paths) but `d3.geoPath` itself, and unevenly so:
+  // Canada, Russia, the US and Indonesia's coastlines alone used to be nearly a third of
+  // the cost, just from how many vertices they carry. The ghost hemisphere now draws from
+  // a 1:110m atlas — a tenth the vertices of the front hemisphere's 1:50m, since it's
+  // faint decoration seen through the glass and never clicked — so both redraw on the
+  // same budget without ghost dragging front down the way it used to. A single discrete
+  // action (a keypress, a click) still repaints immediately, since it will always be well
+  // past LAND_THROTTLE_MS since the last update.
+  const LAND_THROTTLE_MS = 50;
   let lastLandUpdate = 0;
 
   // Repaints every rotation-dependent thing in place: the globe's own silhouette, land
@@ -277,9 +285,9 @@ export function renderWorldMap(mapEl, data) {
       lastLandUpdate = now;
       globeEl.setAttribute('d', path({ type: 'Sphere' }) || '');
       frontLandEls.forEach(({ el, feature }) => el.setAttribute('d', path(feature) || ''));
-      ghostLandEls.forEach(({ el, feature }) => el.setAttribute('d', wpath(feature) || ''));
       waterEls.forEach(({ el, feature }) => el.setAttribute('d', path(feature) || ''));
       borderEls.forEach(({ el, feature }) => el.setAttribute('d', path(feature) || ''));
+      ghostLandEls.forEach(({ el, feature }) => el.setAttribute('d', wpath(feature) || ''));
     }
 
     if (sky) {

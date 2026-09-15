@@ -1,7 +1,7 @@
 import { esc, fetchJson, emptyState, plural, statsHtml, SERVE_HINT, RETRY_BUTTON } from './shared/dom.js';
 import { fmtRange, splitDuration, currentMonth } from './shared/format.js';
 import { TRIPS_SRC, tripTitle, tripHref, tripDuration, newestFirst } from './shared/trips.js';
-import { loadCountries, loadDetailedCountries, loadMarine, byCountryName, CONTINENTS_SRC } from './shared/atlas.js';
+import { loadCountries, loadDetailedCountries, loadCoarseCountries, loadMarine, byCountryName, CONTINENTS_SRC } from './shared/atlas.js';
 import { CORE } from './shared/assets.js';
 import { thumbHtml } from './shared/thumb.js';
 import { renderWorldMap } from './travel/world-map.js';
@@ -85,9 +85,10 @@ Promise.all([
   fetchJson(TRIPS_SRC),
   fetchJson(CONTINENTS_SRC),
   loadMarine().catch(() => null), // Named waters enhance the map but are not required for it.
-  fetchJson(STARS_SRC).catch(() => null), // The polar star charts are decoration; the map works without them.
+  fetchJson(STARS_SRC).catch(() => null), // The star chart is decoration; the map works without it.
+  loadCoarseCountries().catch(() => null), // Falls back to the 50m atlas for the ghost hemisphere too.
 ])
-  .then(([countries, trips, continents, marine, sky]) => {
+  .then(([countries, trips, continents, marine, sky, coarseCountries]) => {
     const sorted = newestFirst(trips);
     if (!sorted.length) {
       mapEl.innerHTML = emptyState({
@@ -101,6 +102,7 @@ Promise.all([
     renderNext(sorted);
     renderWorldMap(mapEl, {
       countries,
+      ghostCountries: coarseCountries || countries,
       trips: sorted,
       continentOf: new Map(Object.entries(continents)),
       marine,

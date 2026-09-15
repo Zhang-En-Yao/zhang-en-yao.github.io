@@ -3,6 +3,7 @@ import { CORE } from './assets.js';
 
 const WORLD_SRC = `${CORE}/atlas/countries-50m.json`;
 const WORLD_DETAIL_SRC = `${CORE}/atlas/countries-10m.json`;
+const WORLD_COARSE_SRC = `${CORE}/atlas/countries-110m.json`;
 const MARINE_SRC = `${CORE}/atlas/marine-areas.json`;
 export const CONTINENTS_SRC = `${CORE}/atlas/continents.json`;
 
@@ -22,6 +23,16 @@ export async function loadCountries() {
 // once someone zooms far enough in for the difference to show.
 export async function loadDetailedCountries() {
   const [countries] = await objects(WORLD_DETAIL_SRC, 'countries');
+  return countries;
+}
+
+// 1:110m — a tenth the vertices of 1:50m, for the globe's far hemisphere: seen faintly
+// through the glass, redrawn every rotation frame, and never clicked, so cheap matters
+// far more than precise. Natural Earth's own coarsest tier, not a mechanical decimation
+// of a finer one, so it drops only the smallest territories rather than distorting big
+// ones (see assets.core/build/build-atlas-110m.py).
+export async function loadCoarseCountries() {
+  const [countries] = await objects(WORLD_COARSE_SRC, 'countries');
   return countries;
 }
 
