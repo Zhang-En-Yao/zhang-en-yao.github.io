@@ -4,16 +4,16 @@
 import { esc, plural } from '../shared/dom.js';
 import { fmtRange } from '../shared/format.js';
 import { tripDuration, tripHref, tripTitle } from '../shared/trips.js';
-import { hasCoords } from '../shared/atlas.js';
+import { hasCoords, polygonsOf } from '../shared/atlas.js';
 import { MapView, easeInOutCubic } from './map-view.js';
 
 const WIDTH = 960;
 const PAD = 6;
 const GLOBE_MARGIN = 110; // shrinks the globe within the card, so sky shows all the way around it, not just the corners
 const MAX_ZOOM = 40;
-const FOCUS_ZOOM = 6; // how far a clicked country zooms in, relative to the fitted globe
+const FOCUS_MAX_ZOOM = 20; // a clicked country's fitted zoom is capped here, relative to the fitted globe
 const SKY_SOFT = 8; // magnitudes past the limit where a star's radius stops growing linearly
-const SKY_INSIDE_DIM = 0.5; // stars seen through the glass globe, rather than around it
+const SKY_INSIDE_DIM = 0.7; // stars seen through the glass globe, rather than around it
 const ROTATE_MS = 650; // duration of a "fly to" rotation (home, or a clicked country)
 const HIT_RADIUS = 20; // px around a dot that still counts as clicking it
 const EDGE_MARGIN = 48; // px a selected dot is kept away from the map's edges
@@ -152,7 +152,7 @@ export function renderWorldMap(mapEl, data) {
   // SKY_SOFT, so the Sun's absurd magnitude doesn't draw a 15px disc).
   const starRadius = (mag, magMax) => {
     const over = Math.max(0, magMax - mag);
-    return 0.5 + 0.45 * (over <= SKY_SOFT ? over : SKY_SOFT + Math.log1p(over - SKY_SOFT));
+    return 0.7 + 0.5 * (over <= SKY_SOFT ? over : SKY_SOFT + Math.log1p(over - SKY_SOFT));
   };
   const skyHtml = () => {
     if (!sky) return '';
@@ -165,7 +165,7 @@ export function renderWorldMap(mapEl, data) {
         const bright = Math.min(1, (magMax - mag) / magMax);
         const r = starRadius(mag, magMax);
         return `<circle class="map-star" data-ra="${ra}" data-dec="${dec}" r="${r.toFixed(2)}"`
-          + ` data-opacity="${(0.3 + bright * 0.6).toFixed(2)}"/>`;
+          + ` data-opacity="${(0.45 + bright * 0.55).toFixed(2)}"/>`;
       })
       .join('');
     return `<g class="map-sky" aria-hidden="true">${figures}${stars}</g>`;
@@ -491,19 +491,34 @@ export function renderWorldMap(mapEl, data) {
     if (shape) focusCountry(shape.dataset.country);
   }
 
-  // Rotates the globe to face the country, and zooms in a fixed amount — zoom no longer
-  // tracks a feature's own bounds (there's nothing to fit a box to once "where you're
-  // looking" is a rotation, not a pan), just a pleasant fixed level.
+  // Content-space bounds of a country once rotated to face the viewer, ignoring vertices
+  // that land far from the rest (an overseas territory near the antipode of the mainland,
+  // or a piece cut across the antimeridian) — a bare point projection never clips (only
+  // `d3.geoPath`'s stream does), so a stray vertex would otherwise blow the box out to
+  // the whole globe instead of just the country actually being focused.
+  function countryBounds(feature, rotateTo) {
+    const scratch = d3.geoOrthographic().rotate(rotateTo).scale(projection.scale()).translate(projection.translate());
+    const pts = polygonsOf(feature.geometry).flatMap((poly) => poly.flat())
+      .map((c) => scratch(c))
+      .filter((p) => p && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+    if (!pts.length) return null;
+    const median = pts.map((p) => p[0]).sort((a, b) => a - b)[pts.length >> 1];
+    const near = pts.filter((p) => Math.abs(p[0] - median) < WIDTH / 2);
+    const xs = near.map((p) => p[0]);
+    const ys = near.map((p) => p[1]);
+    return [[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]];
+  }
+
+  // Rotates the globe to face the country, and zooms to fit however big it actually is —
+  // a fixed zoom level overshoots a small country and undershoots a large one.
   function focusCountry(name) {
     const feature = byName.get(name);
     if (!feature || name === focusedCountry) return;
     const [lon, lat] = d3.geoCentroid(feature);
-    flyRotateTo([-lon, -lat, 0]);
-    // The country lands at `projection.translate()` (content space) once rotated to face
-    // it; centre that content point on the viewport's own screen centre, same as `zoomBy`.
-    const [px, py] = projection.translate();
-    const s = view.clampScale(view.minScale * FOCUS_ZOOM);
-    view.flyTo({ s, x: view.w / 2 - px * s, y: view.h / 2 - py * s });
+    const rotateTo = [-lon, -lat, 0];
+    flyRotateTo(rotateTo);
+    const bounds = countryBounds(feature, rotateTo);
+    if (bounds) view.flyTo(view.fitView(bounds, { inset: insets(view), maxZoom: FOCUS_MAX_ZOOM }));
     setCrumb(name);
   }
 
