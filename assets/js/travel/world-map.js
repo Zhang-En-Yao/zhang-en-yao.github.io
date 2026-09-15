@@ -9,6 +9,7 @@ import { MapView, easeInOutCubic } from './map-view.js';
 
 const WIDTH = 960;
 const PAD = 6;
+const GLOBE_MARGIN = 110; // shrinks the globe within the card, so sky shows all the way around it, not just the corners
 const MAX_ZOOM = 40;
 const FOCUS_ZOOM = 6; // how far a clicked country zooms in, relative to the fitted globe
 const SKY_SOFT = 8; // magnitudes past the limit where a star's radius stops growing linearly
@@ -77,8 +78,13 @@ export function renderWorldMap(mapEl, data) {
   // side. Both are mutated in place each frame (`.rotate(rotate)`) rather than rebuilt —
   // `fitExtent` below only has to run once, since zoom is a CSS transform on `.map-scene`,
   // never a change to the projection's own scale.
+  //
+  // The globe is fit to a smaller, inset box than the card itself (`box`, used below for
+  // the sky's own reach) — leaving a ring of visible sky all the way around the globe,
+  // not just in the four corners a circle-in-a-square would otherwise leave bare.
   const box = [[PAD, PAD], [WIDTH - PAD, WIDTH - PAD]];
-  const projection = d3.geoOrthographic().rotate(rotate).clipAngle(90).fitExtent(box, { type: 'Sphere' });
+  const globeBox = [[GLOBE_MARGIN, GLOBE_MARGIN], [WIDTH - GLOBE_MARGIN, WIDTH - GLOBE_MARGIN]];
+  const projection = d3.geoOrthographic().rotate(rotate).clipAngle(90).fitExtent(globeBox, { type: 'Sphere' });
   const wideProjection = d3.geoOrthographic().rotate(rotate).clipAngle(179.9)
     .scale(projection.scale()).translate(projection.translate());
   const path = d3.geoPath(projection).digits(1);
@@ -324,11 +330,13 @@ export function renderWorldMap(mapEl, data) {
 
   redraw(true); // establish xy/front for every place before computing the home framing below
 
-  const homeFront = allPlaces.filter((p) => p.front);
-  const homeBounds = homeFront.length
-    ? [[Math.min(...homeFront.map((p) => p.xy[0])), Math.min(...homeFront.map((p) => p.xy[1]))],
-      [Math.max(...homeFront.map((p) => p.xy[0])), Math.max(...homeFront.map((p) => p.xy[1]))]]
-    : [[0, 0], [WIDTH, height]];
+  // Every place lives on the globe's own surface, so its content-space position is always
+  // within `globeRadius` of centre — fitting "home" to the globe's bounding box therefore
+  // always shows at least as much as fitting to the visited places would, and never
+  // crops tighter than the whole globe, keeping the sky margin around it visible by
+  // default rather than auto-zooming past it into a tight cluster of trips.
+  const [globeCx, globeCy] = projection.translate();
+  const homeBounds = [[globeCx - globeRadius, globeCy - globeRadius], [globeCx + globeRadius, globeCy + globeRadius]];
 
   view = new MapView(viewport, {
     width: WIDTH,
