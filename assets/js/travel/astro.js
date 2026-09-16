@@ -107,6 +107,16 @@ function eclipticToEquatorial(lonEcl, latEcl, d) {
   return { ra: norm360(Math.atan2(ye, xe) / DEG), dec: Math.atan2(ze, Math.hypot(xe, ye)) / DEG };
 }
 
+// The Sun's true geocentric equatorial position at `date` — same low-precision method as
+// the Moon, minus distance: the Sun's real ~3% perihelion/aphelion size swing isn't worth
+// the added complexity for a decorative disc, so it's always drawn at one fixed size. Its
+// ecliptic latitude is 0 by definition (the ecliptic is the plane of Earth's orbit around
+// the Sun, so the Sun itself never has latitude in that frame).
+export function sunEquatorial(date) {
+  const d = daysSinceJ2000(date);
+  return eclipticToEquatorial(sunEcliptic(d).lon, 0, d);
+}
+
 // The Moon's true (apparent) geocentric equatorial position at `date`, plus its distance
 // (Earth radii — compare against `MOON_MEAN_DISTANCE` for how much bigger/smaller than
 // average it should appear).

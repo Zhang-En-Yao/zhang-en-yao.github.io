@@ -93,25 +93,22 @@
   opacity: 0.26;
 }
 
-/* A single decorative moon, fixed in the sky like the stars around it: its true phase at
-   `SKY_MOMENT` (see world-map.js), clipped from a pale disc (unlike the ink-dot stars, filled
-   against --text so it reads at a glance in both themes) carrying its own maria and two-tone
-   craters plus a soft radial wash for a lit-sphere feel — dimmed the same way as everything
-   else seen through the glass globe. `.map-moon-glow`'s opacity is set per-instance (scaled
-   by illuminated fraction, so a thin crescent glows faintly rather than a full moon's worth). */
-.map-moon-glow {
-  fill: var(--text);
-  filter: blur(6px);
-}
-
-/* The dark limb, always drawn faintly so a thin crescent still reads as "a circle, mostly
-   unlit" rather than a stray sliver floating with nothing around it. */
-.map-moon-outline {
-  fill: var(--text);
-  opacity: 0.08;
+/* A single decorative moon, fixed in the sky like the stars around it: a pale disc (unlike the
+   ink-dot stars, filled against --text so it reads at a glance in both themes) carrying its
+   own maria and two-tone craters over its whole surface, plus a soft radial wash for a
+   lit-sphere feel — dimmed the same way as everything else seen through the glass globe.
+   `.map-moon-nightside` then darkens just the portion unlit at `SKY_MOMENT` (see world-map.js)
+   back toward the sky's own tone, rather than clipping the texture away outright, so the dark
+   majority of a thin crescent still shows real surface detail instead of going blank.
+   `.map-moon-halo` is a real 22° ice-crystal halo, traced as an actual circle on the
+   celestial sphere around the moon's true position (see `moonHaloRing` in world-map.js) —
+   its opacity is set per-instance, scaled by illuminated fraction (fainter around a thin
+   crescent, more moonlight to refract near full) and by the same seen-through-glass dimming
+   as everything else in the sky. */
+.map-moon-halo {
+  fill: none;
   stroke: var(--faint);
-  stroke-width: 0.8px;
-  stroke-opacity: 0.4;
+  stroke-width: 0.6px;
   vector-effect: non-scaling-stroke;
 }
 
@@ -131,11 +128,47 @@
 
 .map-moon-shade { fill: url(#map-moon-shade); }
 
+/* Dims the night side back toward the sky's own tone rather than hiding it outright, so the
+   craters and maria under it stay faintly visible — like real earthshine, not a blank disc. */
+.map-moon-nightside { fill: var(--card); opacity: 0.72; }
+
 .map-moon-grad-hi { stop-color: var(--card); stop-opacity: 0.4; }
 
 .map-moon-grad-mid { stop-color: var(--card); stop-opacity: 0; }
 
 .map-moon-grad-lo { stop-color: var(--text); stop-opacity: 0.25; }
+
+/* A single decorative sun, fixed in the sky like the moon and stars around it — see sunHtml
+   in world-map.js. Unlike the moon it has no phase to draw: as the light source it always
+   shows its full disc. `map-sun-shade`'s off-centre gradient limb-darkens it into a lit
+   sphere rather than a flat tint, `map-sun-granules` lays turbulent noise (not real,
+   unlike the Moon's craters — the Sun's convection cells never hold still) over the disc
+   for a mottled, textured surface instead of a flat fill, and `map-sun-corona` is the
+   soft outer glow — all dimmed the same way as everything else seen through the glass globe. */
+.map-sun-corona { fill: url(#map-sun-glow); }
+
+.map-sun-glow-hi { stop-color: var(--accent); stop-opacity: 0.4; }
+
+.map-sun-glow-lo { stop-color: var(--accent); stop-opacity: 0; }
+
+.map-sun-disc {
+  fill: url(#map-sun-shade);
+  stroke: color-mix(in srgb, var(--accent) 60%, var(--text));
+  stroke-width: 0.6px;
+  vector-effect: non-scaling-stroke;
+}
+
+.map-sun-grad-hi { stop-color: color-mix(in srgb, var(--accent) 75%, white); }
+
+.map-sun-grad-mid { stop-color: var(--accent); }
+
+.map-sun-grad-lo { stop-color: color-mix(in srgb, var(--accent) 65%, var(--text)); }
+
+.map-sun-granules {
+  fill: #000;
+  opacity: 0.22;
+  mix-blend-mode: multiply;
+}
 
 /* The globe's own silhouette — a pane of glass between the viewer and the sky behind it. */
 .map-globe {

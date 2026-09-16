@@ -81,16 +81,23 @@ function renderList(trips, byName) {
     .join('');
 }
 
+// Purely decorative, and fetched from here so they start downloading immediately, in
+// parallel with the required data below — but never awaited alongside it. Each is handed
+// to `renderWorldMap` as a still-in-flight Promise (`.catch(() => null)`'d so a failed one
+// resolves to "skip it" rather than rejecting) and hydrated into the globe once it lands,
+// so a slow star-chart or marine-boundary fetch no longer holds up the trip list or a
+// working globe from appearing.
+const coarseCountries = loadCoarseCountries().catch(() => null);
+const marine = loadMarine().catch(() => null);
+const sky = fetchJson(STARS_SRC).catch(() => null);
+const moonFeatures = fetchJson(MOON_FEATURES_SRC).catch(() => null);
+
 Promise.all([
   loadCountries(),
   fetchJson(TRIPS_SRC),
   fetchJson(CONTINENTS_SRC),
-  loadMarine().catch(() => null), // Named waters enhance the map but are not required for it.
-  fetchJson(STARS_SRC).catch(() => null), // The star chart is decoration; the map works without it.
-  loadCoarseCountries().catch(() => null), // Falls back to the 50m atlas for the ghost hemisphere too.
-  fetchJson(MOON_FEATURES_SRC).catch(() => null), // Real crater/mare data for the moon; also just decoration.
 ])
-  .then(([countries, trips, continents, marine, sky, coarseCountries, moonFeatures]) => {
+  .then(([countries, trips, continents]) => {
     const sorted = newestFirst(trips);
     if (!sorted.length) {
       mapEl.innerHTML = emptyState({
@@ -104,7 +111,7 @@ Promise.all([
     renderNext(sorted);
     renderWorldMap(mapEl, {
       countries,
-      ghostCountries: coarseCountries || countries,
+      ghostCountries: coarseCountries,
       trips: sorted,
       continentOf: new Map(Object.entries(continents)),
       marine,
