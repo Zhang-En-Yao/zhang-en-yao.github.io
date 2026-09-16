@@ -7,6 +7,7 @@ import { thumbHtml } from './shared/thumb.js';
 import { renderWorldMap } from './travel/world-map.js';
 
 const STARS_SRC = `${CORE}/sky/stars.json`;
+const MOON_FEATURES_SRC = 'assets/data/moon-features.json';
 
 const mapEl = document.getElementById('map');
 const listEl = document.getElementById('list');
@@ -87,8 +88,9 @@ Promise.all([
   loadMarine().catch(() => null), // Named waters enhance the map but are not required for it.
   fetchJson(STARS_SRC).catch(() => null), // The star chart is decoration; the map works without it.
   loadCoarseCountries().catch(() => null), // Falls back to the 50m atlas for the ghost hemisphere too.
+  fetchJson(MOON_FEATURES_SRC).catch(() => null), // Real crater/mare data for the moon; also just decoration.
 ])
-  .then(([countries, trips, continents, marine, sky, coarseCountries]) => {
+  .then(([countries, trips, continents, marine, sky, coarseCountries, moonFeatures]) => {
     const sorted = newestFirst(trips);
     if (!sorted.length) {
       mapEl.innerHTML = emptyState({
@@ -107,6 +109,7 @@ Promise.all([
       continentOf: new Map(Object.entries(continents)),
       marine,
       sky,
+      moonFeatures,
       loadDetail: loadDetailedCountries,
     });
     renderList(sorted, byCountryName(countries));

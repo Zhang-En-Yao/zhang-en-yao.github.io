@@ -6,6 +6,7 @@ import { fmtRange } from '../shared/format.js';
 import { tripDuration, tripHref, tripTitle } from '../shared/trips.js';
 import { hasCoords, polygonsOf } from '../shared/atlas.js';
 import { MapView, easeInOutCubic } from './map-view.js';
+import { gmstDegrees, moonEquatorial, moonPhase, MOON_MEAN_DISTANCE } from './astro.js';
 
 const WIDTH = 960;
 const PAD = 6;
@@ -14,6 +15,17 @@ const MAX_ZOOM = 40;
 const FOCUS_MAX_ZOOM = 20; // a clicked country's fitted zoom is capped here, relative to the fitted globe
 const SKY_SOFT = 8; // magnitudes past the limit where a star's radius stops growing linearly
 const SKY_INSIDE_DIM = 0.3; // stars seen through the glass globe, rather than around it
+const MOON_RADIUS = 9;
+
+// The sky is frozen to this one real moment — Sept 9, 1994, 16:50 Taipei time — rather than
+// live "now": the star field's orientation, and the moon's own position and phase, are all
+// computed for it once, below, and never move on their own. Dragging the globe still spins
+// this fixed sky along with the geography, the same as ever; it just now starts out true.
+const SKY_MOMENT = new Date('1994-09-09T08:50:00Z');
+const SKY_GMST = gmstDegrees(SKY_MOMENT); // Greenwich sidereal time, in degrees, at that moment
+const REAL_MOON = moonEquatorial(SKY_MOMENT);
+const REAL_MOON_PHASE = moonPhase(SKY_MOMENT);
+const MOON_DISTANCE_SCALE = MOON_MEAN_DISTANCE / REAL_MOON.distance; // >1 = closer than average, so bigger
 const ROTATE_MS = 650; // duration of a "fly to" rotation (home, or a clicked country)
 const HIT_RADIUS = 20; // px around a dot that still counts as clicking it
 const EDGE_MARGIN = 48; // px a selected dot is kept away from the map's edges
@@ -63,7 +75,7 @@ function placesOf(trips) {
 // called once, the first time someone zooms past DETAIL_AT, to swap the front hemisphere's
 // 1:50m coastlines for 1:10m.
 export function renderWorldMap(mapEl, data) {
-  const { countries, ghostCountries, trips, continentOf, marine, sky, loadDetail } = data;
+  const { countries, ghostCountries, trips, continentOf, marine, sky, moonFeatures, loadDetail } = data;
   const land = { type: 'FeatureCollection', features: countries };
   const ghostFeatures = ghostCountries || countries;
   const height = WIDTH; // the globe is a circle inscribed in a square, so this never varies
@@ -110,6 +122,24 @@ export function renderWorldMap(mapEl, data) {
   const skyProjection = d3.geoStereographic().rotate(rotate).clipAngle(skyClipAngle)
     .scale(skyScale).translate(projection.translate());
   const skyPath = d3.geoPath(skyProjection).digits(1);
+
+  // Both the star field and the moon are plotted in right-ascension/declination — coordinates
+  // fixed to the celestial sphere, not to the Earth turning underneath it. Treating RA directly
+  // as a longitude (as `rotate` expects) would only be correct at the instant Greenwich sidereal
+  // time hits zero; at any other moment the sky has visibly turned relative to the ground. The
+  // fix is the standard one: a star's sub-stellar point (where it's directly overhead) sits at
+  // geographic longitude (RA − GST), latitude Dec — so shifting every RA by −`SKY_GMST` converts
+  // the catalog into "where on Earth each star was overhead at `SKY_MOMENT`," which is exactly
+  // the frame `rotate` already works in.
+  const toSkyLon = (raDeg) => (((raDeg - SKY_GMST) % 360) + 540) % 360 - 180;
+  if (sky) {
+    sky.stars = sky.stars.map(([ra, dec, mag]) => [toSkyLon(ra), dec, mag]);
+    sky.lines = sky.lines.map((c) => ({
+      ...c,
+      paths: c.paths.map((line) => line.map(([ra, dec]) => [toSkyLon(ra), dec])),
+    }));
+  }
+  const moonPoint = [toSkyLon(REAL_MOON.ra), REAL_MOON.dec];
 
   const visited = new Set(trips.map((t) => t.country).filter(Boolean));
   const byName = new Map(land.features.map((f) => [f.properties.name, f]));
@@ -171,6 +201,89 @@ export function renderWorldMap(mapEl, data) {
     return `<g class="map-sky" aria-hidden="true">${figures}${stars}</g>`;
   };
 
+  // Drawn independently of `sky` (it needs no star-atlas data): a single moon at a fixed
+  // point in the same sky frame as the stars, so it drifts and dims behind the glass globe
+  // exactly as they do. Sized by `MOON_DISTANCE_SCALE` (real perigee/apogee variation at
+  // `SKY_MOMENT`, relative to the mean `MOON_RADIUS` the rest of the numbers below are tuned
+  // for). Lit on the right for waxing, left for waning — the usual northern-hemisphere
+  // convention — clipped to `REAL_MOON_PHASE`'s true illuminated fraction, over a faint
+  // always-visible outline of the full disc (so a thin crescent still reads as "a circle,
+  // mostly dark" rather than a stray sliver).
+  //
+  // `moonFeatures` (optional — the moon still draws fine without it, just as a bare phase)
+  // is every IAU-named near-side crater and "sea" (mare/oceanus/lacus/palus/sinus, all the
+  // dark-plain types) from the USGS Gazetteer of Planetary Nomenclature's official dataset:
+  // real selenographic centre and diameter, not invented. Every crater is included; only
+  // ones under `CRATER_MIN_PX` end up not drawn below, purely because a sub-pixel circle
+  // costs a DOM node for literally nothing visible — the underlying data isn't filtered.
+  const MOON_KM = 1737.4; // mean lunar radius, km
+  const CRATER_MIN_PX = 0.12; // screen radius (svg units) below which a crater isn't drawn at all
+  const CRATER_PROMINENT_KM = 150; // real diameter above which a crater gets the shadow+highlight treatment, not a flat dot
+  // Orthographic near-side projection assuming zero libration (the Moon shows Earth its exact
+  // mean face) and no position-angle rotation — simplified, but every position and size below
+  // is real. `foreshorten` (the view-direction component of the surface normal) both places
+  // the feature and shrinks it the way foreshortening really would toward the limb.
+  function featureToDisc([lat, lon, km], moonRadius) {
+    const rad = Math.PI / 180;
+    const foreshorten = Math.cos(lat * rad) * Math.cos(lon * rad);
+    const x = Math.cos(lat * rad) * Math.sin(lon * rad) * moonRadius;
+    const y = -Math.sin(lat * rad) * moonRadius;
+    const angularRadius = Math.asin(Math.min(0.98, (km / 2) / MOON_KM));
+    const r = moonRadius * Math.sin(angularRadius) * Math.max(0.2, foreshorten);
+    return { x, y, r };
+  }
+  // The illuminated region's outline: the limb (the true circle, lit side) on one edge and the
+  // terminator (an ellipse whose horizontal radius shrinks to 0 at half-lit, then grows again
+  // curving the other way past it) on the other — the standard construction for a phase icon.
+  function moonPhasePath(r, illuminatedFraction) {
+    const termRx = r * (1 - 2 * illuminatedFraction); // signed: >0 crescent-side, <0 gibbous-side
+    const termSweep = termRx < 0 ? 1 : 0;
+    return `M 0 ${(-r).toFixed(2)} A ${r.toFixed(2)} ${r.toFixed(2)} 0 0 1 0 ${r.toFixed(2)}`
+      + ` A ${Math.abs(termRx).toFixed(2)} ${r.toFixed(2)} 0 0 ${termSweep} 0 ${(-r).toFixed(2)} Z`;
+  }
+  const moonHtml = () => {
+    const moonRadius = MOON_RADIUS * MOON_DISTANCE_SCALE;
+    const craters = (moonFeatures?.craters ?? [])
+      .map((f) => ({ ...featureToDisc(f, moonRadius), km: f[2] }))
+      .filter(({ r }) => r >= CRATER_MIN_PX)
+      .map(({ x, y, r, km }) => {
+        if (km < CRATER_PROMINENT_KM) return `<circle class="map-moon-crater-shadow" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(2)}"/>`;
+        const [lx, ly, lr] = [x - r * 0.3, y - r * 0.3, r * 0.55];
+        return `<circle class="map-moon-crater-shadow" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(2)}"/>`
+          + `<circle class="map-moon-crater-light" cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="${lr.toFixed(2)}"/>`;
+      })
+      .join('');
+    const maria = (moonFeatures?.seas ?? [])
+      .map((f) => {
+        const { x, y, r } = featureToDisc(f, moonRadius);
+        return `<circle class="map-moon-mare" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}"/>`;
+      })
+      .join('');
+    const phaseTransform = REAL_MOON_PHASE.waxing ? '' : ' transform="scale(-1,1)"';
+    const glowOpacity = 0.05 + 0.12 * REAL_MOON_PHASE.illuminatedFraction; // a thin crescent glows faintly, a full moon more
+    return `
+      <defs>
+        <radialGradient id="map-moon-shade" cx="32%" cy="30%" r="75%">
+          <stop offset="0%" class="map-moon-grad-hi"/>
+          <stop offset="55%" class="map-moon-grad-mid"/>
+          <stop offset="100%" class="map-moon-grad-lo"/>
+        </radialGradient>
+        <clipPath id="map-moon-clip"><circle r="${moonRadius.toFixed(1)}"/></clipPath>
+        <clipPath id="map-moon-lit-clip">
+          <path d="${moonPhasePath(moonRadius, REAL_MOON_PHASE.illuminatedFraction)}"${phaseTransform}/>
+        </clipPath>
+      </defs>
+      <g class="map-moon" aria-hidden="true">
+        <circle class="map-moon-glow" r="${(moonRadius * 2.1).toFixed(1)}" opacity="${glowOpacity.toFixed(2)}"/>
+        <circle class="map-moon-outline" r="${moonRadius.toFixed(1)}"/>
+        <g clip-path="url(#map-moon-lit-clip)">
+          <circle class="map-moon-disc" r="${moonRadius.toFixed(1)}"/>
+          <g class="map-moon-surface" clip-path="url(#map-moon-clip)">${maria}${craters}</g>
+          <circle class="map-moon-shade" r="${moonRadius.toFixed(1)}"/>
+        </g>
+      </g>`;
+  };
+
   const markerHtml = (places) => places
     .map((p, i) => `
       <button class="map-marker" type="button" data-place="${i}"
@@ -183,7 +296,7 @@ export function renderWorldMap(mapEl, data) {
   mapEl.innerHTML = `
     <div class="map-viewport" tabindex="0" role="application"
          aria-label="World map of the places listed below. Arrow keys rotate the globe; plus and minus zoom.">
-      <svg class="map-svg" aria-hidden="true"><g class="map-scene">${skyHtml()}<path class="map-globe"/><g class="map-land-ghost">${ghostShapes(ghostFeatures)}</g><g class="map-marine-areas">${waterShapes(waterFeatures)}${borderShapes(borderFeatures)}</g><g class="map-land">${countryShapes(land.features, path)}</g></g></svg>
+      <svg class="map-svg" aria-hidden="true"><g class="map-scene">${skyHtml()}${moonHtml()}<path class="map-globe"/><g class="map-land-ghost">${ghostShapes(ghostFeatures)}</g><g class="map-marine-areas">${waterShapes(waterFeatures)}${borderShapes(borderFeatures)}</g><g class="map-land">${countryShapes(land.features, path)}</g></g></svg>
       <div class="map-markers">${markerHtml(allPlaces)}</div>
     </div>
     <p class="map-crumb glass" hidden></p>
@@ -201,6 +314,7 @@ export function renderWorldMap(mapEl, data) {
   const viewport = mapEl.querySelector('.map-viewport');
   const scene = mapEl.querySelector('.map-scene');
   const globeEl = mapEl.querySelector('.map-globe');
+  const moonEl = mapEl.querySelector('.map-moon');
   const markerEls = [...mapEl.querySelectorAll('.map-marker')];
   const crumb = mapEl.querySelector('.map-crumb');
   const tip = mapEl.querySelector('.map-tip');
@@ -231,6 +345,14 @@ export function renderWorldMap(mapEl, data) {
   // Breathing room around a framed area, clear of the zoom controls on the right.
   const insets = (v) => {
     const pad = Math.min(40, v.w * 0.06);
+    return { top: pad, bottom: pad, left: pad, right: pad + 44 };
+  };
+
+  // The home framing alone uses extra breathing room, well past what a focused country
+  // needs — that's what leaves open sky (and the moon) visible around the globe by default,
+  // rather than the globe filling the card edge-to-edge.
+  const homeInsets = (v) => {
+    const pad = Math.min(84, v.w * 0.14);
     return { top: pad, bottom: pad, left: pad, right: pad + 44 };
   };
 
@@ -290,9 +412,10 @@ export function renderWorldMap(mapEl, data) {
       ghostLandEls.forEach(({ el, feature }) => el.setAttribute('d', wpath(feature) || ''));
     }
 
+    const [cx, cy] = projection.translate();
+    const limit = (skyClipAngle - 2) * (Math.PI / 180);
+
     if (sky) {
-      const [cx, cy] = projection.translate();
-      const limit = (skyClipAngle - 2) * (Math.PI / 180);
       lineEls.forEach(({ el, coords }) => el.setAttribute('d', skyPath({ type: 'MultiLineString', coordinates: coords }) || ''));
       starEls.forEach(({ el, point, opacity }) => {
         if (d3.geoDistance(point, center) > limit) { el.setAttribute('opacity', 0); return; }
@@ -303,6 +426,17 @@ export function renderWorldMap(mapEl, data) {
         el.setAttribute('cy', p[1].toFixed(1));
         el.setAttribute('opacity', (opacity * (inside ? SKY_INSIDE_DIM : 1)).toFixed(2));
       });
+    }
+
+    if (moonEl) {
+      const p = d3.geoDistance(moonPoint, center) <= limit ? skyProjection(moonPoint) : null;
+      if (!p || !Number.isFinite(p[0]) || !Number.isFinite(p[1])) {
+        moonEl.setAttribute('opacity', 0);
+      } else {
+        const inside = Math.hypot(p[0] - cx, p[1] - cy) <= globeRadius;
+        moonEl.setAttribute('transform', `translate(${p[0].toFixed(1)},${p[1].toFixed(1)})`);
+        moonEl.setAttribute('opacity', inside ? SKY_INSIDE_DIM : 1);
+      }
     }
 
     allPlaces.forEach((p) => {
@@ -350,7 +484,7 @@ export function renderWorldMap(mapEl, data) {
     width: WIDTH,
     height,
     maxZoom: MAX_ZOOM,
-    home: (v) => v.fitView(homeBounds, { inset: insets(v), maxZoom: 8 }),
+    home: (v) => v.fitView(homeBounds, { inset: homeInsets(v), maxZoom: 8 }),
     onDrag: rotateBy,
     onChange: update,
     onTap: tapAt,

@@ -93,6 +93,50 @@
   opacity: 0.26;
 }
 
+/* A single decorative moon, fixed in the sky like the stars around it: its true phase at
+   `SKY_MOMENT` (see world-map.js), clipped from a pale disc (unlike the ink-dot stars, filled
+   against --text so it reads at a glance in both themes) carrying its own maria and two-tone
+   craters plus a soft radial wash for a lit-sphere feel — dimmed the same way as everything
+   else seen through the glass globe. `.map-moon-glow`'s opacity is set per-instance (scaled
+   by illuminated fraction, so a thin crescent glows faintly rather than a full moon's worth). */
+.map-moon-glow {
+  fill: var(--text);
+  filter: blur(6px);
+}
+
+/* The dark limb, always drawn faintly so a thin crescent still reads as "a circle, mostly
+   unlit" rather than a stray sliver floating with nothing around it. */
+.map-moon-outline {
+  fill: var(--text);
+  opacity: 0.08;
+  stroke: var(--faint);
+  stroke-width: 0.8px;
+  stroke-opacity: 0.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.map-moon-disc {
+  fill: var(--text);
+  opacity: 0.5;
+  stroke: var(--faint);
+  stroke-width: 0.8px;
+  vector-effect: non-scaling-stroke;
+}
+
+.map-moon-mare { fill: var(--faint); opacity: 0.22; }
+
+.map-moon-crater-shadow { fill: var(--faint); opacity: 0.45; }
+
+.map-moon-crater-light { fill: var(--card); opacity: 0.4; }
+
+.map-moon-shade { fill: url(#map-moon-shade); }
+
+.map-moon-grad-hi { stop-color: var(--card); stop-opacity: 0.4; }
+
+.map-moon-grad-mid { stop-color: var(--card); stop-opacity: 0; }
+
+.map-moon-grad-lo { stop-color: var(--text); stop-opacity: 0.25; }
+
 /* The globe's own silhouette — a pane of glass between the viewer and the sky behind it. */
 .map-globe {
   fill: color-mix(in srgb, var(--card) 55%, transparent);
