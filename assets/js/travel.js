@@ -8,6 +8,7 @@ import { renderWorldMap } from './travel/world-map.js';
 
 const STARS_SRC = `${CORE}/sky/stars.json`;
 const MOON_FEATURES_SRC = 'assets/data/moon-features.json';
+const SUN_FEATURES_SRC = 'assets/data/sun-features.json';
 
 const mapEl = document.getElementById('map');
 const listEl = document.getElementById('list');
@@ -91,6 +92,7 @@ const coarseCountries = loadCoarseCountries().catch(() => null);
 const marine = loadMarine().catch(() => null);
 const sky = fetchJson(STARS_SRC).catch(() => null);
 const moonFeatures = fetchJson(MOON_FEATURES_SRC).catch(() => null);
+const sunFeatures = fetchJson(SUN_FEATURES_SRC).catch(() => null);
 
 Promise.all([
   loadCountries(),
@@ -117,6 +119,7 @@ Promise.all([
       marine,
       sky,
       moonFeatures,
+      sunFeatures,
       loadDetail: loadDetailedCountries,
     });
     renderList(sorted, byCountryName(countries));

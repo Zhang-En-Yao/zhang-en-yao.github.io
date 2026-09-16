@@ -139,36 +139,76 @@
 .map-moon-grad-lo { stop-color: var(--text); stop-opacity: 0.25; }
 
 /* A single decorative sun, fixed in the sky like the moon and stars around it — see sunHtml
-   in world-map.js. Unlike the moon it has no phase to draw: as the light source it always
-   shows its full disc. `map-sun-shade`'s off-centre gradient limb-darkens it into a lit
-   sphere rather than a flat tint, `map-sun-granules` lays turbulent noise (not real,
-   unlike the Moon's craters — the Sun's convection cells never hold still) over the disc
-   for a mottled, textured surface instead of a flat fill, and `map-sun-corona` is the
-   soft outer glow — all dimmed the same way as everything else seen through the glass globe. */
-.map-sun-corona { fill: url(#map-sun-glow); }
+   in world-map.js, which computes the numbers these rules colour in. Unlike the moon it has no
+   phase to draw: as the light source it always shows its full disc. Everything below is
+   deliberately theme-independent where the physics demands it — the limb, the umbrae and the
+   granulation darken toward black rather than toward `--text`, because on a dark page `--text`
+   is pale and mixing toward it would brighten exactly the things that have to go dark. Mixing a
+   little `--accent` back into that black is not only for warmth: the limb really is redder than
+   disc centre, because the slanted line of sight stops higher up, in cooler gas. */
+.map-sun-glow { fill: url(#map-sun-glow); }
 
-.map-sun-glow-hi { stop-color: var(--accent); stop-opacity: 0.4; }
+.map-sun-corona-stop { stop-color: var(--accent); }
 
-.map-sun-glow-lo { stop-color: var(--accent); stop-opacity: 0; }
+/* Helmet streamers over that day's active regions, and the wider belt straddling the
+   heliospheric current sheet. Their per-instance opacity carries one half of the physics — a
+   streamer seen end-on, over the middle of the disc, all but disappears — and the shared fade
+   the other: coronal light thins with height, so every streamer dissolves as it climbs rather
+   than stopping at the edge of its own shape. The plumes are strokes of the same gradient. */
+.map-sun-streamer,
+.map-sun-helmet { fill: url(#map-sun-streamer-fade); }
 
-.map-sun-disc {
-  fill: url(#map-sun-shade);
-  stroke: color-mix(in srgb, var(--accent) 60%, var(--text));
-  stroke-width: 0.6px;
-  vector-effect: non-scaling-stroke;
+.map-sun-streamer-stop { stop-color: var(--accent); }
+
+/* The open field of the polar coronal holes, where the corona thins out to threads. The width
+   comes from world-map.js, which sets it from a real plume's real width against the size the
+   sun is actually drawn at — so it is in the drawing's own units, not screen pixels, and grows
+   with the sun as the globe is zoomed. A plume is tens of thousands of kilometres across; a
+   hairline would be the wrong answer at every zoom level. */
+.map-sun-plume {
+  stroke: url(#map-sun-streamer-fade);
+  stroke-width: var(--sun-plume-width, 0.3);
+  stroke-linecap: round;
 }
 
-.map-sun-grad-hi { stop-color: color-mix(in srgb, var(--accent) 75%, white); }
+.map-sun-disc { fill: var(--accent); }
 
-.map-sun-grad-mid { stop-color: var(--accent); }
-
-.map-sun-grad-lo { stop-color: color-mix(in srgb, var(--accent) 65%, var(--text)); }
+/* Convection at its true size: the ~30 Mm network first, then ~1 Mm granulation over it —
+   which lands finer than a pixel until the globe is zoomed well in, exactly as it does to the
+   naked eye on the real sun. */
+.map-sun-supergranules {
+  fill: #000;
+  opacity: 0.1;
+  mix-blend-mode: multiply;
+}
 
 .map-sun-granules {
   fill: #000;
-  opacity: 0.22;
+  opacity: 0.16;
   mix-blend-mode: multiply;
 }
+
+/* A spot is a patch where the magnetic field is strong enough to choke off convection, so it
+   is cooler and therefore darker: the umbra runs at roughly a fifth of the photosphere's
+   brightness, the penumbra around three quarters. */
+.map-sun-penumbra { fill: color-mix(in srgb, var(--accent) 52%, #000); }
+
+.map-sun-umbra { fill: color-mix(in srgb, var(--accent) 16%, #000); }
+
+/* The measured limb-darkening profile, laid over the disc as a darkening veil. The 30% here is
+   `LIMB_TINT` in world-map.js, which divides its stop opacities back up to compensate for it —
+   change one and change the other, or the disc darkens to the wrong depth. */
+.map-sun-limb { fill: url(#map-sun-limb); }
+
+.map-sun-limb-stop { stop-color: color-mix(in srgb, var(--accent) 30%, #000); }
+
+/* Faculae sit above that veil rather than under it: they are brighter than their surroundings,
+   and their surroundings near the limb are the darkest part of the disc — which is precisely
+   why they show there and vanish at disc centre. Plage has no edge to speak of, so the patch
+   fades out through a gradient instead of ending at an outline. */
+.map-sun-facula { fill: url(#map-sun-plage); }
+
+.map-sun-plage-stop { stop-color: color-mix(in srgb, var(--accent) 50%, white); }
 
 /* The globe's own silhouette — a pane of glass between the viewer and the sky behind it. */
 .map-globe {

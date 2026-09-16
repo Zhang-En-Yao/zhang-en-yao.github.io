@@ -6,7 +6,10 @@ import { fmtRange } from '../shared/format.js';
 import { tripDuration, tripHref, tripTitle } from '../shared/trips.js';
 import { hasCoords, polygonsOf } from '../shared/atlas.js';
 import { MapView, easeInOutCubic } from './map-view.js';
-import { gmstDegrees, moonEquatorial, moonPhase, MOON_MEAN_DISTANCE, sunEquatorial } from './astro.js';
+import {
+  angularRadius, gmstDegrees, moonEquatorial, moonPhase, MOON_RADIUS_KM,
+  sunEquatorial, sunPhysicalEphemeris, SUN_RADIUS_KM,
+} from './astro.js';
 
 const WIDTH = 960;
 const PAD = 6;
@@ -15,8 +18,20 @@ const MAX_ZOOM = 40;
 const FOCUS_MAX_ZOOM = 20; // a clicked country's fitted zoom is capped here, relative to the fitted globe
 const SKY_SOFT = 8; // magnitudes past the limit where a star's radius stops growing linearly
 const SKY_INSIDE_DIM = 0.3; // stars seen through the glass globe, rather than around it
-const MOON_RADIUS = 9;
-const SUN_RADIUS = 10;
+// From Earth the sun and the moon are each about half a degree across, which through the sky's
+// own projection comes out below a single pixel: true, and useless. Rather than invent a
+// magnification, each disc is drawn at the size it really had for the closest thing we ever
+// sent to it — so the scale is borrowed rather than made up, and the two discs end up as
+// different sizes for a reason. The sun is 22× its size from Earth, the moon 47×; the
+// near-coincidence that makes eclipses work is a fact about standing on Earth, and standing
+// somewhere else is exactly what these two numbers do.
+const SUN_VIEWPOINT_KM = 9.86 * SUN_RADIUS_KM; // Parker Solar Probe's perihelion, 2024 Dec 24 —
+  // 6.86 million km from the sun's centre, 3.8 million miles above the photosphere, and the
+  // closest any object built by people has come to a star.
+const MOON_VIEWPOINT_KM = MOON_RADIUS_KM + 5995; // Luna 1's closest approach, 1959 Jan 4 — the
+  // first time anything we made came near another world. It was aimed at the surface and
+  // missed by these 5,995 km, which is the only reason there is a viewing distance to use at
+  // all: eight months later Luna 2 hit, and the record has been zero ever since.
 
 // The sky is frozen to this one real moment — Sept 9, 1994, 16:50 Taipei time — rather than
 // live "now": the star field's orientation, and the moon's own position and phase, are all
@@ -26,8 +41,12 @@ const SKY_MOMENT = new Date('1994-09-09T08:50:00Z');
 const SKY_GMST = gmstDegrees(SKY_MOMENT); // Greenwich sidereal time, in degrees, at that moment
 const REAL_MOON = moonEquatorial(SKY_MOMENT);
 const REAL_MOON_PHASE = moonPhase(SKY_MOMENT);
-const MOON_DISTANCE_SCALE = MOON_MEAN_DISTANCE / REAL_MOON.distance; // >1 = closer than average, so bigger
 const REAL_SUN = sunEquatorial(SKY_MOMENT);
+// How the sun's own globe was turned toward Earth that morning: the tilt of its axis on the
+// sky, how far its equator was tipped toward us, and which Carrington longitude faced us.
+// Between them they decide where on the drawn disc a sunspot of a given latitude and longitude
+// belongs — see `sunPhysicalEphemeris`.
+const SUN_AXIS = sunPhysicalEphemeris(SKY_MOMENT);
 const ROTATE_MS = 650; // duration of a "fly to" rotation (home, or a clicked country)
 const HIT_RADIUS = 20; // px around a dot that still counts as clicking it
 const EDGE_MARGIN = 48; // px a selected dot is kept away from the map's edges
@@ -73,7 +92,8 @@ function placesOf(trips) {
 // already resolved by the time this is called. Everything else is purely decorative and
 // optional, and arrives as a Promise still in flight rather than a resolved value:
 // `ghostCountries` (a coarser 1:110m atlas for the far hemisphere), `marine` (named waters
-// and their borders), `sky` (the star atlas) and `moonFeatures` (real lunar craters/maria).
+// and their borders), `sky` (the star atlas), `moonFeatures` (real lunar craters/maria) and
+// `sunFeatures` (the sunspots measured on the morning the sky is frozen to).
 // None of the four gate the first paint — the globe renders immediately without them, and
 // each hydrates its own slice of the already-live scene the moment it resolves, in place,
 // without a re-render — the same way `loadDetail` (also called lazily, on demand rather
@@ -81,7 +101,7 @@ function placesOf(trips) {
 // enough to need it. A slow or failing decorative fetch this way never holds up the trip
 // list or a working globe from appearing.
 export function renderWorldMap(mapEl, data) {
-  const { countries, ghostCountries, trips, continentOf, marine, sky, moonFeatures, loadDetail } = data;
+  const { countries, ghostCountries, trips, continentOf, marine, sky, moonFeatures, sunFeatures, loadDetail } = data;
   const land = { type: 'FeatureCollection', features: countries };
   let ghostFeatures = countries; // upgraded to the coarser atlas once `ghostCountries` resolves
   const height = WIDTH; // the globe is a circle inscribed in a square, so this never varies
@@ -129,6 +149,16 @@ export function renderWorldMap(mapEl, data) {
     .scale(skyScale).translate(projection.translate());
   const skyPath = d3.geoPath(skyProjection).digits(1);
 
+  // How big a disc of a given angular radius draws in this projection: stereographic puts a
+  // point θ from the centre of view at `scale·tan(θ/2)`. Fed the angular sizes from the two
+  // viewpoints above, that gives a sun 5.8° across the way Parker Solar Probe sees it and a
+  // moon 13.0° across the way Luna 1 did — both far past the small angles where `tan(θ/2)`
+  // and `θ/2` are the same number, which is why the half-angle tangent is written out rather
+  // than folded away.
+  const skyDiscRadius = (semidiameterDeg) => skyScale * Math.tan(semidiameterDeg * (Math.PI / 360));
+  const MOON_RADIUS = skyDiscRadius(angularRadius(MOON_RADIUS_KM, MOON_VIEWPOINT_KM));
+  const SUN_RADIUS = skyDiscRadius(angularRadius(SUN_RADIUS_KM, SUN_VIEWPOINT_KM));
+
   // Both the star field and the moon are plotted in right-ascension/declination — coordinates
   // fixed to the celestial sphere, not to the Earth turning underneath it. Treating RA directly
   // as a longitude (as `rotate` expects) would only be correct at the instant Greenwich sidereal
@@ -143,11 +173,11 @@ export function renderWorldMap(mapEl, data) {
 
   // A real 22° halo — moonlight refracted by hexagonal ice crystals in high cirrus cloud —
   // traced as an actual small circle on the celestial sphere around `moonPoint`, at its true
-  // angular radius (about 85× the moon's own apparent radius: drawn at that real scale, next
-  // to `MOON_RADIUS`'s stylized, much-enlarged disc, it would swallow a huge stretch of the
-  // sky — but relative to the sky's own real field of view it's unremarkable, so it's plotted
-  // in the same real RA/Dec frame as the stars, not scaled off the moon's decorative disc
-  // size). Built once, since `moonPoint` never moves — only the view rotates under it.
+  // angular radius: about 81× the moon's own from Earth, so against `MOON_VIEWPOINT_KM`'s disc
+  // it would swallow a huge stretch of the sky, while against the sky's own real field of view
+  // it is unremarkable. So it is plotted in the same real RA/Dec frame as the stars rather
+  // than scaled off the moon's disc — the one thing around the moon drawn life size. Built
+  // once, since `moonPoint` never moves — only the view rotates under it.
   function destinationPoint([lon, lat], bearingDeg, distDeg) {
     const rad = Math.PI / 180;
     const phi1 = lat * rad;
@@ -166,6 +196,38 @@ export function renderWorldMap(mapEl, data) {
   const moonHaloRing = Array.from({ length: HALO_POINTS + 1 },
     (_, i) => destinationPoint(moonPoint, (i % HALO_POINTS) * (360 / HALO_POINTS), HALO_ANGLE));
   const HALO_BASE_OPACITY = 0.15 + 0.35 * REAL_MOON_PHASE.illuminatedFraction; // fainter around a thin crescent, more moonlight to refract near full
+
+  // The solar axis, turned into screen directions. `SUN_AXIS.p` is a position angle: measured at
+  // the sun, starting from the direction of celestial north and turning toward celestial east.
+  // Neither of those is simply "up" and "left" here — the whole sky turns as the globe is
+  // dragged, and this projection looks at the celestial sphere from the outside, which flips
+  // its handedness — so both are read off the live projection instead, by stepping a little
+  // north and a little east of the sun and seeing which way that moved on screen. Stereographic
+  // projection is conformal, so those two directions come back exactly perpendicular, and the
+  // matrix built from them is a plain rotation (mirrored, in this view) with no scaling: inside
+  // `.map-sun-face`, +x points along solar west and −y along solar north, which is the frame
+  // every sunspot on it was placed in. Position angles run north → east → south → west, so west
+  // is a quarter turn back from north.
+  const AXIS_STEP = 0.5; // degrees: far enough to be numerically stable, near enough to be local
+  function sunFaceTransform([sx, sy]) {
+    const unit = (point) => {
+      const q = skyProjection(point);
+      if (!q || !Number.isFinite(q[0]) || !Number.isFinite(q[1])) return null;
+      const [dx, dy] = [q[0] - sx, q[1] - sy];
+      const len = Math.hypot(dx, dy);
+      return len > 1e-6 ? [dx / len, dy / len] : null;
+    };
+    const north = unit([sunPoint[0], sunPoint[1] + AXIS_STEP]);
+    const east = unit([sunPoint[0] + AXIS_STEP / Math.cos(sunPoint[1] * (Math.PI / 180)), sunPoint[1]]);
+    if (!north || !east) return ''; // right at the clip edge, where a step off the sun leaves the sky
+    const towards = (angleDeg) => {
+      const a = angleDeg * (Math.PI / 180);
+      return [north[0] * Math.cos(a) + east[0] * Math.sin(a), north[1] * Math.cos(a) + east[1] * Math.sin(a)];
+    };
+    const [nx, ny] = towards(SUN_AXIS.p);
+    const [wx, wy] = towards(SUN_AXIS.p - 90);
+    return `matrix(${wx.toFixed(4)},${wy.toFixed(4)},${(-nx).toFixed(4)},${(-ny).toFixed(4)},0,0)`;
+  }
 
   const visited = new Set(trips.map((t) => t.country).filter(Boolean));
   const byName = new Map(land.features.map((f) => [f.properties.name, f]));
@@ -234,9 +296,9 @@ export function renderWorldMap(mapEl, data) {
 
   // Drawn independently of `sky` (it needs no star-atlas data): a single moon at a fixed
   // point in the same sky frame as the stars, so it drifts and dims behind the glass globe
-  // exactly as they do. Sized by `MOON_DISTANCE_SCALE` (real perigee/apogee variation at
-  // `SKY_MOMENT`, relative to the mean `MOON_RADIUS` the rest of the numbers below are tuned
-  // for). Lit on the right for waxing, left for waning — the usual northern-hemisphere
+  // exactly as they do. `MOON_RADIUS` comes from its real angular size that night — it was
+  // near perigee, so it is drawn a few percent wider than an average moon, and wider than the
+  // sun beside it. Lit on the right for waxing, left for waning — the usual northern-hemisphere
   // convention — clipped to `REAL_MOON_PHASE`'s true illuminated fraction, over a faint
   // always-visible outline of the full disc (so a thin crescent still reads as "a circle,
   // mostly dark" rather than a stray sliver).
@@ -295,7 +357,7 @@ export function renderWorldMap(mapEl, data) {
     return maria + craters;
   }
   const moonHtml = () => {
-    const moonRadius = MOON_RADIUS * MOON_DISTANCE_SCALE;
+    const moonRadius = MOON_RADIUS;
     // The lit and dark regions are complementary phase shapes (illuminated fraction k, and
     // 1−k mirrored to the other side) — rather than clip the surface texture to just the lit
     // one (which left the dark majority, at this date's 15%-lit crescent, a featureless blank),
@@ -325,37 +387,248 @@ export function renderWorldMap(mapEl, data) {
   // A single decorative sun, fixed in the sky at its true position for `SKY_MOMENT` — plotted
   // the same way as the moon (RA/Dec, dimmed the same way when seen through the glass globe),
   // but with no phase to model, since as the light source it always shows its full lit disc.
-  // Unlike the Moon's craters and maria (real, fixed surface features), the Sun's granulation
-  // is turbulent convection that never holds still, so there's no "true position" to plot —
-  // `feTurbulence` stands in for it, generating unrepeating mottling rather than faking real
-  // data. `map-sun-shade`'s off-centre highlight gives the disc a limb-darkened, lit-sphere
-  // feel the same way `map-moon-shade` does for the Moon.
+  //
+  // Unlike the moon, whose craters are permanent, the sun has a different face every day — so
+  // everything drawn on it is either a measurement from that particular day or a physical law:
+  //   · the sunspots are the 33 spots the Debrecen observatory measured on a white-light plate
+  //     taken at 06:05 UT that morning (`assets/data/sun-features.json`) — a heliographic
+  //     latitude, a Carrington longitude and umbra/whole-spot areas for each, turned to where
+  //     they stood at 08:50 by `SUN_AXIS`, rather than left where the plate caught them;
+  //   · the disc's brightness profile is the measured limb-darkening law, not a stylized
+  //     highlight: the sun is its own light source, so it darkens symmetrically toward its
+  //     edge, where the line of sight skims out through higher, cooler photosphere;
+  //   · faculae brighten toward the limb the way real ones do, rather than uniformly;
+  //   · the corona follows the Baumbach–Allen density profile outward, and its streamer belt is
+  //     as wide as the heliospheric current sheet really was that rotation, with helmet
+  //     streamers standing over that day's own active longitudes.
+  // Granulation is the one thing with no true positions to plot — convection cells that live
+  // about ten minutes each and never repeat — so `feTurbulence` stands in, at their real size.
+  const RAD = Math.PI / 180;
+  const SUN_KM = 695700; // the solar radius everything on the disc is measured against
+  const GRANULE_KM = 1000; // a convection cell, about 1 Mm across and gone in ten minutes
+  const SUPERGRANULE_KM = 30000; // the network of ~30 Mm flows the cells are organised into
+  const LIMB_DARKENING_U = 0.65; // linear coefficient, as measured on SDO/HMI's 617.3 nm disc
+  const PLUME_KM = 25000; // a polar plume is a few tens of Mm wide at its base
+  const SPOT_FLOOR = SUN_RADIUS * 0.005; // a real pore is far smaller than a pixel here, but not nothing
+  const PLAGE_PAD = 4; // degrees — plage spills this much past the spots it surrounds
+  const FACULA_PEAK = 0.4; // how bright a facular patch gets at its best angle, against the disc
+  const CORONA_REACH = 3; // solar radii, roughly as far as an eclipse photograph carries
+
+  // Heliographic latitude and Carrington longitude → a position on the drawn disc, in units of
+  // the solar radius, in the frame `.map-sun-face` puts on screen (solar north up, west right).
+  // `mu` is the cosine of the angle between the surface normal and the line of sight: 1 at the
+  // centre of the disc, 0 at the limb, negative round the far side. Limb darkening, facular
+  // contrast and foreshortening are all functions of it, so every feature below is built on it.
+  function helioToDisc(latDeg, lonDeg) {
+    const b = latDeg * RAD;
+    const cmd = (lonDeg - SUN_AXIS.l0) * RAD; // how far round from the central meridian
+    const b0 = SUN_AXIS.b0 * RAD; // how far the sun's equator is tipped toward us
+    return {
+      x: Math.cos(b) * Math.sin(cmd),
+      y: -(Math.sin(b) * Math.cos(b0) - Math.cos(b) * Math.cos(cmd) * Math.sin(b0)),
+      mu: Math.sin(b) * Math.sin(b0) + Math.cos(b) * Math.cos(cmd) * Math.cos(b0),
+    };
+  }
+
+  // Areas arrive as millionths of the solar hemisphere, which is the unit every sunspot
+  // catalogue since Greenwich has counted in. A spot of `area` millionths is a cap of area
+  // 2πR²·area/10⁶, so it has a true radius of R·√(2·area/10⁶) — a tenth of a percent of the
+  // disc for a pore, a couple of percent for the big one that crossed the meridian that day.
+  const spotRadius = (area) => SUN_RADIUS * Math.sqrt(2 * Math.max(area, 0) / 1e6);
+
+  // Every feature on the photosphere is a circular patch on a sphere, so it draws as an ellipse:
+  // its full width across the line back to the centre of the disc, squashed by μ along it. The
+  // rotation to that radial direction is what makes spots near the limb look properly flattened
+  // into slivers rather than merely small.
+  function patch(cls, { x, y, mu }, r, extra = '') {
+    const cx = x * SUN_RADIUS;
+    const cy = y * SUN_RADIUS;
+    const angle = Math.atan2(cy, cx) / RAD;
+    return `<ellipse class="${cls}" rx="${(r * mu).toFixed(3)}" ry="${r.toFixed(3)}"${extra}`
+      + ` transform="translate(${cx.toFixed(2)},${cy.toFixed(2)}) rotate(${angle.toFixed(1)})"/>`;
+  }
+
+  // I(μ)/I(centre) = 1 − u(1 − μ), the standard linear limb-darkening law, with u = 0.65 as
+  // measured on SDO/HMI's images: the limb comes out around 35% as bright as the centre, which
+  // is what a white-light photograph of the sun actually shows. It is drawn as a darkening
+  // overlay rather than baked into the disc's fill, so the colour itself stays with the
+  // stylesheet and only the profile comes from here. That veil is not pure black — the limb is
+  // genuinely redder than disc centre, so `.map-sun-limb-stop` keeps `LIMB_TINT` of the disc's
+  // own colour in it — and a tinted veil darkens by less than its own opacity, so each stop is
+  // divided back up by how much of the veil is actually dark. Without that the drawn profile
+  // would be the right shape at the wrong depth. The sampling crowds toward the edge, where the
+  // law bends sharply; evenly spaced stops flatten the last tenth of the radius, which is the
+  // part the eye reads as roundness.
+  const LIMB_TINT = 0.3; // must match the `--accent` share in `.map-sun-limb-stop`
+  const LIMB_SAMPLES = [0, 0.3, 0.5, 0.65, 0.78, 0.86, 0.92, 0.96, 0.985, 1];
+  const limbStops = LIMB_SAMPLES.map((rho) => {
+    const mu = Math.sqrt(Math.max(0, 1 - rho * rho));
+    const veil = LIMB_DARKENING_U * (1 - mu) / (1 - LIMB_TINT);
+    return `<stop offset="${(rho * 100).toFixed(1)}%" class="map-sun-limb-stop"`
+      + ` stop-opacity="${Math.min(1, veil).toFixed(3)}"/>`;
+  }).join('');
+
+  // Baumbach and Allen's fit to eclipse photometry: the corona's electron density runs
+  // n(ρ) = 10⁸(0.036ρ^−1.5 + 1.55ρ^−6 + 2.99ρ^−16) cm⁻³ at ρ solar radii, three regimes
+  // summed — a steep inner one, a middle one, and the shallow tail that still scatters light
+  // several radii out. Scattered brightness tracks that density, so the gradient's stops are
+  // the profile itself. Raw, it spans four orders of magnitude and would render as a hairline
+  // rim and nothing else; the square root is the same compression an eclipse photographer's
+  // radial gradient filter applies to fit the whole corona into one exposure.
+  const coronaDensity = (rho) => 0.036 * rho ** -1.5 + 1.55 * rho ** -6 + 2.99 * rho ** -16;
+  const CORONA_SAMPLES = [1, 1.03, 1.06, 1.1, 1.15, 1.22, 1.3, 1.4, 1.52, 1.66, 1.82, 2, 2.2, 2.4, 2.6, 2.8, 3];
+  const coronaStops = CORONA_SAMPLES.map((rho) => {
+    const relative = Math.sqrt(coronaDensity(rho) / coronaDensity(1));
+    return `<stop offset="${((rho / CORONA_REACH) * 100).toFixed(1)}%" class="map-sun-corona-stop"`
+      + ` stop-opacity="${relative.toFixed(3)}"/>`;
+  }).join('') + '<stop offset="100%" class="map-sun-corona-stop" stop-opacity="0"/>';
+
+  // A streamer: anchored on the limb across `spread` degrees and narrowing as it reaches out to
+  // `reach` solar radii, because the closed magnetic loops holding it in are pulled open by the
+  // wind as they rise. It narrows rather than closing to a point — beyond the cusp the field is
+  // open and the stalk runs on out of frame, so a spike would be the one shape it never makes.
+  // Nothing ends it either: `map-sun-streamer-fade` dims every streamer with height, the way
+  // the corona itself dims, so the blunt end dissolves instead of stopping at a drawn edge.
+  function streamer(cls, angleDeg, reach, spreadDeg, opacity) {
+    const at = (deg, r) => [Math.cos(deg * RAD) * r * SUN_RADIUS, Math.sin(deg * RAD) * r * SUN_RADIUS];
+    const tip = spreadDeg / 5;
+    const waist = 1 + (reach - 1) * 0.5;
+    const pt = ([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`;
+    return `<path class="${cls}" opacity="${opacity.toFixed(2)}"`
+      + ` d="M${pt(at(angleDeg - spreadDeg / 2, 1))}`
+      + ` Q${pt(at(angleDeg - spreadDeg / 3, waist))} ${pt(at(angleDeg - tip, reach))}`
+      + ` L${pt(at(angleDeg + tip, reach))}`
+      + ` Q${pt(at(angleDeg + spreadDeg / 3, waist))} ${pt(at(angleDeg + spreadDeg / 2, 1))} Z"/>`;
+  }
+
+  // Built once `sunFeatures` resolves, and dropped into the empty groups `sunHtml` leaves
+  // behind. Spots and faculae go on the disc; streamers and plumes go outside it.
+  function sunSurfaceHtml(sf) {
+    const spots = [];
+    const faculae = [];
+    (sf.groups ?? []).forEach((group) => {
+      const seen = group.spots.map(([lat, lon]) => helioToDisc(lat, lon));
+      if (!seen.some((at) => at.mu > 0)) return; // the whole group has rotated round the back
+
+      group.spots.forEach(([lat, lon, umbra, whole], i) => {
+        const at = seen[i];
+        if (at.mu <= 0.01) return;
+        // A negative area is the catalogue saying this spot shares its penumbra (or its umbra)
+        // with a neighbour, which carries the shared area itself — so only the owner draws it,
+        // and the sharers draw just their own dark cores inside it. A spot with no area at all
+        // is a pore: real, resolved, and simply smaller than the catalogue's rounding.
+        if (whole > 0) spots.push(patch('map-sun-penumbra', at, Math.max(spotRadius(whole), SPOT_FLOOR)));
+        const core = umbra > 0 ? Math.max(spotRadius(umbra), SPOT_FLOOR * 0.6) : SPOT_FLOOR * 0.6;
+        spots.push(patch('map-sun-umbra', at, core));
+      });
+
+      // The plage around the group: faculae — the bright magnetic network that both precedes
+      // and outlives the spots — spread well past them, so the patch is the group's own extent
+      // padded out. Their contrast is the interesting part: at the centre of the disc they are
+      // all but invisible, and they brighten toward the limb, peaking around μ ≈ ⅓, because
+      // what is being seen is the hot wall of a magnetic flux tube, side-on. μ(1 − μ)² has its
+      // maximum in exactly that place, so it stands in for the measured curve.
+      const lats = group.spots.map(([lat]) => lat);
+      const lons = group.spots.map(([, lon]) => lon);
+      const spread = (Math.max(...lats) - Math.min(...lats) + Math.max(...lons) - Math.min(...lons)) / 4;
+      const centre = helioToDisc(group.lat, group.lon);
+      if (centre.mu <= 0.01) return;
+      const contrast = FACULA_PEAK * (centre.mu * (1 - centre.mu) ** 2) / (4 / 27);
+      faculae.push(patch('map-sun-facula', centre, (spread + PLAGE_PAD) * RAD * SUN_RADIUS,
+        ` opacity="${contrast.toFixed(3)}"`));
+    });
+    return { spots: spots.join(''), faculae: faculae.join('') };
+  }
+
+  // The structure of the corona, as opposed to its overall glow. Two things shape it, and both
+  // are real: the heliospheric current sheet, which that rotation reached ±23° of latitude
+  // (WSO's potential-field model for CR 1886) and which the bright streamer belt straddles, and
+  // the day's own active regions, each of which holds a helmet streamer above it. A streamer is
+  // only seen as a structure when its region is near the limb and it stands side-on — near the
+  // centre of the disc it points straight at us and reads as nothing — so its opacity follows
+  // 1 − μ. Above and below the belt sit the polar coronal holes, where the field is open and
+  // the corona thins out to plumes; B0 tips the north pole 7.25° toward us that week, so the
+  // northern fan is drawn from just inside the limb rather than on it.
+  function sunCoronaHtml(sf) {
+    const tilt = sf.currentSheetTilt ?? 20;
+    const belt = [0, 180].map((angle) => streamer('map-sun-streamer', angle, 1.75, tilt * 2, 0.5)).join('');
+    const helmets = (sf.groups ?? []).map((group) => {
+      const at = helioToDisc(group.lat, group.lon);
+      if (at.mu <= 0) return '';
+      const angle = Math.atan2(at.y, at.x) / RAD;
+      const size = Math.min(1, Math.sqrt(group.area / 400)); // bigger regions hold up bigger streamers
+      return streamer('map-sun-helmet', angle, 1.3 + 0.7 * size, 18 + 18 * size, (1 - at.mu) * 0.7);
+    }).join('');
+    const PLUMES = 9;
+    const plumes = [-1, 1].map((pole) => {
+      const base = Math.cos(SUN_AXIS.b0 * RAD) * pole; // the projected pole, just inside the limb
+      return Array.from({ length: PLUMES }, (_, i) => {
+        const fan = (i / (PLUMES - 1) - 0.5) * 70 * RAD; // opening out over the polar hole
+        const x1 = Math.sin(fan) * SUN_RADIUS;
+        const y1 = base * Math.cos(fan) * SUN_RADIUS;
+        return `<line class="map-sun-plume" x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}"`
+          + ` x2="${(x1 * 1.4).toFixed(2)}" y2="${(y1 * 1.4).toFixed(2)}"/>`;
+      }).join('');
+    }).join('');
+    return belt + helmets + plumes;
+  }
+
+  // Turbulence at a real physical size: `baseFrequency` counts cycles per svg unit, and the
+  // disc is `SUN_RADIUS` units for `SUN_KM` kilometres, so a cell `km` across lands at exactly
+  // its true scale on the drawn sun. Granulation comes out finer than a pixel at rest — which
+  // is honest, since it is finer than the eye can resolve on the real sun too — and only
+  // separates out once the globe is zoomed well in.
+  const cellFrequency = (km) => (SUN_KM / km / SUN_RADIUS).toFixed(3);
+
   const sunHtml = () => `
     <defs>
-      <radialGradient id="map-sun-shade" cx="42%" cy="38%" r="68%">
-        <stop offset="0%" class="map-sun-grad-hi"/>
-        <stop offset="65%" class="map-sun-grad-mid"/>
-        <stop offset="100%" class="map-sun-grad-lo"/>
-      </radialGradient>
-      <radialGradient id="map-sun-glow" cx="50%" cy="50%" r="50%">
-        <stop offset="0%" class="map-sun-glow-hi"/>
-        <stop offset="100%" class="map-sun-glow-lo"/>
-      </radialGradient>
-      <filter id="map-sun-texture" x="-20%" y="-20%" width="140%" height="140%">
-        <feTurbulence type="fractalNoise" baseFrequency="0.11" numOctaves="3" seed="7" result="noise"/>
+      <radialGradient id="map-sun-limb" cx="50%" cy="50%" r="50%">${limbStops}</radialGradient>
+      <radialGradient id="map-sun-glow" cx="50%" cy="50%" r="50%">${coronaStops}</radialGradient>
+      <filter id="map-sun-granulation" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence type="fractalNoise" baseFrequency="${cellFrequency(GRANULE_KM)}" numOctaves="1" seed="7" result="noise"/>
         <feColorMatrix in="noise" type="matrix"
-          values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.3 0.3 0.3 0 0" result="mask"/>
+          values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.4 0.4 0.4 0 0" result="mask"/>
         <feComposite in="SourceGraphic" in2="mask" operator="in"/>
+      </filter>
+      <filter id="map-sun-network" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence type="fractalNoise" baseFrequency="${cellFrequency(SUPERGRANULE_KM)}" numOctaves="2" seed="3" result="noise"/>
+        <feColorMatrix in="noise" type="matrix"
+          values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.5 0.5 0.5 0 -0.1" result="mask"/>
+        <feComposite in="SourceGraphic" in2="mask" operator="in"/>
+      </filter>
+      <radialGradient id="map-sun-streamer-fade" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="${(SUN_RADIUS * 2).toFixed(1)}">
+        <stop offset="50%" class="map-sun-streamer-stop" stop-opacity="0.32"/>
+        <stop offset="62%" class="map-sun-streamer-stop" stop-opacity="0.24"/>
+        <stop offset="80%" class="map-sun-streamer-stop" stop-opacity="0.11"/>
+        <stop offset="100%" class="map-sun-streamer-stop" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="map-sun-plage" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" class="map-sun-plage-stop" stop-opacity="0.9"/>
+        <stop offset="40%" class="map-sun-plage-stop" stop-opacity="0.62"/>
+        <stop offset="72%" class="map-sun-plage-stop" stop-opacity="0.26"/>
+        <stop offset="100%" class="map-sun-plage-stop" stop-opacity="0"/>
+      </radialGradient>
+      <filter id="map-sun-diffuse" x="-30%" y="-30%" width="160%" height="160%">
+        <feGaussianBlur stdDeviation="${(SUN_RADIUS * 0.05).toFixed(2)}"/>
       </filter>
       <clipPath id="map-sun-clip"><circle r="${SUN_RADIUS.toFixed(1)}"/></clipPath>
     </defs>
-    <g class="map-sun" aria-hidden="true">
-      <circle class="map-sun-corona" r="${(SUN_RADIUS * 2.6).toFixed(1)}"/>
-      <g clip-path="url(#map-sun-clip)">
-        <circle class="map-sun-disc" r="${SUN_RADIUS.toFixed(1)}"/>
-        <rect class="map-sun-granules" filter="url(#map-sun-texture)"
-              x="${(-SUN_RADIUS).toFixed(1)}" y="${(-SUN_RADIUS).toFixed(1)}"
-              width="${(SUN_RADIUS * 2).toFixed(1)}" height="${(SUN_RADIUS * 2).toFixed(1)}"/>
+    <g class="map-sun" aria-hidden="true" style="--sun-plume-width:${(SUN_RADIUS * PLUME_KM / SUN_KM).toFixed(3)}">
+      <g class="map-sun-face">
+        <circle class="map-sun-glow" r="${(SUN_RADIUS * CORONA_REACH).toFixed(1)}"/>
+        <g class="map-sun-corona" filter="url(#map-sun-diffuse)"></g>
+        <g clip-path="url(#map-sun-clip)">
+          <circle class="map-sun-disc" r="${SUN_RADIUS.toFixed(1)}"/>
+          <rect class="map-sun-supergranules" filter="url(#map-sun-network)"
+                x="${(-SUN_RADIUS).toFixed(1)}" y="${(-SUN_RADIUS).toFixed(1)}"
+                width="${(SUN_RADIUS * 2).toFixed(1)}" height="${(SUN_RADIUS * 2).toFixed(1)}"/>
+          <rect class="map-sun-granules" filter="url(#map-sun-granulation)"
+                x="${(-SUN_RADIUS).toFixed(1)}" y="${(-SUN_RADIUS).toFixed(1)}"
+                width="${(SUN_RADIUS * 2).toFixed(1)}" height="${(SUN_RADIUS * 2).toFixed(1)}"/>
+          <g class="map-sun-spots"></g>
+          <circle class="map-sun-limb" r="${SUN_RADIUS.toFixed(1)}"/>
+          <g class="map-sun-faculae"></g>
+        </g>
       </g>
     </g>`;
 
@@ -392,6 +665,7 @@ export function renderWorldMap(mapEl, data) {
   const moonEl = mapEl.querySelector('.map-moon');
   const moonHaloEl = mapEl.querySelector('.map-moon-halo');
   const sunEl = mapEl.querySelector('.map-sun');
+  const sunFaceEl = mapEl.querySelector('.map-sun-face');
   const markerEls = [...mapEl.querySelectorAll('.map-marker')];
   const crumb = mapEl.querySelector('.map-crumb');
   const tip = mapEl.querySelector('.map-tip');
@@ -522,7 +796,10 @@ export function renderWorldMap(mapEl, data) {
       const visible = p && Number.isFinite(p[0]) && Number.isFinite(p[1]);
       const inside = visible && Math.hypot(p[0] - cx, p[1] - cy) <= globeRadius;
       sunEl.setAttribute('opacity', visible ? (inside ? SKY_INSIDE_DIM : 1) : 0);
-      if (visible) sunEl.setAttribute('transform', `translate(${p[0].toFixed(1)},${p[1].toFixed(1)})`);
+      if (visible) {
+        sunEl.setAttribute('transform', `translate(${p[0].toFixed(1)},${p[1].toFixed(1)})`);
+        if (sunFaceEl) sunFaceEl.setAttribute('transform', sunFaceTransform(p));
+      }
     }
 
     allPlaces.forEach((p) => {
@@ -598,7 +875,20 @@ export function renderWorldMap(mapEl, data) {
   moonFeatures?.then((mf) => {
     if (!mf) return;
     const surface = mapEl.querySelector('.map-moon-surface');
-    if (surface) surface.innerHTML = moonSurfaceHtml(mf, MOON_RADIUS * MOON_DISTANCE_SCALE);
+    if (surface) surface.innerHTML = moonSurfaceHtml(mf, MOON_RADIUS);
+  });
+
+  // The sun draws fine without this — a limb-darkened disc and its corona, which is all the
+  // naked eye ever gets anyway — so a slow or failed fetch just leaves it spotless.
+  sunFeatures?.then((sf) => {
+    if (!sf) return;
+    const { spots, faculae } = sunSurfaceHtml(sf);
+    const spotsEl = mapEl.querySelector('.map-sun-spots');
+    const faculaeEl = mapEl.querySelector('.map-sun-faculae');
+    const coronaEl = mapEl.querySelector('.map-sun-corona');
+    if (spotsEl) spotsEl.innerHTML = spots;
+    if (faculaeEl) faculaeEl.innerHTML = faculae;
+    if (coronaEl) coronaEl.innerHTML = sunCoronaHtml(sf);
   });
 
   redraw(true); // establish xy/front for every place before computing the home framing below
