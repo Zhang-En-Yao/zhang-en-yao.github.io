@@ -232,18 +232,9 @@
 
 .map-planet-neptune { --planet-tint: color-mix(in srgb, #5b7fd0 76%, var(--text)); }
 
-/* Limb darkening, the same construction as the sun's and for the same reason — a veil holding
-   the measured profile, with a little of the planet's own colour left in it so the edge goes
-   warm rather than grey. The 25% here is `PLANET_LIMB_TINT` in world-map.js, which divides its
-   stop opacities back up to compensate; change one and change the other. The gradient itself
-   lives inside each planet's group (see planetHtml) so that `--planet-tint` reaches it; the
-   `fill` is set there too, since each planet refers to its own copy. */
-.map-planet-limb-stop { stop-color: color-mix(in srgb, var(--planet-tint) 25%, #000); }
-
-/* Belts and polar regions. Both darken toward black rather than toward `--text`, which on a
-   dark page would brighten the very things that have to go dark. Jupiter's belts carry real
-   contrast; Saturn's are the same structure seen through a deep haze, so its own rules below
-   pull them most of the way back. */
+/* Jupiter's belts and polar regions, at the latitudes the named belts really occupy. Both
+   darken toward black rather than toward `--text`, which on a dark page would brighten the very
+   things that have to go dark. */
 .map-planet-belt { fill: url(#map-planet-band); opacity: 0.3; }
 
 .map-planet-polar { fill: url(#map-planet-band); opacity: 0.16; }
@@ -258,10 +249,6 @@
 /* Io, Europa, Ganymede and Callisto. Lit by the same sun as their planet, so they take the
    planet's own tint rather than a colour of their own. */
 .map-planet-satellite { fill: color-mix(in srgb, var(--planet-tint) 82%, var(--text)); }
-
-.map-planet-saturn .map-planet-belt { opacity: 0.1; }
-
-.map-planet-saturn .map-planet-polar { opacity: 0.08; }
 
 /* The unlit side. Mercury, Venus and Mars are the only three that ever turn one toward us, and
    Venus that night was a 40%-lit crescent — the phase Galileo drew when he realised it orbits

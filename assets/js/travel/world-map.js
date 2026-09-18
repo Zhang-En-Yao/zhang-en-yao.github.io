@@ -19,16 +19,16 @@ const MAX_ZOOM = 40;
 const FOCUS_MAX_ZOOM = 20; // a clicked country's fitted zoom is capped here, relative to the fitted globe
 const SKY_SOFT = 8; // magnitudes past the limit where a star's radius stops growing linearly
 const SKY_INSIDE_DIM = 0.3; // stars seen through the glass globe, rather than around it
-// The sun and the moon are each about half a degree across from Earth, and the planets never
-// more than a few tens of arcseconds — which through the sky's own projection puts every one of
-// them under a pixel: true, and useless. So the whole sky is enlarged by this one number and
-// nothing else about it is touched. Every disc keeps its true size against every other, which
-// is the only way the sky says anything: the moon a hair wider than the sun that morning (near
-// perigee, the coincidence total eclipses depend on), Jupiter and Venus the widest planets up
-// that night at 33 and 30 arcseconds, Neptune still a speck at 2.3. The planets stay under a
-// pixel at rest, the way the sunspots and the moon's smaller craters do, and separate out into
-// discs as the globe is zoomed — which is the whole of what a telescope is for.
-const SKY_MAGNIFY = 23;
+// Nothing in the sky is enlarged. Every body goes through the same projection as the stars and
+// the coastlines, at the angular size it really had — so the sun and the moon come out a little
+// over half a degree wide, the planets a few tens of arcseconds, and at the default view all of
+// them are under a pixel. That is not a failure of the drawing; it is what half a degree is
+// against a whole sky. Zoom in and they resolve, in the order a telescope resolves them: the
+// moon and the sun first, into discs that carry their craters and their spots, then Jupiter and
+// Venus, and never Neptune. The one thing the true scale buys that no magnification could is
+// that every ratio in the picture is now a fact — the moon 3% wider than the sun, Jupiter's
+// moons strung eight times the planet's own width across the sky, the moon's 22° halo eighty
+// times the moon.
 
 // The sky is frozen to this one real moment — Sept 9, 1994, 16:50 Taipei time — rather than
 // live "now": the star field's orientation, and the moon's own position and phase, are all
@@ -151,11 +151,16 @@ export function renderWorldMap(mapEl, data) {
   const skyPath = d3.geoPath(skyProjection).digits(1);
 
   // How big a body of a given angular radius draws in this projection: stereographic puts a
-  // point θ from the centre of view at `scale·tan(θ/2)`, magnified by `SKY_MAGNIFY`. Every
-  // body in the sky goes through this one function, which is what keeps them all honest
-  // against each other.
-  const skyDiscRadius = (semidiameterDeg) =>
-    skyScale * Math.tan(semidiameterDeg * (Math.PI / 360)) * SKY_MAGNIFY;
+  // point θ from the centre of view at `scale·tan(θ/2)`, and that is the whole of it. No factor,
+  // no floor, no special case — the same function the star field and the graticule go through.
+  const skyDiscRadius = (semidiameterDeg) => skyScale * Math.tan(semidiameterDeg * (Math.PI / 360));
+
+  // Every length drawn on a body in the sky goes out through this. At true angular size those
+  // run from the moon's 22° halo, seventy units across, down to Neptune's thousandth of one, and
+  // a fixed number of decimal places cannot serve both ends: rounded to three, Mercury's disc
+  // comes out a fifth too narrow and Neptune's vanishes. Significant figures hold the proportion
+  // at any size, which — now that nothing is magnified — is the only thing keeping the sky true.
+  const len = (value) => value.toPrecision(6);
   const MOON_RADIUS = skyDiscRadius(REAL_MOON.semidiameter);
   const SUN_RADIUS = skyDiscRadius(REAL_SUN.semidiameter);
 
@@ -173,7 +178,7 @@ export function renderWorldMap(mapEl, data) {
 
   // A real 22° halo — moonlight refracted by hexagonal ice crystals in high cirrus cloud —
   // traced as an actual small circle on the celestial sphere around `moonPoint`, at its true
-  // angular radius: about 81× the moon's own, so against `SKY_MAGNIFY`'s enlarged disc
+  // angular radius: about 81× the moon's own, so against the moon's true disc
   // it would swallow a huge stretch of the sky, while against the sky's own real field of view
   // it is unremarkable. So it is plotted in the same real RA/Dec frame as the stars rather
   // than scaled off the moon's disc — the one thing around the moon drawn life size. Built
@@ -308,10 +313,11 @@ export function renderWorldMap(mapEl, data) {
   // and, being a Promise, isn't resolved yet at this point; see the hydration block below)
   // is every IAU-named near-side crater and "sea" (mare/oceanus/lacus/palus/sinus, all the
   // dark-plain types) from the USGS Gazetteer of Planetary Nomenclature's official dataset:
-  // real selenographic centre and diameter, not invented. Every crater is included; only
-  // ones under `CRATER_MIN_PX` end up not drawn below, purely because a sub-pixel circle
-  // costs a DOM node for literally nothing visible — the underlying data isn't filtered.
-  const CRATER_MIN_PX = 0.12; // screen radius (svg units) below which a crater isn't drawn at all
+  // real selenographic centre and diameter, not invented. Every crater is included; only ones
+  // under `CRATER_MIN_FRACTION` of the moon's own width end up not drawn below, which keeps the
+  // level of detail the same whatever the moon is drawn at rather than emptying the disc when
+  // it is small — the underlying data isn't filtered either way.
+  const CRATER_MIN_FRACTION = 0.0133; // of the moon's own radius: below this a crater isn't drawn at all
   const CRATER_PROMINENT_KM = 150; // real diameter above which a crater gets the shadow+highlight treatment, not a flat dot
   // Orthographic near-side projection assuming zero libration (the Moon shows Earth its exact
   // mean face) and no position-angle rotation — simplified, but every position and size below
@@ -332,26 +338,26 @@ export function renderWorldMap(mapEl, data) {
   function moonPhasePath(r, illuminatedFraction) {
     const termRx = r * (1 - 2 * illuminatedFraction); // signed: >0 crescent-side, <0 gibbous-side
     const termSweep = termRx < 0 ? 1 : 0;
-    return `M 0 ${(-r).toFixed(2)} A ${r.toFixed(2)} ${r.toFixed(2)} 0 0 1 0 ${r.toFixed(2)}`
-      + ` A ${Math.abs(termRx).toFixed(2)} ${r.toFixed(2)} 0 0 ${termSweep} 0 ${(-r).toFixed(2)} Z`;
+    return `M 0 ${len(-r)} A ${len(r)} ${len(r)} 0 0 1 0 ${len(r)}`
+      + ` A ${len(Math.abs(termRx))} ${len(r)} 0 0 ${termSweep} 0 ${len(-r)} Z`;
   }
   // Built once `moonFeatures` resolves (see the hydration block below) and dropped into
   // the otherwise-empty `.map-moon-surface` group below.
   function moonSurfaceHtml(mf, moonRadius) {
     const craters = (mf.craters ?? [])
       .map((f) => ({ ...featureToDisc(f, moonRadius), km: f[2] }))
-      .filter(({ r }) => r >= CRATER_MIN_PX)
+      .filter(({ r }) => r >= moonRadius * CRATER_MIN_FRACTION)
       .map(({ x, y, r, km }) => {
-        if (km < CRATER_PROMINENT_KM) return `<circle class="map-moon-crater-shadow" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(2)}"/>`;
+        if (km < CRATER_PROMINENT_KM) return `<circle class="map-moon-crater-shadow" cx="${len(x)}" cy="${len(y)}" r="${len(r)}"/>`;
         const [lx, ly, lr] = [x - r * 0.3, y - r * 0.3, r * 0.55];
-        return `<circle class="map-moon-crater-shadow" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(2)}"/>`
-          + `<circle class="map-moon-crater-light" cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="${lr.toFixed(2)}"/>`;
+        return `<circle class="map-moon-crater-shadow" cx="${len(x)}" cy="${len(y)}" r="${len(r)}"/>`
+          + `<circle class="map-moon-crater-light" cx="${len(lx)}" cy="${len(ly)}" r="${len(lr)}"/>`;
       })
       .join('');
     const maria = (mf.seas ?? [])
       .map((f) => {
         const { x, y, r } = featureToDisc(f, moonRadius);
-        return `<circle class="map-moon-mare" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}"/>`;
+        return `<circle class="map-moon-mare" cx="${len(x)}" cy="${len(y)}" r="${len(r)}"/>`;
       })
       .join('');
     return maria + craters;
@@ -372,13 +378,13 @@ export function renderWorldMap(mapEl, data) {
           <stop offset="55%" class="map-moon-grad-mid"/>
           <stop offset="100%" class="map-moon-grad-lo"/>
         </radialGradient>
-        <clipPath id="map-moon-clip"><circle r="${moonRadius.toFixed(1)}"/></clipPath>
+        <clipPath id="map-moon-clip"><circle r="${len(moonRadius)}"/></clipPath>
       </defs>
       <g class="map-moon" aria-hidden="true">
         <g clip-path="url(#map-moon-clip)">
-          <circle class="map-moon-disc" r="${moonRadius.toFixed(1)}"/>
+          <circle class="map-moon-disc" r="${len(moonRadius)}"/>
           <g class="map-moon-surface"></g>
-          <circle class="map-moon-shade" r="${moonRadius.toFixed(1)}"/>
+          <circle class="map-moon-shade" r="${len(moonRadius)}"/>
           <path class="map-moon-nightside" d="${moonPhasePath(moonRadius, 1 - k)}"${darkTransform}/>
         </g>
       </g>`;
@@ -443,8 +449,8 @@ export function renderWorldMap(mapEl, data) {
     const cx = x * SUN_RADIUS;
     const cy = y * SUN_RADIUS;
     const angle = Math.atan2(cy, cx) / RAD;
-    return `<ellipse class="${cls}" rx="${(r * mu).toFixed(3)}" ry="${r.toFixed(3)}"${extra}`
-      + ` transform="translate(${cx.toFixed(2)},${cy.toFixed(2)}) rotate(${angle.toFixed(1)})"/>`;
+    return `<ellipse class="${cls}" rx="${len(r * mu)}" ry="${len(r)}"${extra}`
+      + ` transform="translate(${len(cx)},${len(cy)}) rotate(${angle.toFixed(1)})"/>`;
   }
 
   // I(μ)/I(centre) = 1 − u(1 − μ), the standard linear limb-darkening law, with u = 0.65 as
@@ -492,7 +498,7 @@ export function renderWorldMap(mapEl, data) {
     const at = (deg, r) => [Math.cos(deg * RAD) * r * SUN_RADIUS, Math.sin(deg * RAD) * r * SUN_RADIUS];
     const tip = spreadDeg / 5;
     const waist = 1 + (reach - 1) * 0.5;
-    const pt = ([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`;
+    const pt = ([x, y]) => `${len(x)},${len(y)}`;
     return `<path class="${cls}" opacity="${opacity.toFixed(2)}"`
       + ` d="M${pt(at(angleDeg - spreadDeg / 2, 1))}`
       + ` Q${pt(at(angleDeg - spreadDeg / 3, waist))} ${pt(at(angleDeg - tip, reach))}`
@@ -565,8 +571,8 @@ export function renderWorldMap(mapEl, data) {
         const fan = (i / (PLUMES - 1) - 0.5) * 70 * RAD; // opening out over the polar hole
         const x1 = Math.sin(fan) * SUN_RADIUS;
         const y1 = base * Math.cos(fan) * SUN_RADIUS;
-        return `<line class="map-sun-plume" x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}"`
-          + ` x2="${(x1 * 1.4).toFixed(2)}" y2="${(y1 * 1.4).toFixed(2)}"/>`;
+        return `<line class="map-sun-plume" x1="${len(x1)}" y1="${len(y1)}"`
+          + ` x2="${len(x1 * 1.4)}" y2="${len(y1 * 1.4)}"/>`;
       }).join('');
     }).join('');
     return belt + helmets + plumes;
@@ -595,7 +601,7 @@ export function renderWorldMap(mapEl, data) {
           values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.5 0.5 0.5 0 -0.1" result="mask"/>
         <feComposite in="SourceGraphic" in2="mask" operator="in"/>
       </filter>
-      <radialGradient id="map-sun-streamer-fade" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="${(SUN_RADIUS * 2).toFixed(1)}">
+      <radialGradient id="map-sun-streamer-fade" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="${len(SUN_RADIUS * 2)}">
         <stop offset="50%" class="map-sun-streamer-stop" stop-opacity="0.32"/>
         <stop offset="62%" class="map-sun-streamer-stop" stop-opacity="0.24"/>
         <stop offset="80%" class="map-sun-streamer-stop" stop-opacity="0.11"/>
@@ -608,16 +614,16 @@ export function renderWorldMap(mapEl, data) {
         <stop offset="100%" class="map-sun-plage-stop" stop-opacity="0"/>
       </radialGradient>
       <filter id="map-sun-diffuse" x="-30%" y="-30%" width="160%" height="160%">
-        <feGaussianBlur stdDeviation="${(SUN_RADIUS * 0.05).toFixed(2)}"/>
+        <feGaussianBlur stdDeviation="${len(SUN_RADIUS * 0.05)}"/>
       </filter>
-      <clipPath id="map-sun-clip"><circle r="${SUN_RADIUS.toFixed(1)}"/></clipPath>
+      <clipPath id="map-sun-clip"><circle r="${len(SUN_RADIUS)}"/></clipPath>
     </defs>
-    <g class="map-sun" aria-hidden="true" style="--sun-plume-width:${(SUN_RADIUS * PLUME_KM / SUN_RADIUS_KM).toFixed(3)}">
+    <g class="map-sun" aria-hidden="true" style="--sun-plume-width:${len(SUN_RADIUS * PLUME_KM / SUN_RADIUS_KM)}">
       <g class="map-sun-face">
-        <circle class="map-sun-glow" r="${(SUN_RADIUS * CORONA_REACH).toFixed(1)}"/>
+        <circle class="map-sun-glow" r="${len(SUN_RADIUS * CORONA_REACH)}"/>
         <g class="map-sun-corona" filter="url(#map-sun-diffuse)"></g>
         <g clip-path="url(#map-sun-clip)">
-          <circle class="map-sun-disc" r="${SUN_RADIUS.toFixed(1)}"/>
+          <circle class="map-sun-disc" r="${len(SUN_RADIUS)}"/>
           <rect class="map-sun-supergranules" filter="url(#map-sun-network)"
                 x="${(-SUN_RADIUS).toFixed(1)}" y="${(-SUN_RADIUS).toFixed(1)}"
                 width="${(SUN_RADIUS * 2).toFixed(1)}" height="${(SUN_RADIUS * 2).toFixed(1)}"/>
@@ -625,7 +631,7 @@ export function renderWorldMap(mapEl, data) {
                 x="${(-SUN_RADIUS).toFixed(1)}" y="${(-SUN_RADIUS).toFixed(1)}"
                 width="${(SUN_RADIUS * 2).toFixed(1)}" height="${(SUN_RADIUS * 2).toFixed(1)}"/>
           <g class="map-sun-spots"></g>
-          <circle class="map-sun-limb" r="${SUN_RADIUS.toFixed(1)}"/>
+          <circle class="map-sun-limb" r="${len(SUN_RADIUS)}"/>
           <g class="map-sun-faculae"></g>
         </g>
       </g>
@@ -654,12 +660,10 @@ export function renderWorldMap(mapEl, data) {
     [35, 43, 'belt'], // north north temperate belt
     [57, 90, 'polar'], // north polar region
   ];
-  // Saturn's banding is the same machinery under a deep haze, so it is drawn the same way and
-  // far fainter: the belts are there, but nothing on Saturn has Jupiter's contrast.
-  const SATURN_BANDS = [
-    [-90, -62, 'polar'], [-35, -22, 'belt'], [-14, -7, 'belt'],
-    [7, 14, 'belt'], [22, 35, 'belt'], [62, 90, 'polar'],
-  ];
+  // Saturn has the same machinery under a deep haze, and it is deliberately left off: the belt
+  // latitudes here would have been my impression of them rather than anyone's measurement, and
+  // Saturn's disc is six tenths of a pixel wide even zoomed all the way in. Its rings and its
+  // flattening are measured, and those are the two things about Saturn worth drawing anyway.
   // Comet Shoemaker-Levy 9 broke up and fell into Jupiter over six days in July 1994, seven
   // weeks before this sky. What is real here is the impact times — Yeomans and Chodas's accepted
   // values, to the minute — and the latitude, 44° south, which every fragment shared because
@@ -686,7 +690,6 @@ export function renderWorldMap(mapEl, data) {
     ['W', '1994-07-22T08:06:00Z'],
   ];
   const SL9_SIZE = [0.19, 0.075]; // half-width and half-height in Jupiter radii, after seven weeks of wind
-  const MOON_FLOOR = 0.08; // in Jupiter radii — the real moons are smaller than this on screen
 
   const REAL_JUPITER_ROTATION = jupiterRotation(SKY_MOMENT);
   const REAL_GALILEAN_MOONS = galileanMoons(SKY_MOMENT);
@@ -706,9 +709,6 @@ export function renderWorldMap(mapEl, data) {
   ];
   const SATURN_RING_OUTER = 2.269;
   const PHASE_FLOOR = 0.995; // past this a planet is full, and a drawn terminator is a lie about pixels
-  const LIMB_SAMPLES_PLANET = [0, 0.4, 0.62, 0.78, 0.88, 0.94, 0.975, 1];
-  const PLANET_LIMB_U = 0.55; // planets darken toward the limb much as the sun does, if less steeply
-  const PLANET_LIMB_TINT = 0.25; // must match the `--planet-tint` share in `.map-planet-limb-stop`
 
   const REAL_SATURN_RINGS = saturnRings(SKY_MOMENT);
 
@@ -762,8 +762,8 @@ export function renderWorldMap(mapEl, data) {
     return bands.map(([from, to, kind]) => {
       const y1 = bandEdge(Math.max(from, to), planet);
       const y2 = bandEdge(Math.min(from, to), planet);
-      return `<rect class="map-planet-${kind}" x="${(-planet.radius).toFixed(3)}" y="${y1.toFixed(3)}"`
-        + ` width="${(planet.radius * 2).toFixed(3)}" height="${(y2 - y1).toFixed(3)}"/>`;
+      return `<rect class="map-planet-${kind}" x="${len(-planet.radius)}" y="${len(y1)}"`
+        + ` width="${len(planet.radius * 2)}" height="${len(y2 - y1)}"/>`;
     }).join('');
   }
 
@@ -805,23 +805,23 @@ export function renderWorldMap(mapEl, data) {
       // Foreshortened toward the limb the same way a sunspot is, and never quite to nothing.
       const squash = Math.max(0.12, Math.cos(fromMeridian * RAD));
       return `<ellipse class="map-planet-scar" data-fragment="${fragment}"`
-        + ` cx="${x.toFixed(4)}" cy="${y.toFixed(4)}"`
-        + ` rx="${(rx * squash).toFixed(4)}" ry="${ry.toFixed(4)}"/>`;
+        + ` cx="${len(x)}" cy="${len(y)}"`
+        + ` rx="${len(rx * squash)}" ry="${len(ry)}"/>`;
     }).join('');
   }
 
   // The four moons Galileo saw, at their true separations from Jupiter and their true sizes
   // relative to it — which is to say tiny, since even Ganymede is a twenty-seventh of Jupiter's
-  // width. They are floored so they do not vanish outright, the same concession the sunspots
-  // get. What carries them is not their size but their spacing: Callisto stands 26 Jupiter radii
-  // out, so the four of them string across a stretch of sky far wider than the planet itself.
+  // width. What carries them is not their size but their spacing: Callisto stands 26 Jupiter
+  // radii out, so the four of them string across a stretch of sky twenty times wider than the
+  // planet itself, and that spacing is the thing a real eye at a real telescope picks up first.
   function galileanHtml(planet, wanted) {
     return REAL_GALILEAN_MOONS
-      .map((moon, i) => ({ moon, r: Math.max(GALILEAN_RADII[i], MOON_FLOOR) * planet.radius }))
+      .map((moon, i) => ({ moon, r: GALILEAN_RADII[i] * planet.radius }))
       .filter(({ moon }) => moon.front === wanted)
       .map(({ moon, r }) => `<circle class="map-planet-satellite" data-moon="${moon.name}"`
-        + ` cx="${(moon.x * planet.radius).toFixed(4)}" cy="${(moon.y * planet.radius).toFixed(4)}"`
-        + ` r="${r.toFixed(4)}"/>`)
+        + ` cx="${len(moon.x * planet.radius)}" cy="${len(moon.y * planet.radius)}"`
+        + ` r="${len(r)}"/>`)
       .join('');
   }
 
@@ -837,8 +837,8 @@ export function renderWorldMap(mapEl, data) {
     const ellipse = (radii) => {
       const rx = radii * planet.radius;
       const ry = rx * squash;
-      return `M${(-rx).toFixed(3)},0a${rx.toFixed(3)},${ry.toFixed(3)} 0 1,0 ${(rx * 2).toFixed(3)},0`
-        + `a${rx.toFixed(3)},${ry.toFixed(3)} 0 1,0 ${(-rx * 2).toFixed(3)},0`;
+      return `M${len(-rx)},0a${len(rx)},${len(ry)} 0 1,0 ${len(rx * 2)},0`
+        + `a${len(rx)},${len(ry)} 0 1,0 ${len(-rx * 2)},0`;
     };
     // Even-odd filling turns each outer-plus-inner pair into an annulus, which is what a ring is.
     const rings = SATURN_RING_BANDS
@@ -848,21 +848,11 @@ export function renderWorldMap(mapEl, data) {
     return { back: rings, front: `<g clip-path="url(#map-saturn-front)">${rings}</g>` };
   }
 
-  // Planets darken toward the limb for the same reason the sun does — the slanted line of sight
-  // stops higher in the atmosphere — and on the gas giants it is strong enough to be the thing
-  // that makes them read as spheres rather than discs. Same construction as the sun's: a
-  // darkening veil whose stops are the law, divided back up for the tint left in the veil.
-  // The gradient is defined inside each planet's own group rather than among the shared defs,
-  // because its stops are mixed from `--planet-tint` and a custom property is inherited down
-  // the document, not through the `url(...)` that refers to it: a copy sitting in `<defs>`
-  // would see no tint at all and quietly fall back to flat black.
-  const planetLimbStops = LIMB_SAMPLES_PLANET.map((rho) => {
-    const mu = Math.sqrt(Math.max(0, 1 - rho * rho));
-    const veil = PLANET_LIMB_U * (1 - mu) / (1 - PLANET_LIMB_TINT);
-    return `<stop offset="${(rho * 100).toFixed(1)}%" class="map-planet-limb-stop"`
-      + ` stop-opacity="${Math.min(1, veil).toFixed(3)}"/>`;
-  }).join('');
-
+  // The planets get no limb darkening. They do darken toward the limb, and the sun above them
+  // is drawn with the law that governs it — but the sun's coefficient is a published measurement
+  // at a stated wavelength, and there is no single number that does the same job for seven
+  // planets: it runs differently on each of them, and differently again by wavelength and
+  // latitude. Drawing them flat is a smaller lie than drawing them with a coefficient I made up.
   const planetHtml = () => {
     const saturn = planets.find((p) => p.name === 'saturn');
     const saturnFront = saturn.radius * SATURN_RING_OUTER * 1.1;
@@ -873,11 +863,11 @@ export function renderWorldMap(mapEl, data) {
     return `
     <defs>
       <clipPath id="map-saturn-front">
-        <rect x="${(-saturnFront).toFixed(1)}" y="${(frontBelow ? 0 : -saturnFront).toFixed(1)}"
-              width="${(saturnFront * 2).toFixed(1)}" height="${saturnFront.toFixed(1)}"/>
+        <rect x="${len(-saturnFront)}" y="${len(frontBelow ? 0 : -saturnFront)}"
+              width="${len(saturnFront * 2)}" height="${len(saturnFront)}"/>
       </clipPath>
       ${planets.map(({ name, radius, polarRadius }) =>
-        `<clipPath id="map-planet-clip-${name}"><ellipse rx="${radius.toFixed(3)}" ry="${polarRadius.toFixed(3)}"/></clipPath>`).join('')}
+        `<clipPath id="map-planet-clip-${name}"><ellipse rx="${len(radius)}" ry="${len(polarRadius)}"/></clipPath>`).join('')}
       <linearGradient id="map-planet-band" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" class="map-planet-band-stop" stop-opacity="0"/>
         <stop offset="28%" class="map-planet-band-stop" stop-opacity="1"/>
@@ -889,7 +879,7 @@ export function renderWorldMap(mapEl, data) {
       const { name, radius, polarRadius } = planet;
       const clip = `clip-path="url(#map-planet-clip-${name})"`;
       const rings = name === 'saturn' ? ringsHtml(planet) : null;
-      const bands = name === 'jupiter' ? JUPITER_BANDS : name === 'saturn' ? SATURN_BANDS : null;
+      const bands = name === 'jupiter' ? JUPITER_BANDS : null;
       const lit = planet.planet.illuminatedFraction;
       const night = lit < PHASE_FLOOR
         ? `<g class="map-planet-nightside" ${clip}>${nightHtml(radius, lit, name === 'venus')}</g>`
@@ -897,17 +887,14 @@ export function renderWorldMap(mapEl, data) {
       const moons = name === 'jupiter' ? galileanHtml(planet, false) : '';
       const moonsInFront = name === 'jupiter' ? galileanHtml(planet, true) : '';
       return `<g class="map-planet map-planet-${name}" aria-hidden="true">`
-        + `<defs><radialGradient id="map-planet-limb-${name}" cx="50%" cy="50%" r="50%">${planetLimbStops}</radialGradient></defs>`
         + '<g class="map-planet-face">'
         + moons // the ones round the far side of their orbits go under the planet
         + (rings ? rings.back : '')
-        + `<ellipse class="map-planet-disc" rx="${radius.toFixed(3)}" ry="${polarRadius.toFixed(3)}"/>`
+        + `<ellipse class="map-planet-disc" rx="${len(radius)}" ry="${len(polarRadius)}"/>`
         + (bands
           ? `<g ${clip}>${bandsHtml(bands, planet)}`
             + (name === 'jupiter' ? scarsHtml(planet) : '') + '</g>'
           : '')
-        + `<ellipse class="map-planet-limb" fill="url(#map-planet-limb-${name})"`
-        + ` rx="${radius.toFixed(3)}" ry="${polarRadius.toFixed(3)}"/>`
         + night
         + moonsInFront
         + (rings ? rings.front : '')
