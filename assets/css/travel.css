@@ -93,6 +93,23 @@
   opacity: 0.26;
 }
 
+/* The halo behind every body the map draws individually — the sun, the moon, the seven planets
+   and Jupiter's four moons — sized by `glowHtml` in world-map.js at twenty-three times the
+   body's own area. Its size is the one deliberate exaggeration left in this sky: it marks
+   rather than depicts, and everything inside it is still drawn at the size it really was.
+
+   Two tones. The sun keeps the accent, because it is the light in this picture. Everything the
+   sun lights takes `--text`, which on a dark page is the white it looks like it ought to be,
+   and on a light one flips to the same ink the stars are drawn in — a white halo on paper
+   would be no halo at all. */
+.map-body-glow { fill: url(#map-body-glow-pale); }
+
+.map-body-glow.is-warm { fill: url(#map-body-glow-warm); }
+
+.map-body-glow-pale-stop { stop-color: var(--text); }
+
+.map-body-glow-warm-stop { stop-color: var(--accent); }
+
 /* A single decorative moon, fixed in the sky like the stars around it: a pale disc (unlike the
    ink-dot stars, filled against --text so it reads at a glance in both themes) carrying its
    own maria and two-tone craters over its whole surface, plus a soft radial wash for a

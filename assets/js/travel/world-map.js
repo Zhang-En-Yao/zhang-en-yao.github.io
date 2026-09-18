@@ -15,7 +15,6 @@ import {
 const WIDTH = 960;
 const PAD = 6;
 const GLOBE_MARGIN = 110; // shrinks the globe within the card, so sky shows all the way around it, not just the corners
-const MAX_ZOOM = 40;
 const FOCUS_MAX_ZOOM = 20; // a clicked country's fitted zoom is capped here, relative to the fitted globe
 const SKY_SOFT = 8; // magnitudes past the limit where a star's radius stops growing linearly
 const SKY_INSIDE_DIM = 0.3; // stars seen through the glass globe, rather than around it
@@ -154,6 +153,33 @@ export function renderWorldMap(mapEl, data) {
   // point θ from the centre of view at `scale·tan(θ/2)`, and that is the whole of it. No factor,
   // no floor, no special case — the same function the star field and the graticule go through.
   const skyDiscRadius = (semidiameterDeg) => skyScale * Math.tan(semidiameterDeg * (Math.PI / 360));
+
+  // A halo behind every body the map draws individually — the sun, the moon, the seven planets
+  // and Jupiter's four moons — covering `GLOW_AREA` times the area of the body inside it. Area
+  // rather than radius, so a halo stays in proportion to the thing it marks instead of swamping
+  // the small ones; the radius it works out to is the square root of it. This is the one thing
+  // in the sky not drawn to a real size, and it is not pretending to be: it is a marker, the way
+  // a star atlas rings what is worth looking at, and everything inside it is still the size it
+  // really was.
+  //
+  // Two tones. The sun, which is the light here, keeps the page's accent; everything the sun
+  // lights takes the pale one. Two whole gradients rather than one with a swappable colour,
+  // because a custom property is inherited down the document and does not travel through the
+  // `url(...)` that points at a gradient — a single shared copy would see no colour at all.
+  const GLOW_AREA = 1000;
+  const GLOW_SCALE = Math.sqrt(GLOW_AREA);
+  const GLOW_STOPS = [[0, 0.5], [20, 0.45], [42, 0.22], [68, 0.08], [100, 0]];
+  const glowHtml = (radius, { warm = false, cx = 0, cy = 0 } = {}) =>
+    `<circle class="map-body-glow${warm ? ' is-warm' : ''}" r="${len(radius * GLOW_SCALE)}"`
+    + (cx || cy ? ` cx="${len(cx)}" cy="${len(cy)}"` : '') + '/>';
+  const glowDefs = () => `
+    <defs>
+      ${['pale', 'warm'].map((tone) => `
+      <radialGradient id="map-body-glow-${tone}" cx="50%" cy="50%" r="50%">
+        ${GLOW_STOPS.map(([offset, opacity]) =>
+          `<stop offset="${offset}%" class="map-body-glow-${tone}-stop" stop-opacity="${opacity}"/>`).join('')}
+      </radialGradient>`).join('')}
+    </defs>`;
 
   // Every length drawn on a body in the sky goes out through this. At true angular size those
   // run from the moon's 22° halo, seventy units across, down to Neptune's thousandth of one, and
@@ -381,6 +407,7 @@ export function renderWorldMap(mapEl, data) {
         <clipPath id="map-moon-clip"><circle r="${len(moonRadius)}"/></clipPath>
       </defs>
       <g class="map-moon" aria-hidden="true">
+        ${glowHtml(moonRadius)}
         <g clip-path="url(#map-moon-clip)">
           <circle class="map-moon-disc" r="${len(moonRadius)}"/>
           <g class="map-moon-surface"></g>
@@ -619,6 +646,7 @@ export function renderWorldMap(mapEl, data) {
       <clipPath id="map-sun-clip"><circle r="${len(SUN_RADIUS)}"/></clipPath>
     </defs>
     <g class="map-sun" aria-hidden="true" style="--sun-plume-width:${len(SUN_RADIUS * PLUME_KM / SUN_RADIUS_KM)}">
+      ${glowHtml(SUN_RADIUS, { warm: true })}
       <g class="map-sun-face">
         <circle class="map-sun-glow" r="${len(SUN_RADIUS * CORONA_REACH)}"/>
         <g class="map-sun-corona" filter="url(#map-sun-diffuse)"></g>
@@ -819,9 +847,12 @@ export function renderWorldMap(mapEl, data) {
     return REAL_GALILEAN_MOONS
       .map((moon, i) => ({ moon, r: GALILEAN_RADII[i] * planet.radius }))
       .filter(({ moon }) => moon.front === wanted)
-      .map(({ moon, r }) => `<circle class="map-planet-satellite" data-moon="${moon.name}"`
-        + ` cx="${len(moon.x * planet.radius)}" cy="${len(moon.y * planet.radius)}"`
-        + ` r="${len(r)}"/>`)
+      .map(({ moon, r }) => {
+        const [cx, cy] = [moon.x * planet.radius, moon.y * planet.radius];
+        return glowHtml(r, { cx, cy })
+          + `<circle class="map-planet-satellite" data-moon="${moon.name}"`
+          + ` cx="${len(cx)}" cy="${len(cy)}" r="${len(r)}"/>`;
+      })
       .join('');
   }
 
@@ -887,6 +918,7 @@ export function renderWorldMap(mapEl, data) {
       const moons = name === 'jupiter' ? galileanHtml(planet, false) : '';
       const moonsInFront = name === 'jupiter' ? galileanHtml(planet, true) : '';
       return `<g class="map-planet map-planet-${name}" aria-hidden="true">`
+        + glowHtml(radius)
         + '<g class="map-planet-face">'
         + moons // the ones round the far side of their orbits go under the planet
         + (rings ? rings.back : '')
@@ -913,7 +945,7 @@ export function renderWorldMap(mapEl, data) {
   mapEl.innerHTML = `
     <div class="map-viewport" tabindex="0" role="application"
          aria-label="World map of the places listed below. Arrow keys rotate the globe; plus and minus zoom.">
-      <svg class="map-svg" aria-hidden="true"><g class="map-scene"><g class="map-sky" aria-hidden="true"></g><path class="map-moon-halo" aria-hidden="true"/>${moonHtml()}${sunHtml()}${planetHtml()}<path class="map-globe"/><g class="map-land-ghost">${ghostShapes(ghostFeatures)}</g><g class="map-marine-areas">${waterShapes(waterFeatures)}${borderShapes(borderFeatures)}</g><g class="map-land">${countryShapes(land.features, path)}</g></g></svg>
+      <svg class="map-svg" aria-hidden="true"><g class="map-scene"><g class="map-sky" aria-hidden="true"></g><path class="map-moon-halo" aria-hidden="true"/>${glowDefs()}${moonHtml()}${sunHtml()}${planetHtml()}<path class="map-globe"/><g class="map-land-ghost">${ghostShapes(ghostFeatures)}</g><g class="map-marine-areas">${waterShapes(waterFeatures)}${borderShapes(borderFeatures)}</g><g class="map-land">${countryShapes(land.features, path)}</g></g></svg>
       <div class="map-markers">${markerHtml(allPlaces)}</div>
     </div>
     <p class="map-crumb glass" hidden></p>
@@ -1185,13 +1217,22 @@ export function renderWorldMap(mapEl, data) {
   // always shows at least as much as fitting to the visited places would, and never
   // crops tighter than the whole globe, keeping the sky margin around it visible by
   // default rather than auto-zooming past it into a tight cluster of trips.
+  // How far in the map will zoom. The default view sits at exactly the scale that fits the whole
+  // card, so a body reaches the size the globe has there once the view is magnified by the ratio
+  // of their radii — and now that nothing in the sky is drawn larger than it really is, that
+  // ratio is the honest reason for the number. The sun is the smaller of the two big discs, so
+  // it sets the ceiling; the moon, slightly wider, gets there a little sooner. Past about 3× the
+  // finer coastline atlas loads, and past a hundred the country outlines are being stretched far
+  // beyond the detail they hold — but by then what is on screen is a disc in the sky, not land.
+  const maxZoom = Math.ceil(globeRadius / SUN_RADIUS);
+
   const [globeCx, globeCy] = projection.translate();
   const homeBounds = [[globeCx - globeRadius, globeCy - globeRadius], [globeCx + globeRadius, globeCy + globeRadius]];
 
   view = new MapView(viewport, {
     width: WIDTH,
     height,
-    maxZoom: MAX_ZOOM,
+    maxZoom,
     home: (v) => v.fitView(homeBounds, { inset: homeInsets(v), maxZoom: 8 }),
     onDrag: rotateBy,
     onChange: update,
