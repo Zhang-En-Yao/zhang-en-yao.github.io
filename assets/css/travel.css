@@ -210,6 +210,79 @@
 
 .map-sun-plage-stop { stop-color: color-mix(in srgb, var(--accent) 50%, white); }
 
+/* The seven planets — see planetHtml in world-map.js. Each one's tint is roughly its real
+   colour, but mixed toward `--text` rather than used neat: a pale Venus on a pale page would
+   disappear, and mixing toward the page's own ink darkens it in light mode and lightens it in
+   dark, keeping the hue recognisable either way. Sizes, positions, phases, flattening, the belt
+   latitudes, and Saturn's ring opening and radii all come from the ephemeris and from
+   measurement; only these colours are a judgement. */
+.map-planet-disc { fill: var(--planet-tint); }
+
+.map-planet-mercury { --planet-tint: color-mix(in srgb, #8c8378 72%, var(--text)); }
+
+.map-planet-venus { --planet-tint: color-mix(in srgb, #e8d9b0 72%, var(--text)); }
+
+.map-planet-mars { --planet-tint: color-mix(in srgb, #c1653a 76%, var(--text)); }
+
+.map-planet-jupiter { --planet-tint: color-mix(in srgb, #d8b892 72%, var(--text)); }
+
+.map-planet-saturn { --planet-tint: color-mix(in srgb, #e0cc99 72%, var(--text)); }
+
+.map-planet-uranus { --planet-tint: color-mix(in srgb, #9fd3d6 72%, var(--text)); }
+
+.map-planet-neptune { --planet-tint: color-mix(in srgb, #5b7fd0 76%, var(--text)); }
+
+/* Limb darkening, the same construction as the sun's and for the same reason — a veil holding
+   the measured profile, with a little of the planet's own colour left in it so the edge goes
+   warm rather than grey. The 25% here is `PLANET_LIMB_TINT` in world-map.js, which divides its
+   stop opacities back up to compensate; change one and change the other. The gradient itself
+   lives inside each planet's group (see planetHtml) so that `--planet-tint` reaches it; the
+   `fill` is set there too, since each planet refers to its own copy. */
+.map-planet-limb-stop { stop-color: color-mix(in srgb, var(--planet-tint) 25%, #000); }
+
+/* Belts and polar regions. Both darken toward black rather than toward `--text`, which on a
+   dark page would brighten the very things that have to go dark. Jupiter's belts carry real
+   contrast; Saturn's are the same structure seen through a deep haze, so its own rules below
+   pull them most of the way back. */
+.map-planet-belt { fill: url(#map-planet-band); opacity: 0.3; }
+
+.map-planet-polar { fill: url(#map-planet-band); opacity: 0.16; }
+
+.map-planet-band-stop { stop-color: #000; }
+
+/* The nineteen places Shoemaker-Levy 9 came down in July 1994, seven weeks before this sky.
+   Darker than any belt — the scars were the darkest markings Jupiter has shown in modern
+   times — but drawn faint here because by September they had already begun to fade. */
+.map-planet-scar { fill: #000; opacity: 0.42; }
+
+/* Io, Europa, Ganymede and Callisto. Lit by the same sun as their planet, so they take the
+   planet's own tint rather than a colour of their own. */
+.map-planet-satellite { fill: color-mix(in srgb, var(--planet-tint) 82%, var(--text)); }
+
+.map-planet-saturn .map-planet-belt { opacity: 0.1; }
+
+.map-planet-saturn .map-planet-polar { opacity: 0.08; }
+
+/* The unlit side. Mercury, Venus and Mars are the only three that ever turn one toward us, and
+   Venus that night was a 40%-lit crescent — the phase Galileo drew when he realised it orbits
+   the sun. Dimmed back to the sky's own tone rather than cut away, so the disc stays a disc. */
+.map-planet-nightside { opacity: 0.82; }
+
+.map-planet-night { fill: var(--card); }
+
+/* Saturn's rings, at their real radii: the dark, near-transparent C ring, the bright B ring
+   (brighter in its outer half, as it really is), and the A ring outside the Cassini division,
+   itself split by the thin Encke gap near its edge. */
+.map-planet-ring-c { fill: var(--planet-tint); opacity: 0.2; }
+
+.map-planet-ring-b-inner { fill: var(--planet-tint); opacity: 0.7; }
+
+.map-planet-ring-b-outer { fill: var(--planet-tint); opacity: 0.88; }
+
+.map-planet-ring-a-inner { fill: var(--planet-tint); opacity: 0.55; }
+
+.map-planet-ring-a-outer { fill: var(--planet-tint); opacity: 0.48; }
+
 /* The globe's own silhouette — a pane of glass between the viewer and the sky behind it. */
 .map-globe {
   fill: color-mix(in srgb, var(--card) 55%, transparent);
