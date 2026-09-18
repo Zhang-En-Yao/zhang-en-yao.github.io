@@ -110,18 +110,36 @@
 
 .map-body-glow-warm-stop { stop-color: var(--accent); }
 
-/* A single decorative moon, fixed in the sky like the stars around it: a pale disc (unlike the
-   ink-dot stars, filled against --text so it reads at a glance in both themes) carrying its
-   own maria and two-tone craters over its whole surface, plus a soft radial wash for a
-   lit-sphere feel — dimmed the same way as everything else seen through the glass globe.
-   `.map-moon-nightside` then darkens just the portion unlit at `SKY_MOMENT` (see world-map.js)
-   back toward the sky's own tone, rather than clipping the texture away outright, so the dark
-   majority of a thin crescent still shows real surface detail instead of going blank.
-   `.map-moon-halo` is a real 22° ice-crystal halo, traced as an actual circle on the
-   celestial sphere around the moon's true position (see `moonHaloRing` in world-map.js) —
+/* A single decorative moon, fixed in the sky like the stars around it, showing the near side
+   it really shows — a pale disc (unlike the ink-dot stars, filled against --text so it reads
+   at a glance in both themes) carrying every named crater and sea at its true selenographic
+   place. Each feature is a spherical cap, which an orthographic view projects to an exact
+   ellipse; world-map.js works out that ellipse once and the classes below only say what a
+   floor, a lit inner wall and a sea are made of. `.map-moon-shade` is the soft wash of a lit sphere, centred on the sun itself, and
+   `.map-moon-nightside` darkens the true night hemisphere back toward the sky's own tone
+   rather than clipping it away, so the dark side still shows real surface detail — earthshine,
+   not a blank. `.map-moon-halo` is a real 22° ice-crystal halo, traced as an actual circle on
+   the celestial sphere around the moon's true position (see `moonHaloRing` in world-map.js) —
    its opacity is set per-instance, scaled by illuminated fraction (fainter around a thin
    crescent, more moonlight to refract near full) and by the same seen-through-glass dimming
    as everything else in the sky. */
+
+/* The moon's own two tones, and the only two it shades with. Its disc is a mid grey in either
+   theme — half the page's ink laid over the page itself — so it sits between the two ends of
+   the palette, and a shadow on it has to move toward whichever end is the darker one while a
+   highlight moves toward the lighter. Those ends swap when the page does, which is why they
+   are named for what they do here rather than used directly: --card as "lit" reads as white on
+   paper and as a black pit on a dark page, which is what every crater highlight used to be. */
+.map {
+  --moon-ink: var(--text);
+  --moon-lit: var(--card);
+}
+
+[data-theme="dark"] .map {
+  --moon-ink: var(--card);
+  --moon-lit: var(--text);
+}
+
 .map-moon-halo {
   fill: none;
   stroke: var(--faint);
@@ -137,11 +155,20 @@
   vector-effect: non-scaling-stroke;
 }
 
-.map-moon-mare { fill: var(--faint); opacity: 0.22; }
+/* The seas: the darkest thing on the moon, and the only markings the naked eye gets. */
+.map-moon-mare { fill: var(--moon-ink); opacity: 0.18; }
 
-.map-moon-crater-shadow { fill: var(--faint); opacity: 0.45; }
+/* A crater's own floor, and — once it is drawn wide enough for the two to tell apart — the
+   inner wall the sun lights, which is the one facing away from it. The floor's own weight is
+   set per crater by world-map.js, from how big the crater is, the way a star's is set from its
+   magnitude: at one fixed strength a thousand of them read as a rash rather than a surface,
+   so the small ones fall back to texture and the walled plains carry the face. Both
+   stay gentle: a crater is a shallow dish — a kilometre or two deep across sixty or eighty
+   wide — and drawing it at the contrast of a hole in the ground is neither true nor pleasant
+   to look at. */
+.map-moon-floor { fill: var(--moon-ink); }
 
-.map-moon-crater-light { fill: var(--card); opacity: 0.4; }
+.map-moon-wall { fill: var(--moon-lit); opacity: 0.16; }
 
 .map-moon-shade { fill: url(#map-moon-shade); }
 
@@ -149,11 +176,11 @@
    craters and maria under it stay faintly visible — like real earthshine, not a blank disc. */
 .map-moon-nightside { fill: var(--card); opacity: 0.72; }
 
-.map-moon-grad-hi { stop-color: var(--card); stop-opacity: 0.4; }
+.map-moon-grad-hi { stop-color: var(--moon-lit); stop-opacity: 0.22; }
 
-.map-moon-grad-mid { stop-color: var(--card); stop-opacity: 0; }
+.map-moon-grad-mid { stop-color: var(--moon-lit); stop-opacity: 0; }
 
-.map-moon-grad-lo { stop-color: var(--text); stop-opacity: 0.25; }
+.map-moon-grad-lo { stop-color: var(--moon-ink); stop-opacity: 0.22; }
 
 /* A single decorative sun, fixed in the sky like the moon and stars around it — see sunHtml
    in world-map.js, which computes the numbers these rules colour in. Unlike the moon it has no

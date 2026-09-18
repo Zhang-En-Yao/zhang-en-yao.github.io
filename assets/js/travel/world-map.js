@@ -326,93 +326,209 @@ export function renderWorldMap(mapEl, data) {
     return { html: figures + starMarkup, lines };
   }
 
-  // Drawn independently of `sky` (it needs no star-atlas data): a single moon at a fixed
-  // point in the same sky frame as the stars, so it drifts and dims behind the glass globe
-  // exactly as they do. `MOON_RADIUS` comes from its real angular size that night — it was
-  // near perigee, so it is drawn a few percent wider than an average moon, and wider than the
-  // sun beside it. Lit on the right for waxing, left for waning — the usual northern-hemisphere
-  // convention — clipped to `REAL_MOON_PHASE`'s true illuminated fraction, over a faint
-  // always-visible outline of the full disc (so a thin crescent still reads as "a circle,
-  // mostly dark" rather than a stray sliver).
+  const RAD = Math.PI / 180;
+
+  // ---------- the moon ----------
   //
-  // `moonFeatures` (optional — the moon still draws fine without it, just as a bare phase —
-  // and, being a Promise, isn't resolved yet at this point; see the hydration block below)
-  // is every IAU-named near-side crater and "sea" (mare/oceanus/lacus/palus/sinus, all the
-  // dark-plain types) from the USGS Gazetteer of Planetary Nomenclature's official dataset:
-  // real selenographic centre and diameter, not invented. Every crater is included; only ones
-  // under `CRATER_MIN_FRACTION` of the moon's own width end up not drawn below, which keeps the
-  // level of detail the same whatever the moon is drawn at rather than emptying the disc when
-  // it is small — the underlying data isn't filtered either way.
-  const CRATER_MIN_FRACTION = 0.0133; // of the moon's own radius: below this a crater isn't drawn at all
-  const CRATER_PROMINENT_KM = 150; // real diameter above which a crater gets the shadow+highlight treatment, not a flat dot
-  // Orthographic near-side projection assuming zero libration (the Moon shows Earth its exact
-  // mean face) and no position-angle rotation — simplified, but every position and size below
-  // is real. `foreshorten` (the view-direction component of the surface normal) both places
-  // the feature and shrinks it the way foreshortening really would toward the limb.
-  function featureToDisc([lat, lon, km], moonRadius) {
-    const rad = Math.PI / 180;
-    const foreshorten = Math.cos(lat * rad) * Math.cos(lon * rad);
-    const x = Math.cos(lat * rad) * Math.sin(lon * rad) * moonRadius;
-    const y = -Math.sin(lat * rad) * moonRadius;
-    const angularRadius = Math.asin(Math.min(0.98, (km / 2) / MOON_RADIUS_KM));
-    const r = moonRadius * Math.sin(angularRadius) * Math.max(0.2, foreshorten);
-    return { x, y, r };
+  // Drawn independently of `sky` (it needs no star-atlas data): a single moon at a fixed point
+  // in the same sky frame as the stars, so it drifts and dims behind the glass globe exactly as
+  // they do. `MOON_RADIUS` comes from its real angular size that night — it was near perigee,
+  // so it is drawn a few percent wider than an average moon, and wider than the sun beside it.
+  // It shows the face it really shows: the near side, at the sub-Earth point, with zero
+  // libration assumed and no position-angle rotation — simplified, but every position, size
+  // and shadow on it below is real.
+  //
+  // `moonFeatures` (optional — the moon still draws fine without it, as a lit sphere with a
+  // true terminator — and, being a Promise, isn't resolved yet at this point; see the hydration
+  // block below) is every IAU-named crater and "sea" (mare/oceanus/lacus/palus/sinus, all the
+  // dark-plain types) from the USGS Gazetteer of Planetary Nomenclature's official dataset: a
+  // real selenographic centre and a real diameter each, nothing invented and nothing enlarged.
+  // The far side's own 694 craters are in there too, and are dropped here rather than drawn,
+  // since this face never turns.
+  //
+  // Every feature is a spherical cap, and the orthographic projection of a cap is exactly an
+  // ellipse — not approximately, exactly: for a cap of angular radius ρ whose centre lies θ
+  // from the middle of the disc, the outline's centre falls sin θ·cos ρ from it, the tangential
+  // axis stays sin ρ, and the radial axis foreshortens to sin ρ·cos θ. So each one is a closed
+  // outline carrying a `rotate → translate → scale` transform, worked out once, and a crater
+  // near the limb comes out as the ellipse it really is rather than a circle with a fudge
+  // factor on it. What the ellipse cannot express is a cap straddling the limb, where part of
+  // the rim is round the back and an orthographic view folds the two halves onto each other:
+  // those are drawn whole while their centre is still in front and dropped once it goes behind,
+  // an error of at most half a crater at the one place on the disc where a crater is a pixel or
+  // two wide.
+  //
+  // Nothing is scaled to be convenient. A crater covers the fraction of the moon it really
+  // covers, and it is drawn at all only when that fraction is worth a pixel — so the disc
+  // carries as much as its size on screen can hold, and zooming in resolves more of them,
+  // biggest first, the way the coastline atlas below sharpens as you go in.
+  const MOON_UNIT = 1000; // the moon's own drawing radius, scaled down to its true size on the sky
+  const MOON_FACE_SCALE = MOON_RADIUS / MOON_UNIT;
+  const CAP_MIN_PX = 1.6; // a crater drawn narrower than this isn't drawn at all
+  const MARE_MIN_PX = 0.5; // the seas come in earlier: they are what the naked eye sees first
+  const CAP_BOWL_PX = 5; // above this a crater gets its lit inner wall as well as its floor
+
+  const normLon = (deg) => (((deg % 360) + 540) % 360) - 180;
+
+  // Where the sun stood over the moon at `SKY_MOMENT`, in selenographic coordinates. With the
+  // sub-Earth point at (0, 0), the sun's longitude is just 180° less the moon's elongation from
+  // it: 180° at new moon (the far side lit, the near side dark), 0° at full, +90° at first
+  // quarter, which is the eastern limb and so the right-hand edge of the disc as drawn. Its
+  // latitude never leaves ±1.6° of the equator, so it is taken as zero.
+  const MOON_SUBSOLAR_LON = normLon(180 - REAL_MOON_PHASE.elongation);
+
+  // The initial bearing from one point on a sphere to another, degrees clockwise from north.
+  function bearingTo([lon1, lat1], [lon2, lat2]) {
+    const d = (lon2 - lon1) * RAD;
+    const y = Math.sin(d) * Math.cos(lat2 * RAD);
+    const x = Math.cos(lat1 * RAD) * Math.sin(lat2 * RAD)
+      - Math.sin(lat1 * RAD) * Math.cos(lat2 * RAD) * Math.cos(d);
+    return Math.atan2(y, x) / RAD;
   }
-  // The illuminated region's outline: the limb (the true circle, lit side) on one edge and the
-  // terminator (an ellipse whose horizontal radius shrinks to 0 at half-lit, then grows again
-  // curving the other way past it) on the other — the standard construction for a phase icon.
+
+  // An impact crater really is close to round — that is what an explosion leaves — so the
+  // harmonics that carry its rim are the ones that make it faintly many-sided (2, 3 and 4),
+  // never the lopsided k = 1 that would just slide the circle off its own centre. A sea is a
+  // flood, not an impact, and wanders much further off round, so it gets k = 1 and more of it.
+  //
+  // That a rim has a shape at all is the one thing here with no measurement behind it: the
+  // gazetteer gives a centre and a diameter and stops. So the outline is stood in for, the same
+  // admission `feTurbulence` makes for the sun's granulation below — but a fixed stand-in
+  // rather than a random one, its amplitudes and phases hashed out of the feature's own
+  // coordinates, so every crater has a shape of its own and keeps it from one visit to the next.
+  const RIM = {
+    mare: { amplitude: 0.13, harmonics: [1, 2, 3] },
+    floor: { amplitude: 0.08, harmonics: [2, 3, 4] },
+    wall: { amplitude: 0.08, harmonics: [2, 3, 4] },
+  };
+  function hashRandom(lat, lon) {
+    let seed = Math.abs(Math.sin(lat * 12.9898 + lon * 78.233) * 43758.5453) % 1;
+    return () => {
+      seed = (seed * 9301 + 0.49297) % 1;
+      return seed;
+    };
+  }
+  function capOutline(r, kind, lat, lon) {
+    const random = hashRandom(lat, lon);
+    const { amplitude, harmonics } = RIM[kind];
+    const terms = harmonics.map((k) => [k, (amplitude * (0.35 + random())) / Math.sqrt(k), random() * 2 * Math.PI]);
+    const steps = r < 25 ? 12 : r < 60 ? 20 : 28; // enough points to carry the harmonics above
+    let d = '';
+    for (let i = 0; i < steps; i += 1) {
+      const t = (i / steps) * 2 * Math.PI;
+      const rr = r * (1 + terms.reduce((sum, [k, a, phase]) => sum + a * Math.sin(k * t + phase), 0));
+      d += `${i ? 'L' : 'M'}${(rr * Math.cos(t)).toFixed(1)} ${(rr * Math.sin(t)).toFixed(1)}`;
+    }
+    return `${d}Z`;
+  }
+
+  // How dark a crater floor is drawn, by how big the crater is — the same idea as a star's
+  // opacity coming from its magnitude, and for the same reason: a thousand features all drawn
+  // at one strength is not a surface, it is a rash. A walled plain reads at about the weight of
+  // a sea, and everything under about fifty kilometres falls back to texture. The whole range
+  // is deliberately shallow, because craters are: Copernicus is under four kilometres deep
+  // across ninety-three of width, which is a saucer, not a pit.
+  const floorOpacity = (km) => 0.03 + 0.12 * Math.min(1, Math.max(0, Math.log(km / 35) / Math.log(350 / 35)));
+
+  // A cap of real diameter `km` at a real selenographic (lat, lon), placed on the near-side
+  // face once and for all. `key` is the size the level of detail judges it by — its own, except
+  // for a crater's inner wall, which appears and disappears with the crater it belongs to
+  // rather than on its own account. Returns null for anything round the back.
+  function moonCap([lat, lon, km], kind, minPx = CAP_MIN_PX, key = null) {
+    const rho = (km / 2) / MOON_RADIUS_KM; // great-circle radius on the moon, in radians
+    // The cap's centre in view coordinates: x to the right, y up, z toward the viewer — so z is
+    // the cosine of its distance from the middle of the disc, and negative round the back.
+    const z = Math.cos(lat * RAD) * Math.cos(lon * RAD);
+    if (z <= 0) return null;
+    const x = Math.cos(lat * RAD) * Math.sin(lon * RAD);
+    const y = Math.sin(lat * RAD);
+    const sinTheta = Math.min(1, Math.hypot(x, y));
+    const r = Math.sin(rho) * MOON_UNIT;
+    return {
+      kind,
+      minPx,
+      key: key ?? Math.sin(rho),
+      outline: capOutline(r, kind, lat, lon),
+      opacity: kind === 'floor' ? floorOpacity(km) : null,
+      transform: `rotate(${(Math.atan2(-y, x) / RAD).toFixed(2)})`
+        + ` translate(${(sinTheta * Math.cos(rho) * MOON_UNIT).toFixed(1)},0)`
+        + ` scale(${Math.max(1e-4, z).toFixed(4)},1)`,
+      el: null,
+      on: false,
+    };
+  }
+
+  // The surface in painting order: seas first, since they are the floor the craters sit in,
+  // then craters biggest first, so a young crater on an old one's floor draws over it the way
+  // it actually sits there.
+  function moonSurface(mf) {
+    const bySize = (a, b) => b[2] - a[2];
+    const maria = (mf.seas ?? []).slice().sort(bySize).map((f) => moonCap(f, 'mare', MARE_MIN_PX));
+    const craters = (mf.craters ?? []).slice().sort(bySize).flatMap((f) => {
+      const [lat, lon, km] = f;
+      const floor = moonCap(f, 'floor');
+      if (!floor) return [];
+      // A crater is a bowl, so the wall the sun lights is the one facing away from it — the
+      // bright patch inside a crater sits opposite the sun, and the sunward wall is the one
+      // casting the shadow across the floor. Offset by a third of the radius, in the real
+      // direction away from where the sun really stood.
+      const rhoDeg = (km / 2) / MOON_RADIUS_KM / RAD;
+      const away = bearingTo([lon, lat], [MOON_SUBSOLAR_LON, 0]) + 180;
+      const [wLon, wLat] = destinationPoint([lon, lat], away, rhoDeg * 0.34);
+      return [floor, moonCap([wLat, wLon, km * 0.55], 'wall', CAP_BOWL_PX, floor.key)];
+    });
+    // Nothing is built for a cap that could not be seen however far this card zooms in: an
+    // element that would never once be shown is just weight. The extra reach is slack for a
+    // window later dragged wider, which lifts the deepest zoom with it.
+    const reach = MOON_RADIUS * (view ? view.maxScale : 1) * 1.4;
+    return [...maria, ...craters].filter((cap) => cap && cap.key * reach >= cap.minPx);
+  }
+
+  // The lit and dark halves are complementary phase shapes around the illuminated fraction k —
+  // the limb (the true circle) on one edge and the terminator (an ellipse whose horizontal
+  // radius shrinks to 0 at half-lit, then grows again curving the other way past it) on the
+  // other, the standard construction for a phase. Jupiter and the inner planets use it too.
   function moonPhasePath(r, illuminatedFraction) {
     const termRx = r * (1 - 2 * illuminatedFraction); // signed: >0 crescent-side, <0 gibbous-side
     const termSweep = termRx < 0 ? 1 : 0;
     return `M 0 ${len(-r)} A ${len(r)} ${len(r)} 0 0 1 0 ${len(r)}`
       + ` A ${len(Math.abs(termRx))} ${len(r)} 0 0 ${termSweep} 0 ${len(-r)} Z`;
   }
-  // Built once `moonFeatures` resolves (see the hydration block below) and dropped into
-  // the otherwise-empty `.map-moon-surface` group below.
-  function moonSurfaceHtml(mf, moonRadius) {
-    const craters = (mf.craters ?? [])
-      .map((f) => ({ ...featureToDisc(f, moonRadius), km: f[2] }))
-      .filter(({ r }) => r >= moonRadius * CRATER_MIN_FRACTION)
-      .map(({ x, y, r, km }) => {
-        if (km < CRATER_PROMINENT_KM) return `<circle class="map-moon-crater-shadow" cx="${len(x)}" cy="${len(y)}" r="${len(r)}"/>`;
-        const [lx, ly, lr] = [x - r * 0.3, y - r * 0.3, r * 0.55];
-        return `<circle class="map-moon-crater-shadow" cx="${len(x)}" cy="${len(y)}" r="${len(r)}"/>`
-          + `<circle class="map-moon-crater-light" cx="${len(lx)}" cy="${len(ly)}" r="${len(lr)}"/>`;
-      })
-      .join('');
-    const maria = (mf.seas ?? [])
-      .map((f) => {
-        const { x, y, r } = featureToDisc(f, moonRadius);
-        return `<circle class="map-moon-mare" cx="${len(x)}" cy="${len(y)}" r="${len(r)}"/>`;
-      })
-      .join('');
-    return maria + craters;
-  }
+
+  // Where the sunlight falls on the drawn face. The terminator is a real great circle 90° from
+  // the sun rather than a phase drawn onto the disc, so it lands where the light really ends,
+  // and the soft wash of a lit sphere is centred on the sun itself — pushed out to the limb it
+  // stands behind when, as on this date, the sun has already set on most of the near side.
+  const moonLighting = () => {
+    const sx = Math.sin(MOON_SUBSOLAR_LON * RAD); // the sun's direction in the same view frame
+    const sz = Math.cos(MOON_SUBSOLAR_LON * RAD); // as a cap's: x right, z toward the viewer
+    const out = sz > 0 ? 1 : 1 / (Math.abs(sx) || 1);
+    return {
+      night: moonPhasePath(MOON_UNIT, (1 - sz) / 2),
+      nightTurn: Math.atan2(0, -sx) / RAD, // the antisolar direction, where the night shape points
+      shadeX: sx * out * MOON_UNIT,
+    };
+  };
+
   const moonHtml = () => {
-    const moonRadius = MOON_RADIUS;
-    // The lit and dark regions are complementary phase shapes (illuminated fraction k, and
-    // 1−k mirrored to the other side) — rather than clip the surface texture to just the lit
-    // one (which left the dark majority, at this date's 15%-lit crescent, a featureless blank),
-    // the craters and maria are drawn once across the whole disc and a dim overlay darkens
-    // only the night side, the way earthshine leaves it faintly visible rather than blank.
-    const k = REAL_MOON_PHASE.illuminatedFraction;
-    const darkTransform = REAL_MOON_PHASE.waxing ? ' transform="scale(-1,1)"' : '';
+    const light = moonLighting();
     return `
       <defs>
-        <radialGradient id="map-moon-shade" cx="32%" cy="30%" r="75%">
+        <radialGradient id="map-moon-shade" gradientUnits="userSpaceOnUse"
+                        cx="${len(light.shadeX)}" cy="0" r="${len(MOON_UNIT * 1.15)}">
           <stop offset="0%" class="map-moon-grad-hi"/>
           <stop offset="55%" class="map-moon-grad-mid"/>
           <stop offset="100%" class="map-moon-grad-lo"/>
         </radialGradient>
-        <clipPath id="map-moon-clip"><circle r="${len(moonRadius)}"/></clipPath>
+        <clipPath id="map-moon-clip"><circle r="${len(MOON_UNIT)}"/></clipPath>
       </defs>
       <g class="map-moon" aria-hidden="true">
-        ${glowHtml(moonRadius)}
-        <g clip-path="url(#map-moon-clip)">
-          <circle class="map-moon-disc" r="${len(moonRadius)}"/>
-          <g class="map-moon-surface"></g>
-          <circle class="map-moon-shade" r="${len(moonRadius)}"/>
-          <path class="map-moon-nightside" d="${moonPhasePath(moonRadius, 1 - k)}"${darkTransform}/>
+        ${glowHtml(MOON_RADIUS)}
+        <g class="map-moon-face" transform="scale(${len(MOON_FACE_SCALE)})">
+          <circle class="map-moon-disc" r="${len(MOON_UNIT)}"/>
+          <g class="map-moon-surface" clip-path="url(#map-moon-clip)"></g>
+          <circle class="map-moon-shade" r="${len(MOON_UNIT)}"/>
+          <path class="map-moon-nightside" d="${light.night}" transform="rotate(${light.nightTurn.toFixed(2)})"/>
         </g>
       </g>`;
   };
@@ -436,7 +552,6 @@ export function renderWorldMap(mapEl, data) {
   //     streamers standing over that day's own active longitudes.
   // Granulation is the one thing with no true positions to plot — convection cells that live
   // about ten minutes each and never repeat — so `feTurbulence` stands in, at their real size.
-  const RAD = Math.PI / 180;
   const GRANULE_KM = 1000; // a convection cell, about 1 Mm across and gone in ten minutes
   const SUPERGRANULE_KM = 30000; // the network of ~30 Mm flows the cells are organised into
   const LIMB_DARKENING_U = 0.65; // linear coefficient, as measured on SDO/HMI's 617.3 nm disc
@@ -965,6 +1080,7 @@ export function renderWorldMap(mapEl, data) {
   const globeEl = mapEl.querySelector('.map-globe');
   const moonEl = mapEl.querySelector('.map-moon');
   const moonHaloEl = mapEl.querySelector('.map-moon-halo');
+  const moonSurfaceEl = mapEl.querySelector('.map-moon-surface');
   const sunEl = mapEl.querySelector('.map-sun');
   const sunFaceEl = mapEl.querySelector('.map-sun-face');
   const planetEls = planets.map((planet) => ({
@@ -1000,6 +1116,9 @@ export function renderWorldMap(mapEl, data) {
   let focusedCountry = null;
   let view; // assigned below, once `redraw` has run once to compute the home framing
 
+  let moonCaps = []; // the moon's surface, filled in once `moonFeatures` lands
+  let moonCapScale = -1; // the zoom it was last sized for, since how much of it shows follows the zoom
+
   // Breathing room around a framed area, clear of the zoom controls on the right.
   const insets = (v) => {
     const pad = Math.min(40, v.w * 0.06);
@@ -1034,6 +1153,21 @@ export function renderWorldMap(mapEl, data) {
       detail = false;
       console.warn('travel: could not load the detailed atlas', err);
     }
+  }
+
+  // Which of the moon's features are worth drawing, given how big it is on screen right now.
+  // Everything about where they sit was settled when they were built — this face never turns —
+  // so a zoom only ever switches a cap between the transform it was born with and a degenerate
+  // one, which SVG declines to render at all: one attribute, and only for the caps that have
+  // just crossed the threshold.
+  function showMoonDetail(scale) {
+    const radiusPx = MOON_RADIUS * scale;
+    moonCaps.forEach((cap) => {
+      const show = cap.key * radiusPx >= cap.minPx;
+      if (show === cap.on) return;
+      cap.el.setAttribute('transform', show ? cap.transform : 'scale(0)');
+      cap.on = show;
+    });
   }
 
   // Re-walking every country's coastline is, empirically, the expensive part of a redraw —
@@ -1146,6 +1280,11 @@ export function renderWorldMap(mapEl, data) {
     });
     if (selected >= 0) positionPopover(callout, selected, 18);
     if (hovered >= 0) positionPopover(tip, hovered, 14);
+    // How much of the moon's surface is worth drawing follows how big it is on screen.
+    if (s !== moonCapScale) {
+      moonCapScale = s;
+      showMoonDetail(s);
+    }
     buttons.in.disabled = s >= v.maxScale * 0.999;
     buttons.out.disabled = s <= v.minScale * 1.001;
     buttons.home.disabled = v.isHome() && Math.abs(shortestTurn(rotate[0], homeRotate[0])) < 0.5 && Math.abs(rotate[1] - homeRotate[1]) < 0.5;
@@ -1191,10 +1330,17 @@ export function renderWorldMap(mapEl, data) {
     redraw(true);
   });
 
+  // A thousand caps, emitted once with the outline and the weight they keep for good, and
+  // hidden until `showMoonDetail` decides the moon is drawn big enough to carry them.
   moonFeatures?.then((mf) => {
-    if (!mf) return;
-    const surface = mapEl.querySelector('.map-moon-surface');
-    if (surface) surface.innerHTML = moonSurfaceHtml(mf, MOON_RADIUS);
+    if (!mf || !moonSurfaceEl) return;
+    moonCaps = moonSurface(mf);
+    moonSurfaceEl.innerHTML = moonCaps
+      .map((cap) => `<path class="map-moon-${cap.kind}" d="${cap.outline}"`
+        + `${cap.opacity === null ? '' : ` opacity="${cap.opacity.toFixed(2)}"`} transform="scale(0)"/>`)
+      .join('');
+    [...moonSurfaceEl.children].forEach((el, i) => { moonCaps[i].el = el; });
+    showMoonDetail(view.view.s);
   });
 
   // The sun draws fine without this — a limb-darkened disc and its corona, which is all the

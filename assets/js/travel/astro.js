@@ -153,14 +153,18 @@ export function moonEquatorial(date) {
   };
 }
 
-// The Moon's phase at `date`: illuminated fraction of the disc (0 = new, 1 = full) and whether
-// it's waxing (elongation 0°–180°, growing toward full) or waning (180°–360°, shrinking to new).
+// The Moon's phase at `date`: its elongation from the Sun (0° new, 90° first quarter, 180°
+// full, 270° last quarter), the illuminated fraction of the disc that follows from it, and
+// whether it's waxing (0°–180°, growing toward full) or waning (180°–360°, shrinking to new).
+// The elongation is worth having on its own: it is also, give or take the libration, where the
+// Sun stands over the Moon's own surface — see `MOON_SUBSOLAR_LON` in world-map.js, which is
+// what decides which half of a drawn lunar globe is in daylight.
 export function moonPhase(date) {
   const d = daysSinceJ2000(date);
   const sun = sunEcliptic(d);
   const moon = moonEcliptic(d, sun);
   const elongation = norm360(moon.lonEcl - sun.lon);
-  return { illuminatedFraction: (1 - cosDeg(elongation)) / 2, waxing: elongation < 180 };
+  return { elongation, illuminatedFraction: (1 - cosDeg(elongation)) / 2, waxing: elongation < 180 };
 }
 
 // The Sun's rotation axis, as seen from Earth at `date` — Meeus, *Astronomical Algorithms*,
