@@ -328,6 +328,71 @@ export function renderWorldMap(mapEl, data) {
 
   const RAD = Math.PI / 180;
 
+  // ---------- what a marking on a sphere is shaped like ----------
+  //
+  // Both bodies drawn close up here — the moon below and the sun after it — are covered in
+  // features whose place and size are measured and whose outline is not. The lunar gazetteer
+  // gives a crater a centre and a diameter and stops; a sunspot catalogue gives a spot a
+  // position and an area and stops. Drawn literally, every one of them comes out a perfect
+  // circle, which is the one thing none of them is.
+  //
+  // So the outline is stood in for, the same admission `feTurbulence` makes for the sun's
+  // granulation — but a fixed stand-in rather than a random one: a few low harmonics whose
+  // amplitudes and phases are hashed out of the feature's own coordinates, so every crater and
+  // every spot has a shape of its own and keeps it from one visit to the next. How far each
+  // kind wanders off round is the part that carries meaning, and it is set per kind below,
+  // because a crater and a plage are not irregular in the same way or by the same amount.
+  //
+  // An impact crater really is close to round — that is what an explosion leaves — so its rim
+  // gets the harmonics that make it faintly many-sided (2, 3 and 4), never the lopsided k = 1
+  // that would just slide the circle off its own centre. A sea is a flood, a sunspot is what
+  // convection leaves when a magnetic field chokes it off, and a plage is a region rather than
+  // a thing: all three are genuinely lopsided, so all three get k = 1 and more amplitude.
+  // `salt` only keeps the kinds apart: a spot and the plage around it, or a crater and the wall
+  // inside it, can sit at the same coordinates, and without it they would hash to the same
+  // sequence and come out the same silhouette at two sizes, which reads as a mistake.
+  const RIM = {
+    mare: { amplitude: 0.13, harmonics: [1, 2, 3], salt: 11 },
+    floor: { amplitude: 0.08, harmonics: [2, 3, 4], salt: 23 },
+    wall: { amplitude: 0.08, harmonics: [2, 3, 4], salt: 37 },
+    penumbra: { amplitude: 0.12, harmonics: [1, 2, 3], salt: 53 },
+    // The umbra is the one pair that shares a shape on purpose, rather than being kept apart:
+    // a real dark core lies inside its own penumbral collar and broadly follows it, and giving
+    // the two the same lobes at two sizes is also the only way to be sure the core cannot
+    // wander out through the side of the collar it is supposed to sit in.
+    umbra: { amplitude: 0.12, harmonics: [1, 2, 3], salt: 53 },
+    facula: { amplitude: 0.16, harmonics: [1, 2, 3], salt: 89 },
+  };
+  function hashRandom(lat, lon) {
+    let seed = Math.abs(Math.sin(lat * 12.9898 + lon * 78.233) * 43758.5453) % 1;
+    return () => {
+      seed = (seed * 9301 + 0.49297) % 1;
+      return seed;
+    };
+  }
+  // `r` and `unit` are the feature's radius and its body's, in that body's own drawing units:
+  // how much of the disc a feature spans is what decides how many points its outline needs,
+  // and a moon crater and a sunspot are measured against very different numbers.
+  function capOutline(r, kind, lat, lon, unit) {
+    const { amplitude, harmonics, salt } = RIM[kind];
+    const random = hashRandom(lat + salt, lon - salt);
+    const terms = harmonics.map((k) => [k, (amplitude * (0.35 + random())) / Math.sqrt(k), random() * 2 * Math.PI]);
+    const across = r / unit;
+    const steps = across < 0.025 ? 12 : across < 0.06 ? 20 : 28; // enough points to carry the harmonics above
+    // And the rounding follows the unit too, for the same reason `len` counts significant
+    // figures rather than decimal places: a ten-thousandth of the moon's drawing radius is 0.1
+    // and a ten-thousandth of the sun's is 0.00009, so one fixed number of decimals either
+    // bloats every coordinate on one body or flattens the other's outlines to a single point.
+    const places = Math.max(1, Math.ceil(Math.log10(1e4 / unit)));
+    let d = '';
+    for (let i = 0; i < steps; i += 1) {
+      const t = (i / steps) * 2 * Math.PI;
+      const rr = r * (1 + terms.reduce((sum, [k, a, phase]) => sum + a * Math.sin(k * t + phase), 0));
+      d += `${i ? 'L' : 'M'}${(rr * Math.cos(t)).toFixed(places)} ${(rr * Math.sin(t)).toFixed(places)}`;
+    }
+    return `${d}Z`;
+  }
+
   // ---------- the moon ----------
   //
   // Drawn independently of `sky` (it needs no star-atlas data): a single moon at a fixed point
@@ -386,42 +451,6 @@ export function renderWorldMap(mapEl, data) {
     return Math.atan2(y, x) / RAD;
   }
 
-  // An impact crater really is close to round — that is what an explosion leaves — so the
-  // harmonics that carry its rim are the ones that make it faintly many-sided (2, 3 and 4),
-  // never the lopsided k = 1 that would just slide the circle off its own centre. A sea is a
-  // flood, not an impact, and wanders much further off round, so it gets k = 1 and more of it.
-  //
-  // That a rim has a shape at all is the one thing here with no measurement behind it: the
-  // gazetteer gives a centre and a diameter and stops. So the outline is stood in for, the same
-  // admission `feTurbulence` makes for the sun's granulation below — but a fixed stand-in
-  // rather than a random one, its amplitudes and phases hashed out of the feature's own
-  // coordinates, so every crater has a shape of its own and keeps it from one visit to the next.
-  const RIM = {
-    mare: { amplitude: 0.13, harmonics: [1, 2, 3] },
-    floor: { amplitude: 0.08, harmonics: [2, 3, 4] },
-    wall: { amplitude: 0.08, harmonics: [2, 3, 4] },
-  };
-  function hashRandom(lat, lon) {
-    let seed = Math.abs(Math.sin(lat * 12.9898 + lon * 78.233) * 43758.5453) % 1;
-    return () => {
-      seed = (seed * 9301 + 0.49297) % 1;
-      return seed;
-    };
-  }
-  function capOutline(r, kind, lat, lon) {
-    const random = hashRandom(lat, lon);
-    const { amplitude, harmonics } = RIM[kind];
-    const terms = harmonics.map((k) => [k, (amplitude * (0.35 + random())) / Math.sqrt(k), random() * 2 * Math.PI]);
-    const steps = r < 25 ? 12 : r < 60 ? 20 : 28; // enough points to carry the harmonics above
-    let d = '';
-    for (let i = 0; i < steps; i += 1) {
-      const t = (i / steps) * 2 * Math.PI;
-      const rr = r * (1 + terms.reduce((sum, [k, a, phase]) => sum + a * Math.sin(k * t + phase), 0));
-      d += `${i ? 'L' : 'M'}${(rr * Math.cos(t)).toFixed(1)} ${(rr * Math.sin(t)).toFixed(1)}`;
-    }
-    return `${d}Z`;
-  }
-
   // How dark a crater floor is drawn, by how big the crater is — the same idea as a star's
   // opacity coming from its magnitude, and for the same reason: a thousand features all drawn
   // at one strength is not a surface, it is a rash. A walled plain reads at about the weight of
@@ -448,7 +477,7 @@ export function renderWorldMap(mapEl, data) {
       kind,
       minPx,
       key: key ?? Math.sin(rho),
-      outline: capOutline(r, kind, lat, lon),
+      outline: capOutline(r, kind, lat, lon, MOON_UNIT),
       opacity: kind === 'floor' ? floorOpacity(km) : null,
       transform: `rotate(${(Math.atan2(-y, x) / RAD).toFixed(2)})`
         + ` translate(${(sinTheta * Math.cos(rho) * MOON_UNIT).toFixed(1)},0)`
@@ -583,16 +612,20 @@ export function renderWorldMap(mapEl, data) {
   // disc for a pore, a couple of percent for the big one that crossed the meridian that day.
   const spotRadius = (area) => SUN_RADIUS * Math.sqrt(2 * Math.max(area, 0) / 1e6);
 
-  // Every feature on the photosphere is a circular patch on a sphere, so it draws as an ellipse:
-  // its full width across the line back to the centre of the disc, squashed by μ along it. The
+  // Every feature on the photosphere is a patch on a sphere, so it draws as an ellipse: its
+  // full width across the line back to the centre of the disc, squashed by μ along it. The
   // rotation to that radial direction is what makes spots near the limb look properly flattened
-  // into slivers rather than merely small.
-  function patch(cls, { x, y, mu }, r, extra = '') {
+  // into slivers rather than merely small. The outline inside that ellipse is `capOutline`'s
+  // stand-in rather than a circle — a spot is the shape convection leaves when a magnetic field
+  // chokes it off, which is never round — and `seed` is the feature's own heliographic position,
+  // so it keeps the shape it is given. The squashing is a transform rather than a pair of radii
+  // for the same reason it is on the moon: it has to act on a shape, not just on two numbers.
+  function patch(kind, { x, y, mu }, r, seed, extra = '') {
     const cx = x * SUN_RADIUS;
     const cy = y * SUN_RADIUS;
     const angle = Math.atan2(cy, cx) / RAD;
-    return `<ellipse class="${cls}" rx="${len(r * mu)}" ry="${len(r)}"${extra}`
-      + ` transform="translate(${len(cx)},${len(cy)}) rotate(${angle.toFixed(1)})"/>`;
+    return `<path class="map-sun-${kind}" d="${capOutline(r, kind, seed[0], seed[1], SUN_RADIUS)}"${extra}`
+      + ` transform="translate(${len(cx)},${len(cy)}) rotate(${angle.toFixed(1)}) scale(${mu.toFixed(4)},1)"/>`;
   }
 
   // I(μ)/I(centre) = 1 − u(1 − μ), the standard linear limb-darkening law, with u = 0.65 as
@@ -664,9 +697,9 @@ export function renderWorldMap(mapEl, data) {
         // with a neighbour, which carries the shared area itself — so only the owner draws it,
         // and the sharers draw just their own dark cores inside it. A spot with no area at all
         // is a pore: real, resolved, and simply smaller than the catalogue's rounding.
-        if (whole > 0) spots.push(patch('map-sun-penumbra', at, Math.max(spotRadius(whole), SPOT_FLOOR)));
+        if (whole > 0) spots.push(patch('penumbra', at, Math.max(spotRadius(whole), SPOT_FLOOR), [lat, lon]));
         const core = umbra > 0 ? Math.max(spotRadius(umbra), SPOT_FLOOR * 0.6) : SPOT_FLOOR * 0.6;
-        spots.push(patch('map-sun-umbra', at, core));
+        spots.push(patch('umbra', at, core, [lat, lon]));
       });
 
       // The plage around the group: faculae — the bright magnetic network that both precedes
@@ -681,8 +714,8 @@ export function renderWorldMap(mapEl, data) {
       const centre = helioToDisc(group.lat, group.lon);
       if (centre.mu <= 0.01) return;
       const contrast = FACULA_PEAK * (centre.mu * (1 - centre.mu) ** 2) / (4 / 27);
-      faculae.push(patch('map-sun-facula', centre, (spread + PLAGE_PAD) * RAD * SUN_RADIUS,
-        ` opacity="${contrast.toFixed(3)}"`));
+      faculae.push(patch('facula', centre, (spread + PLAGE_PAD) * RAD * SUN_RADIUS,
+        [group.lat, group.lon], ` opacity="${contrast.toFixed(3)}"`));
     });
     return { spots: spots.join(''), faculae: faculae.join('') };
   }
