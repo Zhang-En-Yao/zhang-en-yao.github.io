@@ -132,6 +132,45 @@ export function renderWorldMap(mapEl, data) {
     .scale(projection.scale()).translate(projection.translate());
   const path = d3.geoPath(projection).digits(1);
   const wpath = d3.geoPath(wideProjection).digits(1);
+  let pathDigits = 1; // raised with the zoom by `update`, since the rounding is in content units
+
+  // Past a certain zoom the projected geometry runs millions of pixels off every side of the
+  // card — at the ceiling the globe is eight million pixels across — and a rasteriser working
+  // in floats starts losing the low bits of coordinates that large, which is where tearing at
+  // deep zoom comes from. d3 can cut the geometry down before it is ever emitted: `clipExtent`
+  // is a rectangle in projected space, so trimming it to a few cards' worth around what is
+  // actually on screen keeps every path a few hundred pixels across however far in the view has
+  // gone, and the land goes on being drawn rather than being hidden to stay safe.
+  //
+  // The rectangle is cut generously and only recut once the view has left it, or has shrunk to
+  // a small enough part of it that it is worth tightening — so a drag never re-clips, and the
+  // whole range of the zoom costs about eight of them. Below `CLIP_FROM` there is nothing worth
+  // trimming and no clip is set at all. Only the streamed geometry passes through this; a bare
+  // `projection([lon, lat])` — which is what places every marker and every body — ignores
+  // `clipExtent` entirely, so nothing that is positioned rather than drawn is affected.
+  const CLIP_FROM = 20; // zoom past which trimming is worth doing
+  const CLIP_SLACK = 2; // viewports of margin cut around the visible rectangle, each side
+  const CLIP_TIGHTEN = 8; // recut once the view is this much smaller than the rectangle it has
+  let clipBox = null;
+  function fitClip({ s, x, y }, v) {
+    const clipAll = (extent) => [projection, wideProjection, skyProjection].forEach((p) => p.clipExtent(extent));
+    if (s < CLIP_FROM * v.minScale) {
+      if (!clipBox) return false;
+      clipBox = null;
+      clipAll(null);
+      return true;
+    }
+    const [x0, y0] = [-x / s, -y / s];
+    const [x1, y1] = [(v.w - x) / s, (v.h - y) / s];
+    const inside = clipBox
+      && x0 >= clipBox[0][0] && y0 >= clipBox[0][1] && x1 <= clipBox[1][0] && y1 <= clipBox[1][1];
+    const loose = clipBox && (x1 - x0) * CLIP_TIGHTEN < clipBox[1][0] - clipBox[0][0];
+    if (inside && !loose) return false;
+    const [padX, padY] = [(x1 - x0) * CLIP_SLACK, (y1 - y0) * CLIP_SLACK];
+    clipBox = [[x0 - padX, y0 - padY], [x1 + padX, y1 + padY]];
+    clipAll(clipBox);
+    return true;
+  }
 
   // The real sky lives outside the glass globe, the way a planet floats in space — which an
   // orthographic projection can never draw (every point on a sphere projects inside its own
@@ -166,11 +205,28 @@ export function renderWorldMap(mapEl, data) {
   // lights takes the pale one. Two whole gradients rather than one with a swappable colour,
   // because a custom property is inherited down the document and does not travel through the
   // `url(...)` that points at a gradient — a single shared copy would see no colour at all.
+  //
+  // And because it is a marker rather than a measurement, it is the one thing here allowed a
+  // floor in screen pixels: a halo drawn a third of a pixel across is not marking anything, and
+  // at true angular size that is exactly what a planet's comes to in the default view — Jupiter
+  // half a degree of arc wide would be 0.013px, its halo 0.41px, and the sky would show seven
+  // planets by showing nothing at all. `GLOW_FLOOR_PX` holds every halo to at least that much
+  // on screen (`update` resizes them as the zoom changes), so each body is marked at any zoom
+  // while the body inside it stays the size it really was. Each halo leaves the floor by itself,
+  // at whatever zoom its own true size overtakes it: the sun's and the moon's are already past
+  // it at the default view, Jupiter's at 48× in, Venus's at 54×, Saturn's at 85×, Mercury's and
+  // Mars's not until nearly 300×, and Uranus's and Neptune's not within this map's reach at all
+  // — which is the same order a telescope resolves them in, and the same "and never Neptune"
+  // the note at the top of this file already ends on. Jupiter's four moons are left out of it:
+  // they sit inside Jupiter's own halo, and four floors stacked in there would mark the planet
+  // as a blob rather than as a planet.
   const GLOW_AREA = 1000;
   const GLOW_SCALE = Math.sqrt(GLOW_AREA);
+  const GLOW_FLOOR_PX = 10; // the smallest radius, on screen, a halo is allowed to shrink to
   const GLOW_STOPS = [[0, 0.5], [20, 0.45], [42, 0.22], [68, 0.08], [100, 0]];
-  const glowHtml = (radius, { warm = false, cx = 0, cy = 0 } = {}) =>
+  const glowHtml = (radius, { warm = false, cx = 0, cy = 0, floor = true } = {}) =>
     `<circle class="map-body-glow${warm ? ' is-warm' : ''}" r="${len(radius * GLOW_SCALE)}"`
+    + (floor ? ` data-glow="${len(radius * GLOW_SCALE)}"` : '')
     + (cx || cy ? ` cx="${len(cx)}" cy="${len(cy)}"` : '') + '/>';
   const glowDefs = () => `
     <defs>
@@ -997,7 +1053,7 @@ export function renderWorldMap(mapEl, data) {
       .filter(({ moon }) => moon.front === wanted)
       .map(({ moon, r }) => {
         const [cx, cy] = [moon.x * planet.radius, moon.y * planet.radius];
-        return glowHtml(r, { cx, cy })
+        return glowHtml(r, { cx, cy, floor: false })
           + `<circle class="map-planet-satellite" data-moon="${moon.name}"`
           + ` cx="${len(cx)}" cy="${len(cy)}" r="${len(r)}"/>`;
       })
@@ -1027,11 +1083,40 @@ export function renderWorldMap(mapEl, data) {
     return { back: rings, front: `<g clip-path="url(#map-saturn-front)">${rings}</g>` };
   }
 
-  // The planets get no limb darkening. They do darken toward the limb, and the sun above them
-  // is drawn with the law that governs it — but the sun's coefficient is a published measurement
-  // at a stated wavelength, and there is no single number that does the same job for seven
-  // planets: it runs differently on each of them, and differently again by wavelength and
-  // latitude. Drawing them flat is a smaller lie than drawing them with a coefficient I made up.
+  // The planets still get no limb darkening, in the photometric sense: they do darken toward the
+  // limb, and the sun above them is drawn with the measured law that governs it, but that
+  // coefficient is a published measurement at a stated wavelength and there is no single number
+  // that does the same job for seven planets — it runs differently on each of them, and
+  // differently again by wavelength and latitude. A made-up coefficient would be a worse lie
+  // than none.
+  //
+  // What they do get is the direction the light comes from, which is not a photometric law but
+  // geometry, and is known exactly. A flat fill in the shape of an ellipse is the one thing a
+  // sphere lit from one side never looks like, so each planet carries the same wash the moon
+  // does: a radial gradient centred on the sub-solar point, brightening the ground the sun
+  // stands over and falling away from it. Where that point sits takes no extra ephemeris —
+  // `faceTransform` has already turned the disc so the sun lies along +x, so all that is left is
+  // how far along it the sun stands. `sz`, the cosine of the phase angle, is +1 with the sun
+  // behind us and −1 with it behind the planet, and the highlight rides out to the limb once
+  // the sun has gone behind it, the same way the moon's does. The falloff from there is a
+  // drawing convention and nothing more; only the place it is centred on is a measurement.
+  //
+  // The two tones are written here rather than left to the stylesheet, which is where every
+  // other colour in this file lives. They are the one set that is theme-independent — a lit
+  // sphere is brighter where the light lands and darker away from it on a white page and a
+  // black one alike — and, more to the point, an unstyled `<stop>` defaults to opaque black, so
+  // a stylesheet that arrives late or stale would not soften a planet, it would replace it with
+  // a black disc.
+  const SHADE_STOPS = [[0, '#fff', 0.3], [52, '#fff', 0], [100, '#000', 0.32]];
+  const shadeGradient = (name, lit) => {
+    const sz = 2 * lit - 1;
+    const alongTheSun = sz > 0 ? Math.sqrt(Math.max(0, 1 - sz * sz)) : 1;
+    return `<radialGradient id="map-planet-shade-${name}" cx="${(50 + 50 * alongTheSun).toFixed(1)}%" cy="50%" r="72%">`
+      + SHADE_STOPS.map(([offset, color, opacity]) =>
+        `<stop offset="${offset}%" stop-color="${color}" stop-opacity="${opacity}"/>`).join('')
+      + '</radialGradient>';
+  };
+
   const planetHtml = () => {
     const saturn = planets.find((p) => p.name === 'saturn');
     const saturnFront = saturn.radius * SATURN_RING_OUTER * 1.1;
@@ -1047,6 +1132,7 @@ export function renderWorldMap(mapEl, data) {
       </clipPath>
       ${planets.map(({ name, radius, polarRadius }) =>
         `<clipPath id="map-planet-clip-${name}"><ellipse rx="${len(radius)}" ry="${len(polarRadius)}"/></clipPath>`).join('')}
+      ${planets.map(({ name, planet }) => shadeGradient(name, planet.illuminatedFraction)).join('')}
       <linearGradient id="map-planet-band" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" class="map-planet-band-stop" stop-opacity="0"/>
         <stop offset="28%" class="map-planet-band-stop" stop-opacity="1"/>
@@ -1075,6 +1161,8 @@ export function renderWorldMap(mapEl, data) {
           ? `<g ${clip}>${bandsHtml(bands, planet)}`
             + (name === 'jupiter' ? scarsHtml(planet) : '') + '</g>'
           : '')
+        + `<ellipse class="map-planet-shade" rx="${len(radius)}" ry="${len(polarRadius)}"`
+        + ` fill="url(#map-planet-shade-${name})"/>`
         + night
         + moonsInFront
         + (rings ? rings.front : '')
@@ -1114,6 +1202,9 @@ export function renderWorldMap(mapEl, data) {
   const moonEl = mapEl.querySelector('.map-moon');
   const moonHaloEl = mapEl.querySelector('.map-moon-halo');
   const moonSurfaceEl = mapEl.querySelector('.map-moon-surface');
+  // Every halo that is a body's own marker, with the radius it would have at true scale.
+  const glowEls = [...mapEl.querySelectorAll('.map-body-glow[data-glow]')]
+    .map((el) => ({ el, radius: +el.dataset.glow }));
   const sunEl = mapEl.querySelector('.map-sun');
   const sunFaceEl = mapEl.querySelector('.map-sun-face');
   const planetEls = planets.map((planet) => ({
@@ -1151,6 +1242,7 @@ export function renderWorldMap(mapEl, data) {
 
   let moonCaps = []; // the moon's surface, filled in once `moonFeatures` lands
   let moonCapScale = -1; // the zoom it was last sized for, since how much of it shows follows the zoom
+  let glowScale = -1; // and the zoom the marker halos were last held up to their floor at
 
   // Breathing room around a framed area, clear of the zoom controls on the right.
   const insets = (v) => {
@@ -1239,6 +1331,10 @@ export function renderWorldMap(mapEl, data) {
 
     const [cx, cy] = projection.translate();
     const limit = (skyClipAngle - 2) * (Math.PI / 180);
+    // A body's place, written out finely enough to survive the deepest zoom: rounded to a tenth
+    // of a content unit, as the stars behind it still are, a planet would jump in steps of a
+    // thousand pixels once the view is magnified enough to show it as a disc at all.
+    const place = ([px, py]) => `translate(${px.toFixed(6)},${py.toFixed(6)})`;
 
     lineEls.forEach(({ el, coords }) => el.setAttribute('d', skyPath({ type: 'MultiLineString', coordinates: coords }) || ''));
     starEls.forEach(({ el, point, opacity }) => {
@@ -1257,7 +1353,7 @@ export function renderWorldMap(mapEl, data) {
       const inside = visible && Math.hypot(p[0] - cx, p[1] - cy) <= globeRadius;
       const dim = visible ? (inside ? SKY_INSIDE_DIM : 1) : 0;
       moonEl.setAttribute('opacity', dim);
-      if (visible) moonEl.setAttribute('transform', `translate(${p[0].toFixed(1)},${p[1].toFixed(1)})`);
+      if (visible) moonEl.setAttribute('transform', place(p));
       if (moonHaloEl) {
         moonHaloEl.setAttribute('d', skyPath({ type: 'Polygon', coordinates: [moonHaloRing] }) || '');
         moonHaloEl.setAttribute('opacity', (dim * HALO_BASE_OPACITY).toFixed(2));
@@ -1270,7 +1366,7 @@ export function renderWorldMap(mapEl, data) {
       const inside = visible && Math.hypot(p[0] - cx, p[1] - cy) <= globeRadius;
       sunEl.setAttribute('opacity', visible ? (inside ? SKY_INSIDE_DIM : 1) : 0);
       if (visible) {
-        sunEl.setAttribute('transform', `translate(${p[0].toFixed(1)},${p[1].toFixed(1)})`);
+        sunEl.setAttribute('transform', place(p));
         if (sunFaceEl) sunFaceEl.setAttribute('transform', faceTransform(sunPoint, p, SUN_AXIS.p));
       }
     }
@@ -1284,7 +1380,7 @@ export function renderWorldMap(mapEl, data) {
       const inside = visible && Math.hypot(p[0] - cx, p[1] - cy) <= globeRadius;
       el.setAttribute('opacity', visible ? (inside ? SKY_INSIDE_DIM : 1) : 0);
       if (!visible) return;
-      el.setAttribute('transform', `translate(${p[0].toFixed(1)},${p[1].toFixed(1)})`);
+      el.setAttribute('transform', place(p));
       if (faceEl && axisAngle !== null) faceEl.setAttribute('transform', faceTransform(point, p, axisAngle));
     });
 
@@ -1317,6 +1413,26 @@ export function renderWorldMap(mapEl, data) {
     if (s !== moonCapScale) {
       moonCapScale = s;
       showMoonDetail(s);
+    }
+    // `digits` rounds projected geometry in content units, so how fine it has to be depends on
+    // how far the view then magnifies it: a tenth of a unit is a twentieth of a pixel at the
+    // default view and a thousand pixels at the ceiling, which would draw Norway as a staircase.
+    // Stepped rather than continuous, and capped, because every extra digit lengthens two
+    // hundred-odd coastline strings on every frame of a drag — and past the cap the land under
+    // a magnified planet is a plain fill with no edge on screen to give itself away.
+    const digits = Math.min(3, Math.max(1, Math.round(Math.log10(s))));
+    const redigit = digits !== pathDigits;
+    if (redigit) {
+      pathDigits = digits; // set before the redraw below, which comes back through here
+      path.digits(digits);
+      wpath.digits(digits);
+      skyPath.digits(digits);
+    }
+    if (fitClip({ s, x, y }, v) || redigit) redraw(true);
+    // And so does how much of each marker halo is real size and how much is the floor.
+    if (s !== glowScale) {
+      glowScale = s;
+      glowEls.forEach(({ el, radius }) => el.setAttribute('r', Math.max(radius, GLOW_FLOOR_PX / s).toPrecision(6)));
     }
     buttons.in.disabled = s >= v.maxScale * 0.999;
     buttons.out.disabled = s <= v.minScale * 1.001;
@@ -1399,11 +1515,20 @@ export function renderWorldMap(mapEl, data) {
   // How far in the map will zoom. The default view sits at exactly the scale that fits the whole
   // card, so a body reaches the size the globe has there once the view is magnified by the ratio
   // of their radii — and now that nothing in the sky is drawn larger than it really is, that
-  // ratio is the honest reason for the number. The sun is the smaller of the two big discs, so
-  // it sets the ceiling; the moon, slightly wider, gets there a little sooner. Past about 3× the
-  // finer coastline atlas loads, and past a hundred the country outlines are being stretched far
-  // beyond the detail they hold — but by then what is on screen is a disc in the sky, not land.
-  const maxZoom = Math.ceil(globeRadius / SUN_RADIUS);
+  // ratio is the honest reason for the number. The sun and the moon get there at about 430×;
+  // Jupiter, a fifty-seventh of the sun's width that morning, needs nearly twenty-five thousand,
+  // and until the ceiling let it the planets could only ever be a few pixels across — drawn
+  // truthfully and therefore not drawn at all. So the largest planet sets the ceiling instead.
+  //
+  // It is the largest rather than the smallest because past that point nothing further resolves:
+  // Jupiter is the one with the most to show, and by the time it fills the card Saturn's rings
+  // have overrun it, Venus is a 289-pixel crescent, Mars and Mercury are 53-pixel discs, and
+  // Uranus and Neptune have reached 36 and 22 pixels of the featureless blue they are drawn as
+  // and have nothing else to give. Magnifying past that would only make the same discs bigger,
+  // at a scale where the globe below is already eight million pixels across and its coastline
+  // is being drawn at six hundred pixels to the kilometre, hundreds of times finer than the
+  // atlas has anything to say.
+  const maxZoom = Math.ceil(globeRadius / Math.max(...planets.map((p) => p.radius)));
 
   const [globeCx, globeCy] = projection.translate();
   const homeBounds = [[globeCx - globeRadius, globeCy - globeRadius], [globeCx + globeRadius, globeCy + globeRadius]];

@@ -262,6 +262,12 @@
    measurement; only these colours are a judgement. */
 .map-planet-disc { fill: var(--planet-tint); }
 
+/* `.map-planet-shade`, the wash that makes a disc a sphere, is the one thing here the
+   stylesheet does not colour in: its two tones are plain white and black, the same in either
+   theme, and they are written into the gradient itself by world-map.js — an unstyled <stop>
+   falls back to opaque black, which would turn every planet into a black disc rather than
+   merely leaving it flat. See `SHADE_STOPS` there. */
+
 .map-planet-mercury { --planet-tint: color-mix(in srgb, #8c8378 72%, var(--text)); }
 
 .map-planet-venus { --planet-tint: color-mix(in srgb, #e8d9b0 72%, var(--text)); }
